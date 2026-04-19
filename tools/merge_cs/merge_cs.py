@@ -8,6 +8,75 @@ from datetime import datetime
 # 获取当前脚本所在目录，保证 config 文件读写在同一目录
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(SCRIPT_DIR, "merge_config.json")
+HISTORY_LIMIT = 9
+
+def get_desktop_path():
+    """使用注册表获取真实的桌面路径"""
+    try:
+        key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders"
+        )
+        desktop_path, _ = winreg.QueryValueEx(key, "Desktop")
+        winreg.CloseKey(key)
+        return desktop_path
+    except Exception:
+        return os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop')
+
+def load_history():
+    """加载历史路径列表，返回list"""
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                if isinstance(data, dict):
+                    # 兼容旧格式
+                    last_path = data.get('last_path')
+                    if last_path:
+                        return [last_path]
+                    else:
+                        return []
+                elif isinstance(data, list):
+                    return data
+        except:
+            return []
+    return []
+
+def save_history(history):
+    """保存历史路径列表（只保留最新HISTORY_LIMIT条）"""
+    try:
+        with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+            json.dump(history[:HISTORY_LIMIT], f)
+    except:
+        pass
+
+def add_to_history(history, path):
+    """将新路径加入历史，去重并保持顺序"""
+    if path in history:
+        history.remove(path)
+    history.insert(0, path)
+    return history[:HISTORY_LIMIT]
+
+def print_history(history):
+    if not history:
+        print("(无历史记录)")
+        return
+    print("\n📝 历史路径记忆：")
+    for idx, p in enumerate(history, 1):
+        print(f"  {idx}. {p}")
+    print("")
+
+def print_help():
+    print("\n【merge_cs 工具指令说明】")
+    print("  help      : 显示本帮助信息")
+    print("  m         : 显示历史记忆的路径列表")
+    print("  1-9       : 直接切换到对应历史路径")
+    print("  ll        : 列出当前路径下的所有文件夹")
+    print("  q         : 退出程序")
+    print("  绝对路径  : 以盘符开头（如 D:\\xxx），切换到指定绝对路径")
+    print("  \\相对路径 : 以 \\ 或 / 开头，切换到当前路径下的子文件夹（支持模糊匹配，仅最后一级可模糊）")
+    print("  回车      : 执行合并操作 (基于当前路径)")
+    print("")
 
 def get_desktop_path():
     """使用注册表获取真实的桌面路径"""
@@ -246,10 +315,10 @@ def merge_cs_files(source_dir, output_path):
 def main():
     print("--- C# 代码合并工具 (智能版) ---")
     
-    # 1. 初始化路径
-    current_path = load_last_path()
-    if not current_path:
-        current_path = os.path.dirname(os.path.abspath(__file__))
+    # 1. 初始化路径和历史
+    history = load_history()
+    current_path = history[0] if history else os.path.dirname(os.path.abspath(__file__))
+    first_run = True
     
     # 辅助函数：获取真实大小写路径
     def get_real_path(path):
@@ -261,30 +330,38 @@ def main():
         # 2. 显示当前状态
         print("-" * 30)
         print(f"📁 当前路径为: {current_path}")
-        print("💡 输入 'D:\\...' 盘符开头绝对路径, '\\相对路径' 修改当前路径 (支持模糊)")
-        print("💡 输入 ll 列出当前路径文件夹, q 退出, 回车执行或合并, 默认基于当前路径")
+        print("💡 输入 'D:\...' 盘符开头绝对路径 '\相对路径' 修改当前路径 (支持模糊)")
+        print("💡 输入 help 查看所有指令, q 退出, 回车执行或合并, 默认基于当前路径")
+        if first_run:
+            print_history(history)
+            first_run = False
         
         # 3. 获取输入
         user_input = input("👉 请输入指令: ").strip()
 
-        # 4. 退出逻辑
+        # 4. 指令处理
         if user_input.lower() == 'q':
             print("👋 已退出程序。")
             return
-
-        # 5. 列出目录指令 (ll)
+        if user_input.lower() == 'help':
+            print_help()
+            continue
+        if user_input.lower() == 'm':
+            print_history(history)
+            continue
         if user_input.lower() == 'll':
             list_directories(current_path)
             continue
+        if user_input.isdigit() and 1 <= int(user_input) <= len(history):
+            idx = int(user_input) - 1
+            current_path = history[idx]
+            print(f"✅ 已切换到历史路径: {current_path}")
+            continue
 
-        # 6. 路径切换逻辑
+        # 路径切换逻辑
         target_folder = user_input
-        
-        # 去除引号
         if target_folder.startswith('"') and target_folder.endswith('"'):
             target_folder = target_folder[1:-1]
-
-        # 情况 A: 绝对路径 (包含盘符:)
         if ":" in target_folder:
             real_path = get_real_path(target_folder)
             if os.path.exists(real_path) and os.path.isdir(real_path):
@@ -293,27 +370,17 @@ def main():
             else:
                 print(f"❌ 错误: 绝对路径不存在 -> {target_folder}")
             continue
-
-        # 情况 B: 相对路径 (以 \ 或 / 开头) -> 【加入了模糊匹配】
         if target_folder.startswith('\\') or target_folder.startswith('/'):
-            # 去掉开头的斜杠，获取纯文件夹名
             relative_part = target_folder.lstrip('\\/')
-            
-            # 1. 先尝试精确匹配 (拼接完整路径)
             direct_path = os.path.normpath(os.path.join(current_path, relative_part))
             real_path = get_real_path(direct_path)
-            
             if os.path.exists(real_path) and os.path.isdir(real_path):
                 current_path = real_path
                 print(f"✅ 已切换路径至: {current_path}")
                 continue
-            
-            # 2. 如果精确匹配失败，且输入的内容不包含子路径，则尝试模糊匹配
             if '\\' not in relative_part and '/' not in relative_part:
-                # 提取最后一级目录名进行模糊匹配
                 folder_name = relative_part
                 best_match_name = find_best_match(current_path, folder_name)
-                
                 if best_match_name:
                     matched_path = os.path.join(current_path, best_match_name)
                     current_path = get_real_path(matched_path)
@@ -324,22 +391,19 @@ def main():
                     print(f"❌ 路径不存在，且未找到相似的文件夹: '{relative_part}'")
                     continue
             else:
-                 # 如果是复杂路径，精确匹配失败就直接报错
-                 print(f"❌ 路径不存在: {direct_path}")
-                 continue
+                print(f"❌ 路径不存在: {direct_path}")
+                continue
 
-        # 情况 C: 执行合并 (直接回车)
+        # 合并操作
         if user_input == "":
             if not os.path.exists(current_path):
                 print(f"❌ 错误: 当前路径已失效 -> {current_path}")
                 continue
-
             desktop_dir = get_desktop_path()
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             folder_name = os.path.basename(current_path) or "Unknown"
             output_filename = f"{folder_name}_MergedCsCode_{timestamp}.txt"
             output_path = os.path.join(desktop_dir, output_filename)
-
             try:
                 count, errors, total_lines, class_count, struct_count, enum_count, interface_count, variable_count, method_count = merge_cs_files(current_path, output_path)
                 print("-" * 30)
@@ -349,16 +413,16 @@ def main():
                 if errors > 0:
                     print(f"⚠️ 有 {errors} 个文件读取失败。")
                 print(f"📄 结果已保存至: {output_path}")
-
-                save_last_path(current_path)
+                # 更新历史
+                history = add_to_history(history, current_path)
+                save_history(history)
                 return
-
             except Exception as e:
                 print(f"❌ 发生错误: {e}")
                 input("\n按回车键继续...")
             continue
 
-        # 情况 D: 无效指令
+        # 无效指令
         print(f"⚠️ 无效指令: '{user_input}'")
         print("   请输入路径跳转，或回车执行合并。")
 
