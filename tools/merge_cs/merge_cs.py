@@ -176,32 +176,72 @@ def merge_cs_files(source_dir, output_path):
     exclude_dirs = {'.git', 'bin', 'obj', 'node_modules', '.vs', 'packages', 'Debug', 'Release'}
     file_count = 0
     error_count = 0
+    total_lines = 0
+    class_count = 0
+    struct_count = 0
+    enum_count = 0
+    interface_count = 0
+    variable_count = 0
+    method_count = 0
+
+    # 正则表达式
+    re_class = re.compile(r'\bclass\s+\w+')
+    re_struct = re.compile(r'\bstruct\s+\w+')
+    re_enum = re.compile(r'\benum\s+\w+')
+    re_interface = re.compile(r'\binterface\s+\w+')
+    # 变量/字段/属性声明（简化版，排除方法）
+    re_variable = re.compile(r'\b(public|private|protected|internal)\s+((static|readonly|const|volatile|sealed|virtual|override|new)\s+)*[\w<>\[\],]+\s+\w+\s*(=|;|\{)')
+    # 方法声明（简化版，匹配 public void Foo(...), private int Bar(...), ...）
+    re_method = re.compile(r'\b(public|private|protected|internal)\s+((static|virtual|override|async|sealed|new|partial)\s+)*[\w<>\[\],]+\s+\w+\s*\([^;]*\)\s*(\{|where|$)')
 
     print(f"🔍 正在扫描目录: {source_dir}")
     with open(output_path, 'w', encoding='utf-8') as outfile:
-        outfile.write(f"// 合并时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        merge_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # 先写入头部，稍后补充统计
+        outfile.write(f"// 合并时间: {merge_time}\n")
         outfile.write(f"// 来源目录: {source_dir}\n")
+        # 预留统计信息位置
+        outfile.write(f"// 合并统计信息稍后补充\n")
         outfile.write(f"// ==========================================\n")
 
         for root, dirs, files in os.walk(source_dir):
             dirs[:] = [d for d in dirs if d not in exclude_dirs]
-            
             for file in files:
                 if file.endswith('.cs'):
                     file_path = os.path.join(root, file)
                     relative_path = os.path.relpath(file_path, source_dir)
                     outfile.write(f"\n\n// ==================== 文件: {relative_path} ====================\n\n")
-                    
                     try:
                         with open(file_path, 'r', encoding='utf-8', errors='ignore') as infile:
                             content = infile.read()
+                        lines = content.splitlines()
+                        total_lines += len(lines)
+                        # 统计信息
+                        class_count += len(re_class.findall(content))
+                        struct_count += len(re_struct.findall(content))
+                        enum_count += len(re_enum.findall(content))
+                        interface_count += len(re_interface.findall(content))
+                        variable_count += len(re_variable.findall(content))
+                        method_count += len(re_method.findall(content))
                         outfile.write(content)
                         file_count += 1
                     except Exception as e:
                         outfile.write(f"// [错误] 无法读取文件: {e}\n")
                         error_count += 1
 
-    return file_count, error_count
+        # 回到文件头部，补充统计信息
+        outfile.seek(0)
+        # 统计信息字符串
+        stat_str = (
+            f"// 合并统计：共 {file_count} 个 .cs 文件，合计 {total_lines} 行，类 {class_count} 个，结构体 {struct_count} 个，枚举 {enum_count} 个，接口 {interface_count} 个，变量/字段/属性 {variable_count} 个，方法 {method_count} 个，读取失败 {error_count} 个文件\n"
+        )
+        outfile.write(f"// 合并时间: {merge_time}\n")
+        outfile.write(f"// 来源目录: {source_dir}\n")
+        outfile.write(stat_str)
+        outfile.write(f"// ==========================================\n")
+
+    # 返回所有统计数据
+    return file_count, error_count, total_lines, class_count, struct_count, enum_count, interface_count, variable_count, method_count
 
 def main():
     print("--- C# 代码合并工具 (智能版) ---")
@@ -301,16 +341,18 @@ def main():
             output_path = os.path.join(desktop_dir, output_filename)
 
             try:
-                count, errors = merge_cs_files(current_path, output_path)
+                count, errors, total_lines, class_count, struct_count, enum_count, interface_count, variable_count, method_count = merge_cs_files(current_path, output_path)
                 print("-" * 30)
-                print(f"✅ 成功! 共处理了 {count} 个 .cs 文件。")
+                print(f"✅ 成功! 共处理了 {count} 个 .cs 文件，总行数 {total_lines}。")
+                print(f"   类: {class_count}，结构体: {struct_count}，枚举: {enum_count}，接口: {interface_count}")
+                print(f"   变量/字段/属性: {variable_count}，方法: {method_count}")
                 if errors > 0:
                     print(f"⚠️ 有 {errors} 个文件读取失败。")
                 print(f"📄 结果已保存至: {output_path}")
-                
+
                 save_last_path(current_path)
-                return 
-                
+                return
+
             except Exception as e:
                 print(f"❌ 发生错误: {e}")
                 input("\n按回车键继续...")
