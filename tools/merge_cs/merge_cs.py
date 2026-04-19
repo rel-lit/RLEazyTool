@@ -5,7 +5,9 @@ import winreg
 import re
 from datetime import datetime
 
-CONFIG_FILE = "merge_config.json"
+# 获取当前脚本所在目录，保证 config 文件读写在同一目录
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE = os.path.join(SCRIPT_DIR, "merge_config.json")
 
 def get_desktop_path():
     """使用注册表获取真实的桌面路径"""

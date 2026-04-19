@@ -1,0 +1,3 @@
+﻿# 忽略 merge 工具的配置文件
+/tools/merge_cs/merge_config.json
+
