@@ -379,7 +379,8 @@ def merge_files_by_types(source_dir, output_path, file_types):
     main_stat += "，读取失败 {} 个文件".format(error_count)
     stat_lines.append(main_stat)
 
-    # 详细统计信息（文件头部专用）
+    # 详细统计信息（文件头部和终端输出）
+    detail_lines = []
     if '.cs' in file_types:
         real_classes = [c for c in cs_class_infos if not c[0] and not c[1]]
         abstract_classes = [c for c in cs_class_infos if c[0] and not c[1]]
@@ -393,27 +394,39 @@ def merge_files_by_types(source_dir, output_path, file_types):
         avg_enum_members = round(sum(enum_member_counts)/len(enum_member_counts), 2) if enum_member_counts else 0
         avg_struct_fields = round(sum(struct_field_counts)/len(struct_field_counts), 2) if struct_field_counts else 0
         avg_iface_methods = round(sum(c[4] for c in interfaces)/len(interfaces), 2) if interfaces else 0
-        stat_lines.append("// [详细统计] 实际类平均长度: {} 行，抽象类平均抽象方法数: {}，最大类长度: {}，最小类长度: {}".format(
+        # 文件头部注释行（无符号化前缀）
+        stat_lines.append("// 实际类平均长度: {} 行，抽象类平均抽象方法数: {}，最大类长度: {}，最小类长度: {}".format(
             avg_real_class_len, avg_abstract_methods, max_class_len, min_class_len))
-        stat_lines.append("// [详细统计] 平均每类方法数: {}，平均每类字段数: {}".format(
+        stat_lines.append("// 平均每类方法数: {}，平均每类字段数: {}".format(
             avg_methods_per_class, avg_fields_per_class))
-        stat_lines.append("// [详细统计] 枚举平均成员数: {}，结构体平均字段数: {}，接口平均方法数: {}".format(
+        stat_lines.append("// 枚举平均成员数: {}，结构体平均字段数: {}，接口平均方法数: {}".format(
+            avg_enum_members, avg_struct_fields, avg_iface_methods))
+        # 终端输出行（无注释号、无符号化前缀）
+        detail_lines.append("实际类平均长度: {} 行，抽象类平均抽象方法数: {}，最大类长度: {}，最小类长度: {}".format(
+            avg_real_class_len, avg_abstract_methods, max_class_len, min_class_len))
+        detail_lines.append("平均每类方法数: {}，平均每类字段数: {}".format(
+            avg_methods_per_class, avg_fields_per_class))
+        detail_lines.append("枚举平均成员数: {}，结构体平均字段数: {}，接口平均方法数: {}".format(
             avg_enum_members, avg_struct_fields, avg_iface_methods))
 
     stat_lines.append("// ==========================================")
     stat_str = "\n".join(stat_lines) + "\n"
 
-    # 终端输出（简明摘要，不带注释号，不含详细统计）
+    # 终端输出（简明摘要+详细统计）
     print("-" * 30)
-    print(f"✅ 成功! 共处理了 {file_count} 个文件，总行数 {total_lines}。")
+    print(f"    ✅ 成功! 共处理了 {file_count} 个文件，总行数 {total_lines}。")
     for ext in file_types:
-        print(f"   {ext} 文件: {type_file_count[ext]} 个")
+        print(f"    {ext} 文件: {type_file_count[ext]} 个")
     if '.cs' in file_types:
-        print(f"   类: {class_count}，结构体: {struct_count}，枚举: {enum_count}，接口: {interface_count}")
-        print(f"   变量/字段/属性: {variable_count}，方法: {method_count}")
+        print(f"    类: {class_count}，结构体: {struct_count}，枚举: {enum_count}，接口: {interface_count}")
+        print(f"    变量/字段/属性: {variable_count}，方法: {method_count}")
+        print("")
+        for line in detail_lines:
+            print(f"    {line}")
+        print("")
     if error_count > 0:
         print(f"⚠️ 有 {error_count} 个文件读取失败。")
-    print(f"📄 结果已保存至: {output_path}")
+    print(f"\n📄 结果已保存至: {output_path}\n")
 
     # 写入合并文件，统计信息在最前面
     with open(output_path, 'w', encoding='utf-8') as fout:
@@ -570,19 +583,8 @@ def main():
             output_path = os.path.join(desktop_dir, output_filename)
             file_types = config['type_groups'].get(config.get('current_type_group', 'default'), ['.cs'])
             try:
-                result = merge_files_by_types(current_path, output_path, file_types)
-                file_count, errors, total_lines, class_count, struct_count, enum_count, interface_count, variable_count, method_count, type_file_count = result
-                print("-" * 30)
-                print(f"✅ 成功! 共处理了 {file_count} 个文件，总行数 {total_lines}。")
-                for ext in file_types:
-                    print(f"   {ext} 文件: {type_file_count[ext]} 个")
-                if '.cs' in file_types:
-                    print(f"   类: {class_count}，结构体: {struct_count}，枚举: {enum_count}，接口: {interface_count}")
-                    print(f"   变量/字段/属性: {variable_count}，方法: {method_count}")
-                if errors > 0:
-                    print(f"⚠️ 有 {errors} 个文件读取失败。")
-                print(f"📄 结果已保存至: {output_path}")
-                # 更新历史
+                merge_files_by_types(current_path, output_path, file_types)
+                # 只保留保存路径和历史更新
                 config['history'] = add_to_history(config.get('history', []), current_path)
                 save_config(config)
                 return
