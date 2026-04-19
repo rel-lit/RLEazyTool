@@ -262,7 +262,7 @@ def merge_files_by_types(source_dir, output_path, file_types):
     re_method = re.compile(r'\b(public|private|protected|internal)\s+((static|virtual|override|async|sealed|new|partial)\s+)*[\w<>\[\],]+\s+\w+\s*\([^;]*\)\s*(\{|where|$)')
 
     print(f"🔍 正在扫描目录: {source_dir}")
-    
+
     # 新增详细结构统计（仅 .cs 文件）
     cs_class_infos = []  # [(is_abstract, class_name, class_lines, interface_count, method_count, field_count)]
     enum_member_counts = []
@@ -270,24 +270,17 @@ def merge_files_by_types(source_dir, output_path, file_types):
     interface_method_counts = []
 
     def analyze_cs_classes(content):
-        """分析 C# 类的详细信息"""
         nonlocal class_count, struct_count, enum_count, interface_count, variable_count, method_count
-        # 类、结构体、枚举、接口 的详细统计
         class_matches = re_class.findall(content)
         struct_matches = re_struct.findall(content)
         enum_matches = re_enum.findall(content)
         interface_matches = re_interface.findall(content)
-        
         class_count += len(class_matches)
         struct_count += len(struct_matches)
         enum_count += len(enum_matches)
         interface_count += len(interface_matches)
-        
-        # 变量、方法 统计（包括字段、属性等）
         variable_count += len(re_variable.findall(content))
         method_count += len(re_method.findall(content))
-        
-        # 详细信息提取
         lines = content.splitlines()
         in_multiline_comment = False
         for line in lines:
@@ -300,107 +293,91 @@ def merge_files_by_types(source_dir, output_path, file_types):
                 continue
             if stripped_line.startswith("//") or not stripped_line:
                 continue
-            
-            # 类名（可能带泛型参数）
             class_name_match = re.search(r'\bclass\s+(\w+)', stripped_line)
             if class_name_match:
                 class_name = class_name_match.group(1)
-                # 判断是否为抽象类
                 is_abstract = 'abstract' in stripped_line
-                # 方法、字段、属性 计数
                 method_count_in_class = len(re_method.findall(line))
                 field_count_in_class = len(re_variable.findall(line))
-                # 接口数（基于实现的接口，简单统计）
                 iface_count_in_class = len(re.findall(r'\b\w+\s*:\s*I\w+', line))
-                
                 cs_class_infos.append((is_abstract, class_name, len(lines), iface_count_in_class, method_count_in_class, field_count_in_class))
-        
-        # 枚举成员数
         for enum_match in enum_matches:
             member_count = len(enum_match.split(','))
             enum_member_counts.append(member_count)
-        
-        # 结构体字段数（简单统计，基于行）
         for struct_match in struct_matches:
             field_count = len(re_variable.findall(struct_match))
             struct_field_counts.append(field_count)
-        
-        # 接口方法数（简单统计，基于行）
         for interface_match in interface_matches:
             method_count = len(re_method.findall(interface_match))
             interface_method_counts.append(method_count)
 
-    with open(output_path, 'w', encoding='utf-8') as outfile:
-        merge_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        outfile.write(f"// 合并时间: {merge_time}\n")
-        outfile.write(f"// 来源目录: {source_dir}\n")
-        outfile.write(f"// 合并统计信息稍后补充\n")
-        outfile.write(f"// ==========================================\n")
+    # 先扫描并统计所有内容，收集合并内容
+    merged_contents = []
+    for root, dirs, files in os.walk(source_dir):
+        dirs[:] = [d for d in dirs if d not in exclude_dirs]
+        for file in files:
+            for ext in file_types:
+                if file.endswith(ext):
+                    file_path = os.path.join(root, file)
+                    relative_path = os.path.relpath(file_path, source_dir)
+                    merged_contents.append(f"\n\n// ==================== 文件: {relative_path} ====================\n\n")
+                    try:
+                        with open(file_path, 'r', encoding='utf-8', errors='ignore') as infile:
+                            content = infile.read()
+                        lines = content.splitlines()
+                        total_lines += len(lines)
+                        type_file_count[ext] += 1
+                        if ext == '.cs':
+                            analyze_cs_classes(content)
+                        merged_contents.append(content)
+                        file_count += 1
+                    except Exception as e:
+                        merged_contents.append(f"// [错误] 无法读取文件: {e}\n")
+                        error_count += 1
+                    break  # 一个文件只计一次
 
-        for root, dirs, files in os.walk(source_dir):
-            dirs[:] = [d for d in dirs if d not in exclude_dirs]
-            for file in files:
-                for ext in file_types:
-                    if file.endswith(ext):
-                        file_path = os.path.join(root, file)
-                        relative_path = os.path.relpath(file_path, source_dir)
-                        outfile.write(f"\n\n// ==================== 文件: {relative_path} ====================\n\n")
-                        try:
-                            with open(file_path, 'r', encoding='utf-8', errors='ignore') as infile:
-                                content = infile.read()
-                            lines = content.splitlines()
-                            total_lines += len(lines)
-                            type_file_count[ext] += 1
-                            if ext == '.cs':
-                                analyze_cs_classes(content)
-                            outfile.write(content)
-                            file_count += 1
-                        except Exception as e:
-                            outfile.write(f"// [错误] 无法读取文件: {e}\n")
-                            error_count += 1
-                        break  # 一个文件只计一次
+    # 构建统计字符串 stat_str
+    merge_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    stat_str = f"// 合并时间: {merge_time}\n"
+    stat_str += f"// 来源目录: {source_dir}\n"
+    stat_str += ("// 合并统计：共 {} 个文件，总行数 {}，".format(file_count, total_lines)
+                 + ", ".join(["{} 文件 {} 个".format(ext, type_file_count[ext]) for ext in file_types]))
+    if '.cs' in file_types:
+        stat_str += "，类 {} 个，结构体 {} 个，枚举 {} 个，接口 {} 个，变量/字段/属性 {} 个，方法 {} 个".format(
+            class_count, struct_count, enum_count, interface_count, variable_count, method_count)
+    stat_str += "，读取失败 {} 个文件\n".format(error_count)
+    stat_str += "// ==========================================\n"
 
-        # 回到文件头部，补充统计信息
-        outfile.seek(0)
-        stat_str = (
-            "// 合并统计：共 {} 个文件，合计 {} 行，".format(file_count, total_lines)
-            + ", ".join(["{} 文件 {} 个".format(ext, type_file_count[ext]) for ext in file_types])
+    # 详细统计信息
+    if '.cs' in file_types:
+        real_classes = [c for c in cs_class_infos if not c[0]]
+        abstract_classes = [c for c in cs_class_infos if c[0]]
+        avg_real_class_len = round(sum(c[2] for c in real_classes)/len(real_classes), 2) if real_classes else 0
+        avg_abstract_iface = round(sum(c[3] for c in abstract_classes)/len(abstract_classes), 2) if abstract_classes else 0
+        max_class_len = max((c[2] for c in cs_class_infos), default=0)
+        min_class_len = min((c[2] for c in cs_class_infos), default=0)
+        avg_methods_per_class = round(sum(c[4] for c in cs_class_infos)/len(cs_class_infos), 2) if cs_class_infos else 0
+        avg_fields_per_class = round(sum(c[5] for c in cs_class_infos)/len(cs_class_infos), 2) if cs_class_infos else 0
+        avg_enum_members = round(sum(enum_member_counts)/len(enum_member_counts), 2) if enum_member_counts else 0
+        avg_struct_fields = round(sum(struct_field_counts)/len(struct_field_counts), 2) if struct_field_counts else 0
+        avg_iface_methods = round(sum(interface_method_counts)/len(interface_method_counts), 2) if interface_method_counts else 0
+        stat_str += (
+            "// [详细统计] 实际类平均长度: {} 行，抽象类平均接口数: {}，最大类长度: {}，最小类长度: {}\n"
+            "// [详细统计] 平均每类方法数: {}，平均每类字段数: {}\n"
+            "// [详细统计] 枚举平均成员数: {}，结构体平均字段数: {}，接口平均方法数: {}\n"
+        ).format(
+            avg_real_class_len, avg_abstract_iface, max_class_len, min_class_len,
+            avg_methods_per_class, avg_fields_per_class,
+            avg_enum_members, avg_struct_fields, avg_iface_methods
         )
-        if '.cs' in file_types:
-            stat_str += "，类 {} 个，结构体 {} 个，枚举 {} 个，接口 {} 个，变量/字段/属性 {} 个，方法 {} 个".format(
-                class_count, struct_count, enum_count, interface_count, variable_count, method_count)
-        stat_str += "，读取失败 {} 个文件\n".format(error_count)
-        outfile.write("// 合并时间: {}\n".format(merge_time))
-        outfile.write("// 来源目录: {}\n".format(source_dir))
-        outfile.write(stat_str)
-        outfile.write("// ==========================================\n")
+        # 终端输出顺序与文件一致
+        print("\n" + stat_str)
 
-        # 详细统计信息输出
-        if '.cs' in file_types:
-            real_classes = [c for c in cs_class_infos if not c[0]]
-            abstract_classes = [c for c in cs_class_infos if c[0]]
-            avg_real_class_len = round(sum(c[2] for c in real_classes)/len(real_classes), 2) if real_classes else 0
-            avg_abstract_iface = round(sum(c[3] for c in abstract_classes)/len(abstract_classes), 2) if abstract_classes else 0
-            max_class_len = max((c[2] for c in cs_class_infos), default=0)
-            min_class_len = min((c[2] for c in cs_class_infos), default=0)
-            avg_methods_per_class = round(sum(c[4] for c in cs_class_infos)/len(cs_class_infos), 2) if cs_class_infos else 0
-            avg_fields_per_class = round(sum(c[5] for c in cs_class_infos)/len(cs_class_infos), 2) if cs_class_infos else 0
-            avg_enum_members = round(sum(enum_member_counts)/len(enum_member_counts), 2) if enum_member_counts else 0
-            avg_struct_fields = round(sum(struct_field_counts)/len(struct_field_counts), 2) if struct_field_counts else 0
-            avg_iface_methods = round(sum(interface_method_counts)/len(interface_method_counts), 2) if interface_method_counts else 0
-            stat_str += ("\n// [详细统计] 实际类平均长度: {} 行，抽象类平均接口数: {}，最大类长度: {}，最小类长度: {}"
-                         "\n// 平均每类方法数: {}，平均每类字段数: {}"
-                         "\n// 枚举平均成员数: {}，结构体平均字段数: {}，接口平均方法数: {}"
-                         ).format(
-                avg_real_class_len, avg_abstract_iface, max_class_len, min_class_len,
-                avg_methods_per_class, avg_fields_per_class,
-                avg_enum_members, avg_struct_fields, avg_iface_methods)
-            # 终端也输出
-            print("[详细统计] 实际类平均长度: {} 行，抽象类平均接口数: {}，最大类长度: {}，最小类长度: {}".format(
-                avg_real_class_len, avg_abstract_iface, max_class_len, min_class_len))
-            print("[详细统计] 平均每类方法数: {}，平均每类字段数: {}".format(avg_methods_per_class, avg_fields_per_class))
-            print("[详细统计] 枚举平均成员数: {}，结构体平均字段数: {}，接口平均方法数: {}".format(
-                avg_enum_members, avg_struct_fields, avg_iface_methods))
+    # 写入合并文件，统计信息在最前面
+    with open(output_path, 'w', encoding='utf-8') as fout:
+        fout.write(stat_str)
+        for f in merged_contents:
+            fout.write(f)
 
     return file_count, error_count, total_lines, class_count, struct_count, enum_count, interface_count, variable_count, method_count, type_file_count
 
