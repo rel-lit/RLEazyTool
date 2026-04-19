@@ -330,7 +330,7 @@ def main():
         # 2. 显示当前状态
         print("-" * 30)
         print(f"📁 当前路径为: {current_path}")
-        print("💡 输入 'D:\...' 盘符开头绝对路径 '\相对路径' 修改当前路径 (支持模糊)")
+        print("💡 输入 'D:\\...' 盘符开头绝对路径 '\\相对路径' 修改当前路径 (支持模糊)")
         print("💡 输入 help 查看所有指令, q 退出, 回车执行或合并, 默认基于当前路径")
         if first_run:
             print_history(history)
