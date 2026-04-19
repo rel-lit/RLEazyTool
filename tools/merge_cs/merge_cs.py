@@ -23,32 +23,38 @@ def get_desktop_path():
     except Exception:
         return os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop')
 
-def load_history():
-    """加载历史路径列表，返回list"""
+
+# --- 配置文件管理 ---
+def load_config():
+    """加载配置文件，返回 dict，兼容旧格式"""
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
+                # 兼容旧格式
+                if isinstance(data, list):
+                    return {"history": data, "type_groups": {"default": [".cs"]}, "current_type_group": "default"}
                 if isinstance(data, dict):
-                    # 兼容旧格式
-                    last_path = data.get('last_path')
-                    if last_path:
-                        return [last_path]
-                    else:
-                        return []
-                elif isinstance(data, list):
+                    # 填补缺失字段
+                    if "history" not in data:
+                        data["history"] = []
+                    if "type_groups" not in data:
+                        data["type_groups"] = {"default": [".cs"]}
+                    if "current_type_group" not in data:
+                        data["current_type_group"] = "default"
                     return data
-        except:
-            return []
-    return []
+        except Exception as e:
+            print(f"⚠️ 配置文件读取失败: {e}")
+            return {"history": [], "type_groups": {"default": [".cs"]}, "current_type_group": "default"}
+    return {"history": [], "type_groups": {"default": [".cs"]}, "current_type_group": "default"}
 
-def save_history(history):
-    """保存历史路径列表（只保留最新HISTORY_LIMIT条）"""
+def save_config(config):
+    """保存配置文件（dict）"""
     try:
         with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-            json.dump(history[:HISTORY_LIMIT], f)
-    except:
-        pass
+            json.dump(config, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"⚠️ 配置文件保存失败: {e}")
 
 def add_to_history(history, path):
     """将新路径加入历史，去重并保持顺序"""
@@ -76,6 +82,11 @@ def print_help():
     print("  绝对路径  : 以盘符开头（如 D:\\xxx），切换到指定绝对路径")
     print("  \\相对路径 : 以 \\ 或 / 开头，切换到当前路径下的子文件夹（支持模糊匹配，仅最后一级可模糊）")
     print("  回车      : 执行合并操作 (基于当前路径)")
+    print("")
+    print("  mod add <组名> <.cs> <.txt> ... : 新增类型组")
+    print("  mod use <组名>                : 切换当前类型组")
+    print("  mod list group                : 列出所有类型组")
+    print("  mod del <组名>                : 删除类型组")
     print("")
 
 def get_desktop_path():
@@ -240,8 +251,8 @@ def find_best_match(current_dir, target_name):
     except:
         return None
 
-def merge_cs_files(source_dir, output_path):
-    """核心合并逻辑"""
+def merge_files_by_types(source_dir, output_path, file_types):
+    """支持多类型文件合并，.cs 文件统计 C# 结构，其余类型只统计文件数和行数"""
     exclude_dirs = {'.git', 'bin', 'obj', 'node_modules', '.vs', 'packages', 'Debug', 'Release'}
     file_count = 0
     error_count = 0
@@ -252,79 +263,84 @@ def merge_cs_files(source_dir, output_path):
     interface_count = 0
     variable_count = 0
     method_count = 0
+    type_file_count = {ext: 0 for ext in file_types}
 
-    # 正则表达式
+    # 正则表达式（仅 .cs 用）
     re_class = re.compile(r'\bclass\s+\w+')
     re_struct = re.compile(r'\bstruct\s+\w+')
     re_enum = re.compile(r'\benum\s+\w+')
     re_interface = re.compile(r'\binterface\s+\w+')
-    # 变量/字段/属性声明（简化版，排除方法）
     re_variable = re.compile(r'\b(public|private|protected|internal)\s+((static|readonly|const|volatile|sealed|virtual|override|new)\s+)*[\w<>\[\],]+\s+\w+\s*(=|;|\{)')
-    # 方法声明（简化版，匹配 public void Foo(...), private int Bar(...), ...）
     re_method = re.compile(r'\b(public|private|protected|internal)\s+((static|virtual|override|async|sealed|new|partial)\s+)*[\w<>\[\],]+\s+\w+\s*\([^;]*\)\s*(\{|where|$)')
 
     print(f"🔍 正在扫描目录: {source_dir}")
     with open(output_path, 'w', encoding='utf-8') as outfile:
         merge_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        # 先写入头部，稍后补充统计
         outfile.write(f"// 合并时间: {merge_time}\n")
         outfile.write(f"// 来源目录: {source_dir}\n")
-        # 预留统计信息位置
         outfile.write(f"// 合并统计信息稍后补充\n")
         outfile.write(f"// ==========================================\n")
 
         for root, dirs, files in os.walk(source_dir):
             dirs[:] = [d for d in dirs if d not in exclude_dirs]
             for file in files:
-                if file.endswith('.cs'):
-                    file_path = os.path.join(root, file)
-                    relative_path = os.path.relpath(file_path, source_dir)
-                    outfile.write(f"\n\n// ==================== 文件: {relative_path} ====================\n\n")
-                    try:
-                        with open(file_path, 'r', encoding='utf-8', errors='ignore') as infile:
-                            content = infile.read()
-                        lines = content.splitlines()
-                        total_lines += len(lines)
-                        # 统计信息
-                        class_count += len(re_class.findall(content))
-                        struct_count += len(re_struct.findall(content))
-                        enum_count += len(re_enum.findall(content))
-                        interface_count += len(re_interface.findall(content))
-                        variable_count += len(re_variable.findall(content))
-                        method_count += len(re_method.findall(content))
-                        outfile.write(content)
-                        file_count += 1
-                    except Exception as e:
-                        outfile.write(f"// [错误] 无法读取文件: {e}\n")
-                        error_count += 1
+                for ext in file_types:
+                    if file.endswith(ext):
+                        file_path = os.path.join(root, file)
+                        relative_path = os.path.relpath(file_path, source_dir)
+                        outfile.write(f"\n\n// ==================== 文件: {relative_path} ====================\n\n")
+                        try:
+                            with open(file_path, 'r', encoding='utf-8', errors='ignore') as infile:
+                                content = infile.read()
+                            lines = content.splitlines()
+                            total_lines += len(lines)
+                            type_file_count[ext] += 1
+                            if ext == '.cs':
+                                class_count += len(re_class.findall(content))
+                                struct_count += len(re_struct.findall(content))
+                                enum_count += len(re_enum.findall(content))
+                                interface_count += len(re_interface.findall(content))
+                                variable_count += len(re_variable.findall(content))
+                                method_count += len(re_method.findall(content))
+                            outfile.write(content)
+                            file_count += 1
+                        except Exception as e:
+                            outfile.write(f"// [错误] 无法读取文件: {e}\n")
+                            error_count += 1
+                        break  # 一个文件只计一次
 
         # 回到文件头部，补充统计信息
         outfile.seek(0)
-        # 统计信息字符串
         stat_str = (
-            f"// 合并统计：共 {file_count} 个 .cs 文件，合计 {total_lines} 行，类 {class_count} 个，结构体 {struct_count} 个，枚举 {enum_count} 个，接口 {interface_count} 个，变量/字段/属性 {variable_count} 个，方法 {method_count} 个，读取失败 {error_count} 个文件\n"
+            f"// 合并统计：共 {file_count} 个文件，合计 {total_lines} 行，"
+            + ", ".join([f"{ext} 文件 {type_file_count[ext]} 个" for ext in file_types])
         )
+        if '.cs' in file_types:
+            stat_str += f"，类 {class_count} 个，结构体 {struct_count} 个，枚举 {enum_count} 个，接口 {interface_count} 个，变量/字段/属性 {variable_count} 个，方法 {method_count} 个"
+        stat_str += f"，读取失败 {error_count} 个文件\n"
         outfile.write(f"// 合并时间: {merge_time}\n")
         outfile.write(f"// 来源目录: {source_dir}\n")
         outfile.write(stat_str)
         outfile.write(f"// ==========================================\n")
 
-    # 返回所有统计数据
-    return file_count, error_count, total_lines, class_count, struct_count, enum_count, interface_count, variable_count, method_count
+    return file_count, error_count, total_lines, class_count, struct_count, enum_count, interface_count, variable_count, method_count, type_file_count
 
 def main():
-    print("--- C# 代码合并工具 (智能版) ---")
-    
-    # 1. 初始化路径和历史
-    history = load_history()
+    config = load_config()
+    history = config.get('history', [])
     current_path = history[0] if history else os.path.dirname(os.path.abspath(__file__))
     first_run = True
-    
-    # 辅助函数：获取真实大小写路径
     def get_real_path(path):
         if os.path.exists(path):
             return os.path.realpath(path)
         return path
+
+    def print_type_groups(type_groups, current):
+        print("\n📦 类型组列表：")
+        for name, types in type_groups.items():
+            mark = "*" if name == current else " "
+            print(f"  {mark} {name}: {', '.join(types)}")
+        print("")
 
     while True:
         # 2. 显示当前状态
@@ -333,11 +349,52 @@ def main():
         print("💡 输入 'D:\\...' 盘符开头绝对路径 '\\相对路径' 修改当前路径 (支持模糊)")
         print("💡 输入 help 查看所有指令, q 退出, 回车执行或合并, 默认基于当前路径")
         if first_run:
-            print_history(history)
+            print_history(config.get('history', []))
             first_run = False
-        
+
         # 3. 获取输入
         user_input = input("👉 请输入指令: ").strip()
+
+        # --- Mod 指令 ---
+        if user_input.lower().startswith('mod '):
+            parts = user_input.strip().split()
+            if len(parts) >= 3 and parts[1] == 'add':
+                group_name = parts[2]
+                exts = [x if x.startswith('.') else f'.{x}' for x in parts[3:]]
+                if not exts:
+                    print("❌ 请输入要添加的文件类型后缀，如 .cs .txt")
+                else:
+                    config['type_groups'][group_name] = exts
+                    save_config(config)
+                    print(f"✅ 已添加类型组 '{group_name}': {', '.join(exts)}")
+                continue
+            if len(parts) == 3 and parts[1] == 'use':
+                group_name = parts[2]
+                if group_name in config['type_groups']:
+                    config['current_type_group'] = group_name
+                    save_config(config)
+                    print(f"✅ 已切换当前类型组为: {group_name}")
+                else:
+                    print(f"❌ 类型组 '{group_name}' 不存在。")
+                continue
+            if len(parts) == 3 and parts[1] == 'del':
+                group_name = parts[2]
+                if group_name == 'default':
+                    print("❌ 默认类型组不能删除。")
+                elif group_name in config['type_groups']:
+                    del config['type_groups'][group_name]
+                    if config['current_type_group'] == group_name:
+                        config['current_type_group'] = 'default'
+                    save_config(config)
+                    print(f"✅ 已删除类型组: {group_name}")
+                else:
+                    print(f"❌ 类型组 '{group_name}' 不存在。")
+                continue
+            if len(parts) == 3 and parts[1] == 'list' and parts[2] == 'group':
+                print_type_groups(config['type_groups'], config['current_type_group'])
+                continue
+            print("❌ Mod 指令格式错误。用法: mod add/use/del/list ...")
+            continue
 
         # 4. 指令处理
         if user_input.lower() == 'q':
@@ -347,14 +404,14 @@ def main():
             print_help()
             continue
         if user_input.lower() == 'm':
-            print_history(history)
+            print_history(config.get('history', []))
             continue
         if user_input.lower() == 'll':
             list_directories(current_path)
             continue
-        if user_input.isdigit() and 1 <= int(user_input) <= len(history):
+        if user_input.isdigit() and 1 <= int(user_input) <= len(config.get('history', [])):
             idx = int(user_input) - 1
-            current_path = history[idx]
+            current_path = config['history'][idx]
             print(f"✅ 已切换到历史路径: {current_path}")
             continue
 
@@ -402,20 +459,25 @@ def main():
             desktop_dir = get_desktop_path()
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             folder_name = os.path.basename(current_path) or "Unknown"
-            output_filename = f"{folder_name}_MergedCsCode_{timestamp}.txt"
+            output_filename = f"{folder_name}_MergedFiles_{timestamp}.txt"
             output_path = os.path.join(desktop_dir, output_filename)
+            file_types = config['type_groups'].get(config.get('current_type_group', 'default'), ['.cs'])
             try:
-                count, errors, total_lines, class_count, struct_count, enum_count, interface_count, variable_count, method_count = merge_cs_files(current_path, output_path)
+                result = merge_files_by_types(current_path, output_path, file_types)
+                file_count, errors, total_lines, class_count, struct_count, enum_count, interface_count, variable_count, method_count, type_file_count = result
                 print("-" * 30)
-                print(f"✅ 成功! 共处理了 {count} 个 .cs 文件，总行数 {total_lines}。")
-                print(f"   类: {class_count}，结构体: {struct_count}，枚举: {enum_count}，接口: {interface_count}")
-                print(f"   变量/字段/属性: {variable_count}，方法: {method_count}")
+                print(f"✅ 成功! 共处理了 {file_count} 个文件，总行数 {total_lines}。")
+                for ext in file_types:
+                    print(f"   {ext} 文件: {type_file_count[ext]} 个")
+                if '.cs' in file_types:
+                    print(f"   类: {class_count}，结构体: {struct_count}，枚举: {enum_count}，接口: {interface_count}")
+                    print(f"   变量/字段/属性: {variable_count}，方法: {method_count}")
                 if errors > 0:
                     print(f"⚠️ 有 {errors} 个文件读取失败。")
                 print(f"📄 结果已保存至: {output_path}")
                 # 更新历史
-                history = add_to_history(history, current_path)
-                save_history(history)
+                config['history'] = add_to_history(config.get('history', []), current_path)
+                save_config(config)
                 return
             except Exception as e:
                 print(f"❌ 发生错误: {e}")
