@@ -262,6 +262,74 @@ def merge_files_by_types(source_dir, output_path, file_types):
     re_method = re.compile(r'\b(public|private|protected|internal)\s+((static|virtual|override|async|sealed|new|partial)\s+)*[\w<>\[\],]+\s+\w+\s*\([^;]*\)\s*(\{|where|$)')
 
     print(f"🔍 正在扫描目录: {source_dir}")
+    
+    # 新增详细结构统计（仅 .cs 文件）
+    cs_class_infos = []  # [(is_abstract, class_name, class_lines, interface_count, method_count, field_count)]
+    enum_member_counts = []
+    struct_field_counts = []
+    interface_method_counts = []
+
+    def analyze_cs_classes(content):
+        """分析 C# 类的详细信息"""
+        nonlocal class_count, struct_count, enum_count, interface_count, variable_count, method_count
+        # 类、结构体、枚举、接口 的详细统计
+        class_matches = re_class.findall(content)
+        struct_matches = re_struct.findall(content)
+        enum_matches = re_enum.findall(content)
+        interface_matches = re_interface.findall(content)
+        
+        class_count += len(class_matches)
+        struct_count += len(struct_matches)
+        enum_count += len(enum_matches)
+        interface_count += len(interface_matches)
+        
+        # 变量、方法 统计（包括字段、属性等）
+        variable_count += len(re_variable.findall(content))
+        method_count += len(re_method.findall(content))
+        
+        # 详细信息提取
+        lines = content.splitlines()
+        in_multiline_comment = False
+        for line in lines:
+            stripped_line = line.strip()
+            if stripped_line.startswith("/*"):
+                in_multiline_comment = True
+            if in_multiline_comment:
+                if stripped_line.endswith("*/"):
+                    in_multiline_comment = False
+                continue
+            if stripped_line.startswith("//") or not stripped_line:
+                continue
+            
+            # 类名（可能带泛型参数）
+            class_name_match = re.search(r'\bclass\s+(\w+)', stripped_line)
+            if class_name_match:
+                class_name = class_name_match.group(1)
+                # 判断是否为抽象类
+                is_abstract = 'abstract' in stripped_line
+                # 方法、字段、属性 计数
+                method_count_in_class = len(re_method.findall(line))
+                field_count_in_class = len(re_variable.findall(line))
+                # 接口数（基于实现的接口，简单统计）
+                iface_count_in_class = len(re.findall(r'\b\w+\s*:\s*I\w+', line))
+                
+                cs_class_infos.append((is_abstract, class_name, len(lines), iface_count_in_class, method_count_in_class, field_count_in_class))
+        
+        # 枚举成员数
+        for enum_match in enum_matches:
+            member_count = len(enum_match.split(','))
+            enum_member_counts.append(member_count)
+        
+        # 结构体字段数（简单统计，基于行）
+        for struct_match in struct_matches:
+            field_count = len(re_variable.findall(struct_match))
+            struct_field_counts.append(field_count)
+        
+        # 接口方法数（简单统计，基于行）
+        for interface_match in interface_matches:
+            method_count = len(re_method.findall(interface_match))
+            interface_method_counts.append(method_count)
+
     with open(output_path, 'w', encoding='utf-8') as outfile:
         merge_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         outfile.write(f"// 合并时间: {merge_time}\n")
@@ -284,12 +352,7 @@ def merge_files_by_types(source_dir, output_path, file_types):
                             total_lines += len(lines)
                             type_file_count[ext] += 1
                             if ext == '.cs':
-                                class_count += len(re_class.findall(content))
-                                struct_count += len(re_struct.findall(content))
-                                enum_count += len(re_enum.findall(content))
-                                interface_count += len(re_interface.findall(content))
-                                variable_count += len(re_variable.findall(content))
-                                method_count += len(re_method.findall(content))
+                                analyze_cs_classes(content)
                             outfile.write(content)
                             file_count += 1
                         except Exception as e:
@@ -311,6 +374,33 @@ def merge_files_by_types(source_dir, output_path, file_types):
         outfile.write("// 来源目录: {}\n".format(source_dir))
         outfile.write(stat_str)
         outfile.write("// ==========================================\n")
+
+        # 详细统计信息输出
+        if '.cs' in file_types:
+            real_classes = [c for c in cs_class_infos if not c[0]]
+            abstract_classes = [c for c in cs_class_infos if c[0]]
+            avg_real_class_len = round(sum(c[2] for c in real_classes)/len(real_classes), 2) if real_classes else 0
+            avg_abstract_iface = round(sum(c[3] for c in abstract_classes)/len(abstract_classes), 2) if abstract_classes else 0
+            max_class_len = max((c[2] for c in cs_class_infos), default=0)
+            min_class_len = min((c[2] for c in cs_class_infos), default=0)
+            avg_methods_per_class = round(sum(c[4] for c in cs_class_infos)/len(cs_class_infos), 2) if cs_class_infos else 0
+            avg_fields_per_class = round(sum(c[5] for c in cs_class_infos)/len(cs_class_infos), 2) if cs_class_infos else 0
+            avg_enum_members = round(sum(enum_member_counts)/len(enum_member_counts), 2) if enum_member_counts else 0
+            avg_struct_fields = round(sum(struct_field_counts)/len(struct_field_counts), 2) if struct_field_counts else 0
+            avg_iface_methods = round(sum(interface_method_counts)/len(interface_method_counts), 2) if interface_method_counts else 0
+            stat_str += ("\n// [详细统计] 实际类平均长度: {} 行，抽象类平均接口数: {}，最大类长度: {}，最小类长度: {}"
+                         "\n// 平均每类方法数: {}，平均每类字段数: {}"
+                         "\n// 枚举平均成员数: {}，结构体平均字段数: {}，接口平均方法数: {}"
+                         ).format(
+                avg_real_class_len, avg_abstract_iface, max_class_len, min_class_len,
+                avg_methods_per_class, avg_fields_per_class,
+                avg_enum_members, avg_struct_fields, avg_iface_methods)
+            # 终端也输出
+            print("[详细统计] 实际类平均长度: {} 行，抽象类平均接口数: {}，最大类长度: {}，最小类长度: {}".format(
+                avg_real_class_len, avg_abstract_iface, max_class_len, min_class_len))
+            print("[详细统计] 平均每类方法数: {}，平均每类字段数: {}".format(avg_methods_per_class, avg_fields_per_class))
+            print("[详细统计] 枚举平均成员数: {}，结构体平均字段数: {}，接口平均方法数: {}".format(
+                avg_enum_members, avg_struct_fields, avg_iface_methods))
 
     return file_count, error_count, total_lines, class_count, struct_count, enum_count, interface_count, variable_count, method_count, type_file_count
 
