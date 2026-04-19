@@ -169,77 +169,65 @@ def find_best_match(current_dir, target_name):
         items = os.listdir(current_dir)
         # 只获取文件夹
         dirs = [item for item in items if os.path.isdir(os.path.join(current_dir, item))]
-        
         if not dirs:
             return None
 
         best_match = None
         min_distance = float('inf')
-        
-        target_lower = target_name.lower();
-        
+        target_lower = target_name.lower()
         # 用于存储所有包含关键词的文件夹
         containing_matches = []
-        
         # --- 【分段模糊匹配】 ---
         partial_matches = []
 
         for d in dirs:
-            d_lower = d.lower();
-            
+            d_lower = d.lower()
             # 【逻辑 1】检查完整包含关系
             if target_lower in d_lower:
-                containing_matches.append(d);
-            
+                containing_matches.append(d)
             # 【逻辑 2】检查分段匹配
             else:
                 # 将文件夹名按驼峰或下划线分割
-                parts = split_camel_case(d);
+                parts = split_camel_case(d)
                 for part in parts:
                     # 计算输入词与文件夹某一部分的编辑距离
-                    distance = levenshtein_distance(target_lower, part);
+                    distance = levenshtein_distance(target_lower, part)
                     # 如果距离很小（允许错1个字母），就认为是匹配的
                     if distance <= 1:
-                        partial_matches.append(d);
+                        partial_matches.append(d)
                         break # 只要匹配上一部分就行
-                
                 # 如果没有分段匹配，再计算整体编辑距离
                 if d not in partial_matches:
-                    distance = levenshtein_distance(target_lower, d_lower);
+                    distance = levenshtein_distance(target_lower, d_lower)
                     # 动态阈值
-                    dir_count = len(dirs);
+                    dir_count = len(dirs)
                     if dir_count <= 5:
-                        threshold = 3 ;
+                        threshold = 3
                     elif dir_count <= 10:
-                        threshold = 2;
+                        threshold = 2
                     else:
-                        threshold = 1;
-                    
+                        threshold = 1
                     if distance <= threshold and distance < min_distance:
-                        min_distance = distance;
-                        best_match = d;
-        
+                        min_distance = distance
+                        best_match = d
         # 【防歧义机制】如果包含匹配或分段匹配的结果不止一个，直接返回 None
         if len(containing_matches) > 1:
             return None
         if len(partial_matches) > 1:
             return None
-            
         # 如果有且仅有一个包含匹配，优先返回它
         if len(containing_matches) == 1:
             return containing_matches[0]
-        
         # 如果有且仅有一个分段匹配，返回它
         if len(partial_matches) == 1:
             return partial_matches[0]
-        
         # 如果都没有，返回编辑距离匹配的结果
-        return best_match;
-        
+        return best_match
     except Exception:
         return None
 
-def merge_files_by_types(source_dir, output_path, file_types):
+def merge_files_by_types(source_dir, output_path, file_types,
+                        joke_state=None):
     """支持多类型文件合并，.cs 文件统计 C# 结构，其余类型只统计文件数和行数"""
     exclude_dirs = {'.git', 'bin', 'obj', 'node_modules', '.vs', 'packages', 'Debug', 'Release'}
     file_count = 0
@@ -414,27 +402,50 @@ def merge_files_by_types(source_dir, output_path, file_types):
 
     # 终端输出（简明摘要+详细统计）
     print("-" * 30)
-    print(f"    ✅ 成功! 共处理了 {file_count} 个文件，总行数 {total_lines}。")
+    print(f"✅ 成功! 共处理了 {file_count} 个文件，总行数 {total_lines}。")
     for ext in file_types:
-        print(f"    {ext} 文件: {type_file_count[ext]} 个")
+        print(f"{ext} 文件: {type_file_count[ext]} 个")
     if '.cs' in file_types:
-        print(f"    类: {class_count}，结构体: {struct_count}，枚举: {enum_count}，接口: {interface_count}")
-        print(f"    变量/字段/属性: {variable_count}，方法: {method_count}")
+        print(f"类: {class_count}，结构体: {struct_count}，枚举: {enum_count}，接口: {interface_count}")
+        print(f"变量/字段/属性: {variable_count}，方法: {method_count}")
         print("")
         for line in detail_lines:
-            print(f"    {line}")
+            print(line)
         print("")
-    if error_count > 0:
-        print(f"⚠️ 有 {error_count} 个文件读取失败。")
-    print(f"\n📄 结果已保存至: {output_path}\n")
-
-    # 写入合并文件，统计信息在最前面
-    with open(output_path, 'w', encoding='utf-8') as fout:
-        fout.write(stat_str)
-        for f in merged_contents:
-            fout.write(f)
-
-    return file_count, error_count, total_lines, class_count, struct_count, enum_count, interface_count, variable_count, method_count, type_file_count
+    # --- 打趣话 ---
+    if joke_state is not None:
+        # 合并文件数
+        if file_count >= 50 and not joke_state.get('file50'):
+            print("哇哦，50个以上文件？你是要挑战我的极限吗？美少女架构师可不会轻易认输哦！")
+            joke_state['file50'] = True
+        elif file_count >= 30 and not joke_state.get('file30'):
+            print("30+文件合并，今天也是元气满满地搬砖呢！不过你可别偷懒让我全干了呀~")
+            joke_state['file30'] = True
+        elif file_count >= 20 and not joke_state.get('file20'):
+            print("20个文件，批量操作才是大佬的日常，继续加油哦！")
+            joke_state['file20'] = True
+        elif file_count >= 10 and not joke_state.get('file10'):
+            print("文件数量上双，手速跟得上我可爱的嘴炮吗？")
+            joke_state['file10'] = True
+        # 合并总行数
+        if total_lines >= 5000 and not joke_state.get('line5000'):
+            print("5000+行代码，眼睛要保护好哦，不然我可要心疼你啦！")
+            joke_state['line5000'] = True
+        elif total_lines >= 2000 and not joke_state.get('line2000'):
+            print("合并内容超过2000行，代码海洋都快淹没我这小小美少女了！")
+            joke_state['line2000'] = True
+        # 平均实际类代码行数
+        if '.cs' in file_types:
+            real_classes = [c for c in cs_class_infos if not c[0] and not c[1]]
+            avg_real_class_len = round(sum(c[3] for c in real_classes)/len(real_classes), 2) if real_classes else 0
+            if avg_real_class_len > 200 and not joke_state.get('avg_class_len200'):
+                print("欸？你这要成为屎山了吧？美少女架构师在线劝退大类，快拆分一下啦！")
+                joke_state['avg_class_len200'] = True
+        # 读取失败
+        if error_count > 0 and not joke_state.get('error'):
+            print("有文件读取失败啦，别怕，有我罩着你，快检查下路径或权限吧~")
+            joke_state['error'] = True
+    # ...existing code...
 
 def main():
     config = load_config()
@@ -453,6 +464,9 @@ def main():
             print(f"  {mark} {name}: {', '.join(types)}")
         print("")
 
+    relative_switch_count = 0
+    relative_switch_joked = set()
+    joke_state = {}
     while True:
         # 2. 显示当前状态
         print("-" * 30)
@@ -551,6 +565,17 @@ def main():
             relative_part = target_folder.lstrip('\\/')
             direct_path = os.path.normpath(os.path.join(current_path, relative_part))
             real_path = get_real_path(direct_path)
+            relative_switch_count += 1
+            # --- 路径切换打趣 ---
+            if relative_switch_count == 3 and 3 not in relative_switch_joked:
+                print("路径切换第3次啦，你不会已经迷路了吧？要不要美少女来带路呀~")
+                relative_switch_joked.add(3)
+            if relative_switch_count == 5 and 5 not in relative_switch_joked:
+                print("都切换5次了，你是不是在考验我的耐心？屑气美少女可是不会轻易认输的！")
+                relative_switch_joked.add(5)
+            if relative_switch_count == 8 and 8 not in relative_switch_joked:
+                print("8次路径切换，迷宫小能手认证！要不要我给你发个小红花？")
+                relative_switch_joked.add(8)
             if os.path.exists(real_path) and os.path.isdir(real_path):
                 current_path = real_path
                 print(f"✅ 已切换路径至: {current_path}")
@@ -583,7 +608,7 @@ def main():
             output_path = os.path.join(desktop_dir, output_filename)
             file_types = config['type_groups'].get(config.get('current_type_group', 'default'), ['.cs'])
             try:
-                merge_files_by_types(current_path, output_path, file_types)
+                merge_files_by_types(current_path, output_path, file_types, joke_state=joke_state)
                 # 只保留保存路径和历史更新
                 config['history'] = add_to_history(config.get('history', []), current_path)
                 save_config(config)
