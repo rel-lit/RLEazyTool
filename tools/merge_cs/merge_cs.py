@@ -350,7 +350,7 @@ def merge_files_by_types(source_dir, output_path, file_types,
                         merged_contents.append(content)
                         file_count += 1
                     except Exception as e:
-                        merged_contents.append(f"// [错误] 无法读取文件: {e}\n")
+                        merged_contents.append(f"// [错误] 无法读���文件: {e}\n")
                         error_count += 1
                     break  # 一个文件只计一次
 
@@ -459,6 +459,9 @@ def merge_files_by_types(source_dir, output_path, file_types,
 
 def main():
     config = load_config()
+    # 启动时优先用上次成功合并的mod
+    if 'last_success_type_group' in config:
+        config['current_type_group'] = config['last_success_type_group']
     history = config.get('history', [])
     current_path = history[0] if history else os.path.dirname(os.path.abspath(__file__))
     first_run = True
@@ -484,6 +487,7 @@ def main():
         print("💡 输入 'D:\\...' 盘符开头绝对路径 '\\相对路径' 修改当前路径 (支持模糊)")
         print("💡 输入 help 查看所有指令, q 退出, 回车执行或合并, 默认基于当前路径")
         if first_run:
+            print(f"当前mod: {config.get('current_type_group', 'default')}")
             print_history(config.get('history', []))
             first_run = False
 
@@ -621,6 +625,8 @@ def main():
                 merge_files_by_types(current_path, output_path, file_types, joke_state=joke_state)
                 # 只保留保存路径和历史更新
                 config['history'] = add_to_history(config.get('history', []), current_path)
+                # 记忆本次mod
+                config['last_success_type_group'] = config.get('current_type_group', 'default')
                 save_config(config)
                 return
             except Exception as e:
