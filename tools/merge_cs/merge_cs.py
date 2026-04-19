@@ -83,10 +83,10 @@ def print_help():
     print("  \\相对路径 : 以 \\ 或 / 开头，切换到当前路径下的子文件夹（支持模糊匹配，仅最后一级可模糊）")
     print("  回车      : 执行合并操作 (基于当前路径)")
     print("")
-    print("  mod add <组名> <.cs> <.txt> ... : 新增类型组")
-    print("  mod use <组名>                : 切换当前类型组")
-    print("  mod list group                : 列出所有类型组")
-    print("  mod del <组名>                : 删除类型组")
+    print("  mod a <组名> <.cs> <.txt> ... : 新增类型组")
+    print("  mod u <组名>                : 切换当前类型组")
+    print("  mod ll                      : 列出所有类型组")
+    print("  mod d <组名>                : 删除类型组")
     print("")
 
 def get_desktop_path():
@@ -358,7 +358,7 @@ def main():
         # --- Mod 指令 ---
         if user_input.lower().startswith('mod '):
             parts = user_input.strip().split()
-            if len(parts) >= 3 and parts[1] == 'add':
+            if len(parts) >= 3 and parts[1] == 'a':
                 group_name = parts[2]
                 exts = [x if x.startswith('.') else f'.{x}' for x in parts[3:]]
                 if not exts:
@@ -368,7 +368,7 @@ def main():
                     save_config(config)
                     print(f"✅ 已添加类型组 '{group_name}': {', '.join(exts)}")
                 continue
-            if len(parts) == 3 and parts[1] == 'use':
+            if len(parts) == 3 and parts[1] == 'u':
                 group_name = parts[2]
                 if group_name in config['type_groups']:
                     config['current_type_group'] = group_name
@@ -377,7 +377,7 @@ def main():
                 else:
                     print(f"❌ 类型组 '{group_name}' 不存在。")
                 continue
-            if len(parts) == 3 and parts[1] == 'del':
+            if len(parts) == 3 and parts[1] == 'd':
                 group_name = parts[2]
                 if group_name == 'default':
                     print("❌ 默认类型组不能删除。")
@@ -390,10 +390,10 @@ def main():
                 else:
                     print(f"❌ 类型组 '{group_name}' 不存在。")
                 continue
-            if len(parts) == 3 and parts[1] == 'list' and parts[2] == 'group':
+            if len(parts) == 2 and parts[1] == 'll':
                 print_type_groups(config['type_groups'], config['current_type_group'])
                 continue
-            print("❌ Mod 指令格式错误。用法: mod add/use/del/list ...")
+            print("❌ Mod 指令格式错误。用法: mod a/u/d/ll ...")
             continue
 
         # 4. 指令处理
