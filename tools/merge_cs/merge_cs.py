@@ -347,6 +347,12 @@ def main():
         # --- Mod 指令 ---
         if user_input.lower().startswith('mod '):
             parts = user_input.strip().split()
+            # 新增 mod ll now
+            if len(parts) == 3 and parts[1] == 'll' and parts[2] == 'now':
+                current = config.get('current_type_group', 'default')
+                exts = config['type_groups'].get(current, [])
+                print(f"\n⭐ 当前类型组: {current}: {', '.join(exts)}\n")
+                continue
             if len(parts) >= 3 and parts[1] == 'a':
                 group_name = parts[2]
                 exts = [x if x.startswith('.') else f'.{x}' for x in parts[3:]]
@@ -374,8 +380,11 @@ def main():
                     del config['type_groups'][group_name]
                     if config['current_type_group'] == group_name:
                         config['current_type_group'] = 'default'
-                    save_config(config)
-                    print(f"✅ 已删除类型组: {group_name}")
+                        save_config(config)
+                        print(f"✅ 已删除类型组: {group_name}，已切换为默认类型组。")
+                    else:
+                        save_config(config)
+                        print(f"✅ 已删除类型组: {group_name}")
                 else:
                     print(f"❌ 类型组 '{group_name}' 不存在。")
                 continue
