@@ -53,7 +53,7 @@ def print_history(history):
     print("")
 
 def print_help():
-    print("\n【merge_cs 工具指令说明】")
+    print("\n【merge 工具指令说明】")
     print("  help      : 显示本帮助信息")
     print("  m         : 显示历史记忆的路径列表")
     print("  1-9       : 直接切换到对应历史路径")

@@ -1,3 +1,3 @@
 @echo off
-py merge_cs.py
+py merge.py
 pause

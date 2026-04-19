@@ -14,7 +14,7 @@
 ```
 RLEazyTool/
 ├── tools/
-│   └── merge_cs/
+│   └── merge/
 │       ├── main.py
 │       ├── config_manager.py
 │       ├── path_utils.py
@@ -22,9 +22,9 @@ RLEazyTool/
 │       ├── utils.py
 │       ├── cli.py
 │       ├── __init__.py
-│       ├── merge_cs.bat
+│       ├── merge.bat
 │       ├── merge_config.json
-│       ├── merge_cs_legacy.py  # 旧版单文件备份
+│       ├── merge_legacy.py  # 旧版单文件备份
 │       ├── test_merge_logic.py # merge_logic 单元测试
 │       └── test_path_utils.py  # path_utils 单元测试
 ├── .gitignore
@@ -33,18 +33,18 @@ RLEazyTool/
 
 ## 工具说明
 
-### 1. merge_cs —— 多类型代码合并工具
+### 1. merge —— 多类型代码合并工具
 
 用于将指定目录下所有指定类型（如 `.cs`、`.txt` 等）文件合并为一个文本文件，便于代码查阅、归档或分享。
 
 **典型使用场景：**
 - 将大量 C# 源码或其它类型文件合并为单个文件，方便上传给 Web AI（如大模型代码分析、自动文档生成等）。
 - 快速打包项目代码，一键分享给同事或好友，无需逐个文件整理。
-- 归档、备份、代码查阅等其他批量处理场景。
+- 归档、备份、代码查阅等其它批量处理场景。
 
 #### 使用方法
 
-1. 进入 `tools/merge_cs/` 目录，双击 `merge_cs.bat`，或在命令行中运行：
+1. 进入 `tools/merge/` 目录，双击 `merge.bat`，或在命令行中运行：
    ```
    py main.py
    ```

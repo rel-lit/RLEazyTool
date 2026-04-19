@@ -1,15 +1,8 @@
 """
 【已拆分为多模块，仅供备份参考】
-本文件为 merge_cs 工具的旧版单文件实现，现已拆分为 main.py、config_manager.py、path_utils.py、merge_logic.py、utils.py、cli.py 等模块。
+本文件为 merge 工具的旧版单文件实现，现已拆分为 main.py、config_manager.py、path_utils.py、merge_logic.py、utils.py、cli.py 等模块。
 如需维护或扩展，请以新模块为准。
 """
-import os
-import json
-import winreg
-import re
-from datetime import datetime
-
-# ...existing code...
 import os
 import json
 import winreg
@@ -84,7 +77,7 @@ def print_history(history):
     print("")
 
 def print_help():
-    print("\n【merge_cs 工具指令说明】")
+    print("\n【merge 工具指令说明】")
     print("  help      : 显示本帮助信息")
     print("  m         : 显示历史记忆的路径列表")
     print("  1-9       : 直接切换到对应历史路径")
