@@ -1,5 +1,4 @@
 import os
-import sys
 import json
 import winreg
 import re
@@ -89,18 +88,6 @@ def print_help():
     print("  mod d <组名>                : 删除类型组")
     print("")
 
-def get_desktop_path():
-    """使用注册表获取真实的桌面路径"""
-    try:
-        key = winreg.OpenKey(
-            winreg.HKEY_CURRENT_USER,
-            r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders"
-        )
-        desktop_path, _ = winreg.QueryValueEx(key, "Desktop")
-        winreg.CloseKey(key)
-        return desktop_path
-    except Exception:
-        return os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop')
 
 def load_last_path():
     """加载上次的路径"""
@@ -108,7 +95,7 @@ def load_last_path():
         try:
             with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
                 return json.load(f).get('last_path')
-        except:
+        except Exception:
             return None
     return None
 
@@ -117,7 +104,7 @@ def save_last_path(path):
     try:
         with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
             json.dump({'last_path': path}, f)
-    except:
+    except Exception:
         pass
 
 def list_directories(path):
@@ -133,8 +120,9 @@ def list_directories(path):
         # 简单的分列显示
         for i, d in enumerate(sorted(dirs)):
             print(f"   {d}", end="")
-            if (i + 1) % 3 == 0: print() # 每3个换行
-        print("\n") # 结尾补个空行
+            if (i + 1) % 3 == 0:
+                print()  # 每3个换行
+        print("\n")  # 结尾补个空行
     except PermissionError:
         print("⚠️ 权限不足，无法列出目录。")
     except Exception as e:
@@ -188,7 +176,7 @@ def find_best_match(current_dir, target_name):
         best_match = None
         min_distance = float('inf')
         
-        target_lower = target_name.lower()
+        target_lower = target_name.lower();
         
         # 用于存储所有包含关键词的文件夹
         containing_matches = []
@@ -197,39 +185,39 @@ def find_best_match(current_dir, target_name):
         partial_matches = []
 
         for d in dirs:
-            d_lower = d.lower()
+            d_lower = d.lower();
             
             # 【逻辑 1】检查完整包含关系
             if target_lower in d_lower:
-                containing_matches.append(d)
+                containing_matches.append(d);
             
             # 【逻辑 2】检查分段匹配
             else:
                 # 将文件夹名按驼峰或下划线分割
-                parts = split_camel_case(d)
+                parts = split_camel_case(d);
                 for part in parts:
                     # 计算输入词与文件夹某一部分的编辑距离
-                    distance = levenshtein_distance(target_lower, part)
+                    distance = levenshtein_distance(target_lower, part);
                     # 如果距离很小（允许错1个字母），就认为是匹配的
                     if distance <= 1:
-                        partial_matches.append(d)
+                        partial_matches.append(d);
                         break # 只要匹配上一部分就行
                 
                 # 如果没有分段匹配，再计算整体编辑距离
                 if d not in partial_matches:
-                    distance = levenshtein_distance(target_lower, d_lower)
+                    distance = levenshtein_distance(target_lower, d_lower);
                     # 动态阈值
-                    dir_count = len(dirs)
+                    dir_count = len(dirs);
                     if dir_count <= 5:
-                        threshold = 3 
+                        threshold = 3 ;
                     elif dir_count <= 10:
-                        threshold = 2
+                        threshold = 2;
                     else:
-                        threshold = 1
+                        threshold = 1;
                     
                     if distance <= threshold and distance < min_distance:
-                        min_distance = distance
-                        best_match = d
+                        min_distance = distance;
+                        best_match = d;
         
         # 【防歧义机制】如果包含匹配或分段匹配的结果不止一个，直接返回 None
         if len(containing_matches) > 1:
@@ -246,9 +234,9 @@ def find_best_match(current_dir, target_name):
             return partial_matches[0]
         
         # 如果都没有，返回编辑距离匹配的结果
-        return best_match
+        return best_match;
         
-    except:
+    except Exception:
         return None
 
 def merge_files_by_types(source_dir, output_path, file_types):
@@ -312,16 +300,17 @@ def merge_files_by_types(source_dir, output_path, file_types):
         # 回到文件头部，补充统计信息
         outfile.seek(0)
         stat_str = (
-            f"// 合并统计：共 {file_count} 个文件，合计 {total_lines} 行，"
-            + ", ".join([f"{ext} 文件 {type_file_count[ext]} 个" for ext in file_types])
+            "// 合并统计：共 {} 个文件，合计 {} 行，".format(file_count, total_lines)
+            + ", ".join(["{} 文件 {} 个".format(ext, type_file_count[ext]) for ext in file_types])
         )
         if '.cs' in file_types:
-            stat_str += f"，类 {class_count} 个，结构体 {struct_count} 个，枚举 {enum_count} 个，接口 {interface_count} 个，变量/字段/属性 {variable_count} 个，方法 {method_count} 个"
-        stat_str += f"，读取失败 {error_count} 个文件\n"
-        outfile.write(f"// 合并时间: {merge_time}\n")
-        outfile.write(f"// 来源目录: {source_dir}\n")
+            stat_str += "，类 {} 个，结构体 {} 个，枚举 {} 个，接口 {} 个，变量/字段/属性 {} 个，方法 {} 个".format(
+                class_count, struct_count, enum_count, interface_count, variable_count, method_count)
+        stat_str += "，读取失败 {} 个文件\n".format(error_count)
+        outfile.write("// 合并时间: {}\n".format(merge_time))
+        outfile.write("// 来源目录: {}\n".format(source_dir))
         outfile.write(stat_str)
-        outfile.write(f"// ==========================================\n")
+        outfile.write("// ==========================================\n")
 
     return file_count, error_count, total_lines, class_count, struct_count, enum_count, interface_count, variable_count, method_count, type_file_count
 
