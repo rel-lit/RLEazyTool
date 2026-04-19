@@ -445,7 +445,17 @@ def merge_files_by_types(source_dir, output_path, file_types,
         if error_count > 0 and not joke_state.get('error'):
             print("有文件读取失败啦，别怕，有我罩着你，快检查下路径或权限吧~")
             joke_state['error'] = True
-    # ...existing code...
+
+    # 写入合并内容到目标文件
+    try:
+        with open(output_path, 'w', encoding='utf-8') as outfile:
+            outfile.write(stat_str)
+            for content in merged_contents:
+                outfile.write(content)
+        print(f"\n🎉 合并完成，文件已生成：{output_path}")
+    except Exception as e:
+        print(f"❌ 写入合并文件失败: {e}")
+        raise
 
 def main():
     config = load_config()
