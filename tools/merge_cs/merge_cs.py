@@ -1,3 +1,15 @@
+"""
+【已拆分为多模块，仅供备份参考】
+本文件为 merge_cs 工具的旧版单文件实现，现已拆分为 main.py、config_manager.py、path_utils.py、merge_logic.py、utils.py、cli.py 等模块。
+如需维护或扩展，请以新模块为准。
+"""
+import os
+import json
+import winreg
+import re
+from datetime import datetime
+
+# ...existing code...
 import os
 import json
 import winreg

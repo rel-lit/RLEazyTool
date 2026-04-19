@@ -2,15 +2,31 @@
 
 一些简易的便用小工具集合，提升日常开发效率。
 
+## 依赖与环境说明
+
+- Python 3.6 及以上（推荐 3.8+）
+- 无需第三方库，全部标准库实现
+- Windows 系统（依赖 winreg 获取桌面路径，Linux/Mac 下桌面路径自动适配，但部分功能如路径分隔符需注意）
+- 使用方法见下文
+
 ## 目录结构
 
 ```
 RLEazyTool/
 ├── tools/
 │   └── merge_cs/
-│       ├── merge_cs.py
+│       ├── main.py
+│       ├── config_manager.py
+│       ├── path_utils.py
+│       ├── merge_logic.py
+│       ├── utils.py
+│       ├── cli.py
+│       ├── __init__.py
 │       ├── merge_cs.bat
-│       └── merge_config.json
+│       ├── merge_config.json
+│       ├── merge_cs_legacy.py  # 旧版单文件备份
+│       ├── test_merge_logic.py # merge_logic 单元测试
+│       └── test_path_utils.py  # path_utils 单元测试
 ├── .gitignore
 └── README.md
 ```
@@ -30,8 +46,9 @@ RLEazyTool/
 
 1. 进入 `tools/merge_cs/` 目录，双击 `merge_cs.bat`，或在命令行中运行：
    ```
-   py merge_cs.py
+   py main.py
    ```
+   > Linux/Mac 下请用 `python3 main.py`，桌面路径自动适配。
 2. 按照提示输入要合并的代码目录路径（支持绝对路径、相对路径、模糊匹配）。
 3. 回车即可在桌面生成合并后的 txt 文件，文件名格式为：`<目录名>_MergedFiles_<时间戳>.txt`。
 
@@ -87,11 +104,14 @@ RLEazyTool/
 - 平均类长度、最大/最小类长度、平均每类方法/字段数、枚举成员数、结构体字段数、接口方法数等
 - 读取失败文件数
 
-#### 依赖环境
+> ⚠️ 统计 C# 结构信息基于正则表达式，仅供参考。极端复杂/嵌套/特殊语法下可能有误判，建议人工复核。
 
-- Python 3.6 及以上
-- Windows 系统（依赖 winreg 获取桌面路径）
+#### 性能说明
+
+- 当前实现为全量内存合并，极大目录下可能内存占用较高。建议分批处理或流式合并。
+- 单元测试见 test_merge_logic.py、test_path_utils.py。
 
 ## 贡献与反馈
 
 如有建议或问题，欢迎 issue 或 PR。
+如有新平台适配、单元测试补充、性能优化建议，欢迎贡献！
