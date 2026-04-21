@@ -16,6 +16,7 @@ def main():
     relative_switch_count = 0
     relative_switch_joked = set()
     joke_state = {}
+    continuous_mode = False
     while True:
         print("-" * 30)
         print(f"📁 当前路径为: {current_path}")
@@ -92,6 +93,10 @@ def main():
             current_path = config['history'][idx]
             print(f"✅ 已切换到历史路径: {current_path}")
             continue
+        if user_input.lower() == 'r':
+            continuous_mode = True
+            print("\n🔁 已进入持续合并模式：合并后不会自动退出，输入 q 可随时退出。\n")
+            continue
         # 路径切换逻辑
         target_folder = user_input
         if target_folder.startswith('"') and target_folder.endswith('"'):
@@ -153,7 +158,9 @@ def main():
                 config['history'] = add_to_history(config.get('history', []), current_path)
                 config['last_success_type_group'] = config.get('current_type_group', 'default')
                 save_config(config)
-                return
+                print(f"✅ 合并完成: {output_path}\n")
+                if not continuous_mode:
+                    return
             except Exception as e:
                 print(f"❌ 发生错误: {e}")
                 input("\n按回车键继续...")

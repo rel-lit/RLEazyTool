@@ -1,3 +1,3 @@
 @echo off
-py merge.py
+py main.py
 pause

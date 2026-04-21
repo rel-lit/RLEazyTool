@@ -24,6 +24,8 @@ def parse_and_dispatch(user_input, context):
         return ('history', None)
     if user_input.lower() == 'll':
         return ('list_dirs', None)
+    if user_input.lower() == 'r':
+        return ('continuous_mode', None)
     if user_input.isdigit() and 1 <= int(user_input) <= len(config.get('history', [])):
         idx = int(user_input) - 1
         return ('switch_history', idx)
