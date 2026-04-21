@@ -1,3 +1,4 @@
-﻿# 忽略 merge 工具的配置文件
-/tools/merge_cs/merge_config.json
-
+﻿# 忽略所有 json 文件
+*.json
+# 如需保留特定 json，可用如下例外：
+#!tools/merge/example_config.json
