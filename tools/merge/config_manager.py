@@ -13,7 +13,14 @@ def load_config():
                 data = json.load(f)
                 # 兼容旧格式
                 if isinstance(data, list):
-                    return {"history": data, "type_groups": {"default": [".cs"]}, "current_type_group": "default"}
+                    return {
+                        "history": data,
+                        "type_groups": {"default": [".cs"]},
+                        "current_type_group": "default",
+                        "exclude_groups": {},
+                        "current_exclude_group": None,
+                        "last_success_exclude_group": None
+                    }
                 if isinstance(data, dict):
                     # 填补缺失字段
                     if "history" not in data:
@@ -22,11 +29,31 @@ def load_config():
                         data["type_groups"] = {"default": [".cs"]}
                     if "current_type_group" not in data:
                         data["current_type_group"] = "default"
+                    if "exclude_groups" not in data:
+                        data["exclude_groups"] = {}
+                    if "current_exclude_group" not in data:
+                        data["current_exclude_group"] = None
+                    if "last_success_exclude_group" not in data:
+                        data["last_success_exclude_group"] = None
                     return data
         except Exception as e:
             print(f"⚠️ 配置文件读取失败: {e}")
-            return {"history": [], "type_groups": {"default": [".cs"]}, "current_type_group": "default"}
-    return {"history": [], "type_groups": {"default": [".cs"]}, "current_type_group": "default"}
+            return {
+                "history": [],
+                "type_groups": {"default": [".cs"]},
+                "current_type_group": "default",
+                "exclude_groups": {},
+                "current_exclude_group": None,
+                "last_success_exclude_group": None
+            }
+    return {
+        "history": [],
+        "type_groups": {"default": [".cs"]},
+        "current_type_group": "default",
+        "exclude_groups": {},
+        "current_exclude_group": None,
+        "last_success_exclude_group": None
+    }
 
 def save_config(config):
     """保存配置文件（dict）"""
@@ -69,3 +96,10 @@ def print_help():
     print("  mod ll                      : 列出所有类型组")
     print("  mod d <组名>                : 删除类型组")
     print("")
+    print("  exc a <组名> <词1> <词2> ... : 新增排除组（默认区分大小写）")
+    print("  exc d <组名>                : 删除排除组")
+    print("  exc u <组名>                : 切换当前排除组（仅此时启用）")
+    print("  exc q                       : 退出排除模式")
+    print("  exc ll                      : 列出所有排除组")
+    print("  exc case <组名> <on|off>    : 设置组是否区分大小写")
+    print("  exc                         : 启用上次合并成功时的排除组")

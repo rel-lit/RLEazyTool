@@ -4,8 +4,13 @@ import os
 import re
 from datetime import datetime
 
-def merge_files_by_types(source_dir, output_path, file_types, joke_state=None):
-    """支持多类型文件合并，.cs 文件统计 C# 结构，其余类型只统计文件数和行数"""
+def merge_files_by_types(source_dir, output_path, file_types, joke_state=None, exclude_words=None, case_sensitive=True):
+    """支持多类型文件合并，.cs 文件统计 C# 结构，其余类型只统计文件数和行数
+    exclude_words: 排除词列表，文件名包含任一词则排除
+    case_sensitive: 是否区分大小写
+    """
+    if exclude_words is None:
+        exclude_words = []
     exclude_dirs = {'.git', 'bin', 'obj', 'node_modules', '.vs', 'packages', 'Debug', 'Release'}
     file_count = 0
     error_count = 0
@@ -92,6 +97,16 @@ def merge_files_by_types(source_dir, output_path, file_types, joke_state=None):
     for root, dirs, files in os.walk(source_dir):
         dirs[:] = [d for d in dirs if d not in exclude_dirs]
         for file in files:
+            # 排除文件名包含排除词的文件
+            file_check = file if case_sensitive else file.lower()
+            skip = False
+            for word in exclude_words:
+                w = word if case_sensitive else word.lower()
+                if w in file_check:
+                    skip = True
+                    break
+            if skip:
+                continue
             for ext in file_types:
                 if file.endswith(ext):
                     file_path = os.path.join(root, file)

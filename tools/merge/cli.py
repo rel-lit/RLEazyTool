@@ -38,5 +38,29 @@ def parse_and_dispatch(user_input, context):
         return ('switch_abs', user_input)
     if user_input.startswith('\\') or user_input.startswith('/'):
         return ('switch_rel', user_input)
+    # exc 指令组
+    if user_input.lower().startswith('exc'):
+        parts = user_input.strip().split()
+        if len(parts) == 1:
+            return ('exc_last', None)
+        if len(parts) >= 3 and parts[1] == 'a':
+            group_name = parts[2]
+            words = parts[3:]
+            return ('exc_add', (group_name, words))
+        if len(parts) == 3 and parts[1] == 'd':
+            group_name = parts[2]
+            return ('exc_del', group_name)
+        if len(parts) == 3 and parts[1] == 'u':
+            group_name = parts[2]
+            return ('exc_use', group_name)
+        if len(parts) == 2 and parts[1] == 'q': # exc q 指令
+            return ('exc_disable', None) # 自定义一个 action 名字
+        if len(parts) == 2 and parts[1] == 'll': # 改为 2
+            return ('exc_list', None)
+        if len(parts) == 4 and parts[1] == 'case':
+            group_name = parts[2]
+            mode = parts[3]
+            return ('exc_case', (group_name, mode))
+        return ('invalid', user_input)
     # 无效指令
     return ('invalid', user_input)
