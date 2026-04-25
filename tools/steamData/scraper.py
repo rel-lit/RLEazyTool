@@ -36,12 +36,13 @@ class SteamGameScraper:
             logger.error(f"页面获取失败: {str(e)}")
             return None
     
-    def parse_game_data(self, html):
+    def parse_game_data(self, html, url=""):
         """
         解析游戏数据
         
         Args:
             html: HTML内容
+            url: 游戏页面URL
         
         Returns:
             dict: 包含游戏信息的字典
@@ -58,6 +59,7 @@ class SteamGameScraper:
             'review': self._extract_review(soup),
             'tags': self._extract_tags(soup),
             'languages': self._extract_languages(soup),
+            'url': url,
         }
         
         logger.info(f"解析完成: {game_data['name']}")
@@ -107,22 +109,33 @@ class SteamGameScraper:
     def _extract_review(self, soup):
         """提取好评率/评测信息"""
         try:
-            # 主要方案：查找 span.game_review_summary
-            summary_span = soup.find('span', class_='game_review_summary')
-            if summary_span:
-                return summary_span.get_text(strip=True)
+            # 优先尝试提取百分比
+            # Steam 通常显示为 "80% of the ..." 或 "特别好评 (80%)"
+            review_elem = soup.find('span', class_='game_review_summary')
+            if review_elem:
+                text = review_elem.get_text(strip=True)
+                # 尝试提取百分比数字
+                import re
+                match = re.search(r'(\d+)%', text)
+                if match:
+                    return f"{match.group(1)}%"
+                return text
             
-            # 备用方案：查找包含 % 的文本
+            # 备用方案
             percent_tag = soup.find(string=re.compile(r"%.*positive|positive.*%|特别好评|好评如潮", re.IGNORECASE))
             if percent_tag:
-                return percent_tag.parent.get_text(strip=True)
+                text = percent_tag.parent.get_text(strip=True)
+                match = re.search(r'(\d+)%', text)
+                if match:
+                    return f"{match.group(1)}%"
+                return text
                 
         except Exception as e:
             logger.warning(f"提取评测信息失败: {str(e)}")
         return '暂无评测'
     
     def _extract_tags(self, soup):
-        """提取游戏标签（前2个）"""
+        """提取游戏标签（前2个），返回列表"""
         try:
             tags = []
             # 使用 CSS 选择器，排除 nofilter 类
@@ -132,29 +145,32 @@ class SteamGameScraper:
                 if tag_text:
                     tags.append(tag_text)
             
-            # 如果不足2个，补充空字符串
+            # 确保返回至少2个元素（不足补空）
             while len(tags) < 2:
                 tags.append("")
             
-            return ', '.join([t for t in tags if t]) if tags else '未知'
+            return tags
         except Exception as e:
             logger.warning(f"提取标签失败: {str(e)}")
-        return '未知'
+        return ["", ""]
     
     def _extract_languages(self, soup):
-        """提取支持的语言"""
+        """提取支持的语言 (简化为：中文/无中文)"""
         try:
             # 查找语言区域
             lang_div = soup.find('div', class_='game_language_options')
             if lang_div:
                 lang_text = lang_div.get_text(strip=True)
-                # 截取前30个字符，避免过长
-                return lang_text[:30] if lang_text else '多语言'
+                # 检查是否包含中文
+                if '简体中文' in lang_text or '繁体中文' in lang_text or 'Simplified Chinese' in lang_text:
+                    return '中文'
+                else:
+                    return '无中文'
             
-            return '多语言'
+            return '无中文'
         except Exception as e:
             logger.warning(f"提取语言信息失败: {str(e)}")
-        return '多语言'
+        return '无中文'
     
     def download_image(self, image_url):
         """
@@ -194,7 +210,7 @@ class SteamGameScraper:
             return None
         
         # 解析数据
-        game_data = self.parse_game_data(html)
+        game_data = self.parse_game_data(html, url)
         if not game_data:
             return None
         
