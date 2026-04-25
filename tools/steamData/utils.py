@@ -10,7 +10,7 @@ import requests
 from urllib3.exceptions import InsecureRequestWarning
 import warnings
 
-from config import MAX_RETRIES, RETRY_DELAY, REQUEST_TIMEOUT, HEADERS, PROXIES
+from config import MAX_RETRIES, RETRY_DELAY, REQUEST_TIMEOUT, HEADERS, PROXIES, STORE_COUNTRY_COOKIE
 
 # 屏蔽SSL警告
 warnings.filterwarnings('ignore', category=InsecureRequestWarning)
@@ -73,13 +73,20 @@ def send_request(url, timeout=REQUEST_TIMEOUT):
     """
     @retry_on_failure()
     def _request():
-        response = requests.get(
-            url,
-            headers=HEADERS,
-            timeout=timeout,
-            verify=False,  # 跳过SSL验证
-            proxies=PROXIES  # 使用代理（如果配置）
-        )
+        # 准备请求参数
+        kwargs = {
+            'headers': HEADERS,
+            'timeout': timeout,
+            'verify': False,
+            'proxies': PROXIES
+        }
+        
+        # 如果配置了Cookie，添加到请求中
+        if STORE_COUNTRY_COOKIE:
+            kwargs['headers'] = HEADERS.copy()
+            kwargs['headers']['Cookie'] = STORE_COUNTRY_COOKIE
+        
+        response = requests.get(url, **kwargs)
         response.raise_for_status()
         return response
     

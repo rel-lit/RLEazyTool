@@ -226,21 +226,49 @@ class ExcelHandler:
         # 记录临时文件路径（稍后清理）
         temp_paths_list.append(temp_image_path)
         
-        # 创建openpyxl图片对象
-        img = OpenpyxlImage(temp_image_path)
-        
-        # 调整图片大小
-        img.width = 120
-        img.height = 180
-        
-        # 添加图片到工作表
-        cell_position = f'A{row_num}'
-        self.sheet.add_image(img, cell_position)
-        
-        # 调整行高
-        self.sheet.row_dimensions[row_num].height = 140
-        
-        logger.info(f"图片插入成功: 第{row_num}行")
+        try:
+            # 使用PIL读取图片获取原始尺寸
+            from PIL import Image as PILImage
+            pil_img = PILImage.open(temp_image_path)
+            original_width, original_height = pil_img.size
+            
+            # 计算缩放比例，保持宽高比
+            # A列宽度为40（约280像素），行高140（约187像素）
+            target_width = 260  # 目标宽度（像素）
+            target_height = 130  # 目标高度（像素）
+            
+            # 计算缩放比例
+            width_ratio = target_width / original_width
+            height_ratio = target_height / original_height
+            scale = min(width_ratio, height_ratio)  # 使用较小的比例，确保不超出
+            
+            # 计算最终尺寸
+            final_width = int(original_width * scale)
+            final_height = int(original_height * scale)
+            
+            # 创建openpyxl图片对象
+            img = OpenpyxlImage(temp_image_path)
+            img.width = final_width
+            img.height = final_height
+            
+            # 添加图片到工作表
+            cell_position = f'A{row_num}'
+            self.sheet.add_image(img, cell_position)
+            
+            # 调整行高以适应图片（像素转Excel单位，1像素≈0.75 Excel单位）
+            self.sheet.row_dimensions[row_num].height = final_height * 0.75 + 10  # 加10留边距
+            
+            logger.info(f"图片插入成功: 第{row_num}行 (尺寸: {final_width}x{final_height})")
+            
+        except Exception as e:
+            logger.warning(f"图片处理失败，使用默认尺寸: {str(e)}")
+            # 降级方案：使用固定尺寸
+            img = OpenpyxlImage(temp_image_path)
+            img.width = 120
+            img.height = 180
+            cell_position = f'A{row_num}'
+            self.sheet.add_image(img, cell_position)
+            self.sheet.row_dimensions[row_num].height = 140
     
     def get_current_row_count(self):
         """

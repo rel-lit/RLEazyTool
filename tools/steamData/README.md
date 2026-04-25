@@ -126,6 +126,15 @@ A: Steam商店在中国大陆访问较慢，有以下几种解决方案：
       ```
    3. **增加超时时间**：在 `config.py` 中调整 REQUEST_TIMEOUT（默认30秒）
 
+### Q: Steam显示HK/其他区域而不是CN？
+A: 这是因为代理或网络环境导致Steam判断为其他地区。解决方法：
+   1. **配置Cookie强制区域**：编辑 `config.py`，设置STORE_COUNTRY_COOKIE
+      ```python
+      STORE_COUNTRY_COOKIE = 'birthtime=0; lastagecheckage=1-January-1990; Steam_Language=schinese; steamCountry=CN'
+      ```
+   2. **更换代理节点**：选择中国大陆或亚洲节点
+   3. **清除浏览器缓存**：如果使用浏览器测试，清除Cookie后重试
+
 ### Q: 某些游戏信息抓取不完整？
 A: Steam页面结构可能变化，程序会尽量提取可用信息
 
