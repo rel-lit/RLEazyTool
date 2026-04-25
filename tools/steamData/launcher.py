@@ -12,7 +12,7 @@ def print_separator():
 
 
 def check_virtualenv():
-    """检查并激活虚拟环境"""
+    """检查并使用虚拟环境"""
     print_separator()
     print("  正在检查Python环境...")
     print_separator()
@@ -20,18 +20,23 @@ def check_virtualenv():
     # 获取项目根目录（向上两级）
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(os.path.dirname(script_dir))
-    venv_activate = os.path.join(project_root, ".venv", "Scripts", "activate.bat")
+    venv_python = os.path.join(project_root, ".venv", "Scripts", "python.exe")
     
-    if os.path.exists(venv_activate):
-        print("[提示] 检测到虚拟环境，正在激活...")
-        # 注意：在Python中无法真正"激活"虚拟环境
-        # 但可以检查是否在虚拟环境中运行
+    if os.path.exists(venv_python):
+        # 虚拟环境存在
         if hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix):
+            # 已经在虚拟环境中
             print("[成功] 已在虚拟环境中运行")
         else:
-            print("[警告] 虚拟环境存在但未激活，建议使用以下命令激活：")
-            print(f"        cd {project_root}")
-            print(f"        .venv\\Scripts\\activate")
+            # 未激活虚拟环境，重新启动使用虚拟环境的Python
+            print("[提示] 检测到虚拟环境，正在切换到虚拟环境...")
+            try:
+                # 使用虚拟环境的Python重新执行当前脚本
+                subprocess.run([venv_python] + sys.argv, check=True)
+                sys.exit(0)  # 子进程成功后退出
+            except subprocess.CalledProcessError as e:
+                print(f"[错误] 切换到虚拟环境失败: {e}")
+                print("[提示] 将继续使用当前Python环境")
     else:
         print("[警告] 未检测到虚拟环境，将使用系统Python")
     
