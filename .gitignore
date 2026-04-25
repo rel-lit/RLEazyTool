@@ -1,4 +1,42 @@
-﻿# 忽略所有 json 文件
+# Python虚拟环境
+.venv/
+venv/
+env/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Excel输出文件
+*.xlsx
+
+# 临时文件
+temp_cover_*.png
+*.tmp
+
+# IDE
+.vscode/
+.idea/*.xml
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 日志文件
+*.log
+
+# 忽略所有 json 文件
 *.json
 # 如需保留特定 json，可用如下例外：
 #!tools/merge/example_config.json
