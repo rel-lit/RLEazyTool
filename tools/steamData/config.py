@@ -23,12 +23,12 @@ MAX_RETRIES = 3  # 最大重试次数
 RETRY_DELAY = 3  # 重试间隔（秒）
 
 # 代理配置（可选）
-# 如果需要使用代理访问Steam，取消下面的注释并配置代理地址
+# 如果手动配置代理，取消注释并设置；否则将自动检测系统代理
 # PROXIES = {
 #     'http': 'http://127.0.0.1:7890',
 #     'https': 'http://127.0.0.1:7890',
 # }
-PROXIES = None  # 默认不使用代理
+PROXIES = None  # 默认自动检测系统代理
 
 # Excel文件配置
 EXCEL_FILENAME = 'steam_games.xlsx'

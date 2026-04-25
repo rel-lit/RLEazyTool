@@ -284,9 +284,12 @@ class ExcelHandler:
             img.width = final_width
             img.height = final_height
             
+            # 设置图片为嵌入单元格（随单元格移动和调整大小）
+            # openpyxl 中通过修改图片对象的 editAs 属性实现
+            img.editAs = 'oneCell'
+            
             # 添加图片到工作表
-            cell_position = f'A{row_num}'
-            self.sheet.add_image(img, cell_position)
+            self.sheet.add_image(img, f'A{row_num}')
             
             # 调整行高以适应图片（像素转Excel单位，1像素≈0.75 Excel单位）
             self.sheet.row_dimensions[row_num].height = final_height * 0.75 + 10  # 加10留边距
@@ -299,8 +302,9 @@ class ExcelHandler:
             img = OpenpyxlImage(temp_image_path)
             img.width = 120
             img.height = 180
-            cell_position = f'A{row_num}'
-            self.sheet.add_image(img, cell_position)
+            img.anchor = f'A{row_num}'
+            img.editAs = 'oneCell'  # 同样设置为嵌入单元格
+            self.sheet.add_image(img)
             self.sheet.row_dimensions[row_num].height = 140
     
     def get_current_row_count(self):

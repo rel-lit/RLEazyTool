@@ -1,9 +1,11 @@
 """
-工具模块 - 提供重试机制、路径管理等通用功能
+工具模块 - 重试机制、代理检测、路径管理等通用功能
 """
 import os
 import time
 import logging
+import winreg
+import socket
 from functools import wraps
 
 import requests
@@ -23,17 +25,60 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def get_system_proxy():
+    """自动检测 Windows 系统代理设置"""
+    try:
+        registry_path = r'Software\Microsoft\Windows\CurrentVersion\Internet Settings'
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, registry_path) as key:
+            proxy_enable, _ = winreg.QueryValueEx(key, 'ProxyEnable')
+            if proxy_enable:
+                proxy_server, _ = winreg.QueryValueEx(key, 'ProxyServer')
+                if '=' in proxy_server:
+                    proxies = {}
+                    for part in proxy_server.split(';'):
+                        if '=' in part:
+                            protocol, address = part.split('=', 1)
+                            proxies[protocol] = f'http://{address}'
+                    if proxies:
+                        logger.info(f"✅ 检测到系统代理")
+                        return proxies
+                else:
+                    proxies = {
+                        'http': f'http://{proxy_server}',
+                        'https': f'http://{proxy_server}'
+                    }
+                    logger.info(f"✅ 检测到系统代理")
+                    return proxies
+    except Exception:
+        pass
+    
+    # 检测常见加速器端口
+    common_ports = [7890, 7891, 10809, 10810, 1080, 1081, 1082, 57000, 57001, 57002, 8080, 8081, 9999, 10000]
+    for port in common_ports:
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(0.5)
+            result = sock.connect_ex(('127.0.0.1', port))
+            sock.close()
+            if result == 0:
+                proxies = {'http': f'http://127.0.0.1:{port}', 'https': f'http://127.0.0.1:{port}'}
+                logger.info(f"✅ 检测到本地代理端口 {port}")
+                return proxies
+        except Exception:
+            pass
+    
+    # 检查环境变量
+    http_proxy = os.environ.get('http_proxy') or os.environ.get('HTTP_PROXY')
+    https_proxy = os.environ.get('https_proxy') or os.environ.get('HTTPS_PROXY')
+    if http_proxy or https_proxy:
+        logger.info(f"✅ 从环境变量检测到代理")
+        return {'http': http_proxy or https_proxy, 'https': https_proxy or http_proxy}
+    
+    return None
+
+
 def retry_on_failure(max_retries=MAX_RETRIES, delay=RETRY_DELAY):
-    """
-    重试装饰器：当函数执行失败时自动重试
-    
-    Args:
-        max_retries: 最大重试次数
-        delay: 重试间隔（秒）
-    
-    Returns:
-        装饰器函数
-    """
+    """重试装饰器"""
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -45,43 +90,40 @@ def retry_on_failure(max_retries=MAX_RETRIES, delay=RETRY_DELAY):
                        requests.exceptions.ConnectionError,
                        requests.exceptions.RequestException) as e:
                     last_exception = e
-                    logger.warning(f"第{attempt}次尝试失败: {str(e)}")
+                    logger.warning(f"第{attempt}次尝试失败: {str(e)[:80]}")
                     if attempt < max_retries:
-                        logger.info(f"等待{delay}秒后重试...")
                         time.sleep(delay)
-                    else:
-                        logger.error(f"已达到最大重试次数({max_retries})，放弃请求")
-            
             raise last_exception
         return wrapper
     return decorator
 
 
 def send_request(url, timeout=REQUEST_TIMEOUT):
-    """
-    发送HTTP GET请求，带重试机制
+    """发送HTTP GET请求，支持虚拟网卡模式"""
+    active_proxies = PROXIES if PROXIES else get_system_proxy()
     
-    Args:
-        url: 请求URL
-        timeout: 超时时间（秒）
+    # 检测是否为虚拟网卡模式
+    use_virtual_nic = False
+    if active_proxies:
+        try:
+            test_response = requests.get('https://www.baidu.com', proxies=active_proxies, timeout=5, verify=False)
+            if test_response.status_code != 200:
+                use_virtual_nic = True
+                logger.info("⚠️ HTTP代理不可用，切换到虚拟网卡模式")
+        except Exception:
+            use_virtual_nic = True
+            logger.info("⚠️ HTTP代理连接失败，切换到虚拟网卡模式")
     
-    Returns:
-        requests.Response对象
-    
-    Raises:
-        requests.exceptions.RequestException: 请求失败异常
-    """
     @retry_on_failure()
     def _request():
-        # 准备请求参数
         kwargs = {
             'headers': HEADERS,
             'timeout': timeout,
             'verify': False,
-            'proxies': PROXIES
         }
+        if not use_virtual_nic:
+            kwargs['proxies'] = active_proxies
         
-        # 如果配置了Cookie，添加到请求中
         if STORE_COUNTRY_COOKIE:
             kwargs['headers'] = HEADERS.copy()
             kwargs['headers']['Cookie'] = STORE_COUNTRY_COOKIE
@@ -94,90 +136,46 @@ def send_request(url, timeout=REQUEST_TIMEOUT):
 
 
 def get_script_directory():
-    """
-    获取脚本所在目录的绝对路径
-    
-    Returns:
-        脚本目录的绝对路径
-    """
+    """获取脚本所在目录的绝对路径"""
     return os.path.dirname(os.path.abspath(__file__))
 
 
 def get_excel_path():
-    """
-    获取Excel文件的完整路径（基于脚本目录）
-    
-    Returns:
-        Excel文件的绝对路径
-    """
+    """获取Excel文件的完整路径"""
     from config import EXCEL_FILENAME
-    script_dir = get_script_directory()
-    return os.path.join(script_dir, EXCEL_FILENAME)
+    return os.path.join(get_script_directory(), EXCEL_FILENAME)
 
 
 def is_file_open(filepath):
-    """
-    检查文件是否被其他程序打开（Windows系统）
-    
-    Args:
-        filepath: 文件路径
-    
-    Returns:
-        bool: 文件是否被打开
-    """
+    """检查文件是否被其他程序打开"""
     try:
-        # 尝试以独占模式打开文件
         with open(filepath, 'r+b'):
             return False
     except IOError:
         return True
     except FileNotFoundError:
-        # 文件不存在，自然没有被打开
         return False
 
 
 def validate_steam_url(url):
-    """
-    验证Steam商店URL格式
-    
-    Args:
-        url: 待验证的URL
-    
-    Returns:
-        bool: 是否为有效的Steam商店URL
-    """
+    """验证Steam商店URL格式"""
     from config import STEAM_STORE_URL_PATTERN
-    
-    # 基本检查
     if not url or not url.startswith('http'):
         return False
-    
     if STEAM_STORE_URL_PATTERN not in url:
         return False
-    
-    # 检查是否有有效的游戏ID
     import re
-    match = re.search(r'/app/(\d+)/', url)
-    if not match:
-        return False
-    
-    return True
+    return bool(re.search(r'/app/\d+/', url))
 
 
 def clean_steam_url(url):
-    """
-    清理Steam URL，移除末尾的多余字符
-    
-    Args:
-        url: 原始URL
-    
-    Returns:
-        str: 清理后的URL
-    """
-    # 移除末尾的 /_/ 或多余的斜杠
-    cleaned = url.rstrip('/')
-    if cleaned.endswith('/_'):
-        cleaned = cleaned[:-2]
-    cleaned = cleaned.rstrip('/') + '/'
-    
-    return cleaned
+    """清理Steam URL，移除追踪参数和多余字符"""
+    import re
+    match = re.search(r'(https?://store\.steampowered\.com/app/\d+/)', url)
+    if match:
+        return match.group(1)
+    url = url.split('?')[0]
+    url = url.rstrip('/')
+    if url.endswith('/_'):
+        url = url[:-2]
+    return url.rstrip('/') + '/'

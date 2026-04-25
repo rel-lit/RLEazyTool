@@ -30,10 +30,9 @@ def print_instructions():
     print("  3. 输入 'q' 或 'quit' 退出程序")
     print("  4. 输入 'help' 显示此帮助信息")
     print()
-    print("⚠️  注意:")
-    print("  - Steam商店需要能够正常访问（可能需要科学上网）")
-    print("  - 如果连接超时，请检查网络连接或配置代理")
-    print("  - 如需配置代理，请编辑 config.py 文件")
+    print("📌 注意:")
+    print("  - 程序会自动检测加速器（支持UU、Clash等）")
+    print("  - 如需手动配置代理，请编辑 config.py 文件")
     print()
 
 
