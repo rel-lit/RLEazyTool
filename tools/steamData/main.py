@@ -112,8 +112,8 @@ def process_game_url(url, scraper, excel_handler):
     print("\n正在保存数据到Excel...")
     if excel_handler.save_game_data(game_data):
         row_count = excel_handler.get_current_row_count()
-        print(f"✓ 保存成功! 当前共有 {row_count} 条记录")
-        print(f"  文件位置: {excel_handler.filepath}")
+        print(f"✓ 保存成功！当前共有 {row_count} 条记录")
+        print(f"  文件位置：{excel_handler.filepath}")
         return True
     else:
         print("❌ 保存失败，请检查Excel文件是否被其他程序打开")

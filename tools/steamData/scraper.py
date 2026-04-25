@@ -196,13 +196,13 @@ class SteamGameScraper:
     
     def scrape(self, url):
         """
-        完整的抓取流程
+        完整的抓取流程（链接模式）
         
         Args:
             url: Steam商店页面URL
         
         Returns:
-            dict: 包含游戏信息和图片数据的字典，失败返回None
+            dict: 包含游戏信息的字典，失败返回None
         """
         # 获取页面
         html = self.fetch_page(url)
@@ -214,11 +214,9 @@ class SteamGameScraper:
         if not game_data:
             return None
         
-        # 下载图片
-        if game_data['cover_image']:
-            image_data = self.download_image(game_data['cover_image'])
-            game_data['image_data'] = image_data
-        else:
-            game_data['image_data'] = None
+        # 链接模式：不需要下载图片，只保存 URL
+        # 如果需要下载图片，取消下面的注释
+        # if game_data['cover_image']:
+        #     game_data['image_data'] = self.download_image(game_data['cover_image'])
         
         return game_data
