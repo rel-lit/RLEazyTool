@@ -29,7 +29,7 @@ urllib3>=2.0.0
 
 ### 方法一：双击运行（推荐）
 
-双击 `run.bat`，程序会自动：
+双击 `steamData.bat`，程序会自动：
 1. 检测Python环境
 2. 检查并安装依赖库
 3. 启动主程序
@@ -136,15 +136,15 @@ A: 编辑 `config.py` 中的 `EXCEL_FILENAME` 配置项
 
 ```
 tools/steamData/
-├── launcher.py          # 启动器（环境检测+依赖安装）
-├── main.py              # 主程序入口
-├── scraper.py           # 爬虫模块（数据抓取）
-├── excel_handler.py     # Excel处理模块
-├── config.py            # 配置模块
-├── utils.py             # 工具模块
-├── test.py              # 测试脚本
-├── run.bat             # 启动脚本
-├── requirements.txt     # 依赖清单
+├── steamData.bat       # 启动脚本
+├── launcher.py         # 启动器（环境检测+依赖安装）
+├── main.py             # 主程序入口
+├── scraper.py          # 爬虫模块（数据抓取）
+├── excel_handler.py    # Excel处理模块
+├── config.py           # 配置模块
+├── utils.py            # 工具模块
+├── test.py             # 测试脚本
+├── requirements.txt    # 依赖清单
 └── README.md           # 说明文档
 ```
 
@@ -156,6 +156,13 @@ tools/steamData/
 - **日志记录**: logging模块
 
 ## 更新日志
+
+### v1.2.0 (2026-04-25)
+- 🎯 重命名启动脚本为 steamData.bat
+- ✨ 优化图片保存逻辑，修复临时文件问题
+- ✨ 改进HTML解析逻辑，参考成熟实现
+- ✨ 增加代理支持和超时配置
+- ✨ URL自动清理功能
 
 ### v1.1.0 (2026-04-25)
 - ✨ 优化HTML解析逻辑，参考成熟实现

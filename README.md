@@ -7,6 +7,7 @@
 - ✨ **新增**: Steam游戏数据抓取工具 (tools/steamData)
 - 🔧 **优化**: 添加虚拟环境支持 (.venv)
 - 📝 **文档**: 完善使用指南和快速开始文档
+- 🎯 **改进**: 优化网络请求、代理支持和错误处理
 
 ## 依赖与环境说明
 
@@ -55,16 +56,16 @@ RLEazyTool/
 │   │   ├── test_merge_logic.py
 │   │   └── test_path_utils.py
 │   └── steamData/              # Steam游戏数据抓取工具
+│       ├── steamData.bat       # 启动脚本
 │       ├── launcher.py         # 启动器
-│       ├── main.py
-│       ├── scraper.py
-│       ├── excel_handler.py
-│       ├── config.py
-│       ├── utils.py
-│       ├── test.py
-│       ├── run.bat
-│       ├── requirements.txt
-│       └── README.md
+│       ├── main.py             # 主程序
+│       ├── scraper.py          # 爬虫模块
+│       ├── excel_handler.py    # Excel处理模块
+│       ├── config.py           # 配置模块
+│       ├── utils.py            # 工具模块
+│       ├── test.py             # 测试脚本
+│       ├── requirements.txt    # 依赖清单
+│       └── README.md           # 说明文档
 ├── .gitignore
 ├── README.md
 └── VENV_GUIDE.md               # 虚拟环境设置指南
@@ -184,10 +185,10 @@ RLEazyTool/
 
 #### 使用方法
 
-**方法一：使用批处理文件（推荐）**
+**方法一：双击运行（推荐）**
 ```bash
 cd tools\steamData
-双击 run.bat
+双击 steamData.bat
 ```
 
 **方法二：命令行运行**
@@ -199,7 +200,10 @@ cd tools\steamData
 cd tools\steamData
 pip install -r requirements.txt
 
-# 运行程序
+# 运行启动器
+python launcher.py
+
+# 或直接运行主程序
 python main.py
 ```
 
