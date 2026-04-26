@@ -43,7 +43,7 @@ class ExcelHandler:
         self.sheet.append(headers)
         
         # 设置列宽 - 为图片列设置合适的宽度
-        self.sheet.column_dimensions['A'].width = 42  # 封面图片（300像素 ≈ 42字符宽度）
+        self.sheet.column_dimensions['A'].width = 30  # 封面图片（列宽30）
         self.sheet.column_dimensions['B'].width = 25  # 游戏名
         self.sheet.column_dimensions['C'].width = 10  # 价格
         self.sheet.column_dimensions['D'].width = 10  # 好评率
@@ -102,12 +102,13 @@ class ExcelHandler:
             logger.error(f"图片下载失败: {str(e)}")
             return None
     
-    def _resize_image_to_fit_cell(self, pil_image, target_width=300, target_height=100):
-        """调整图片尺寸以完全贴合单元格（300x100像素）"""
+    def _resize_image_to_fit_cell(self, pil_image, target_width=220, target_height=150):
+        """调整图片尺寸以完全贴合单元格（列宽30，行高40）"""
         if pil_image is None:
             return None
         
         # 直接调整图片到目标尺寸，完全贴合单元格
+        # 列宽30 ≈ 220像素，行高40 ≈ 150像素
         resized_img = pil_image.resize((target_width, target_height), PILImage.LANCZOS)
         
         return resized_img
@@ -160,8 +161,8 @@ class ExcelHandler:
                     cell_ref = f'A{row_num}'
                     openpyxl_img.anchor = cell_ref
                     
-                    # 设置固定行高100像素（100px ≈ 75pt）
-                    self.sheet.row_dimensions[row_num].height = 75  # 固定行高75pt（100像素）
+                    # 设置固定行高40
+                    self.sheet.row_dimensions[row_num].height = 40  # 固定行高40
                     
                     # 添加图片到工作表
                     self.sheet.add_image(openpyxl_img, cell_ref)

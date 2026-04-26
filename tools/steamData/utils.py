@@ -78,7 +78,7 @@ def get_system_proxy():
 
 
 def retry_on_failure(max_retries=MAX_RETRIES, delay=RETRY_DELAY):
-    """重试装饰器"""
+    """重试装饰器 - 使用指数退避策略"""
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -90,9 +90,13 @@ def retry_on_failure(max_retries=MAX_RETRIES, delay=RETRY_DELAY):
                        requests.exceptions.ConnectionError,
                        requests.exceptions.RequestException) as e:
                     last_exception = e
-                    logger.warning(f"第{attempt}次尝试失败: {str(e)[:80]}")
+                    # 指数退避：第1次3秒，第2次6秒，第3次12秒...
+                    wait_time = delay * (2 ** (attempt - 1))
+                    logger.warning(f"⚠️ 第{attempt}次尝试失败: {str(e)[:80]}")
                     if attempt < max_retries:
-                        time.sleep(delay)
+                        logger.info(f"⏳ 等待{wait_time}秒后重试...")
+                        time.sleep(wait_time)
+            logger.error(f"❌ 已重试{max_retries}次，全部失败")
             raise last_exception
         return wrapper
     return decorator
@@ -116,6 +120,19 @@ def send_request(url, timeout=REQUEST_TIMEOUT):
     
     @retry_on_failure()
     def _request():
+        # 创建Session以复用连接
+        session = requests.Session()
+        
+        # 配置连接池参数
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=10,
+            pool_maxsize=10,
+            max_retries=0,  # 我们已经自己实现了重试
+            pool_block=False
+        )
+        session.mount('http://', adapter)
+        session.mount('https://', adapter)
+        
         kwargs = {
             'headers': HEADERS,
             'timeout': timeout,
@@ -132,11 +149,21 @@ def send_request(url, timeout=REQUEST_TIMEOUT):
             kwargs['headers'] = HEADERS.copy()
             kwargs['headers']['Cookie'] = STORE_COUNTRY_COOKIE
         
+        import time
+        start_time = time.time()
         logger.info(f"🌐 正在连接: {url}")
-        response = requests.get(url, **kwargs)
-        response.raise_for_status()
-        logger.info(f"✅ 连接成功，状态码: {response.status_code}")
-        return response
+        try:
+            response = session.get(url, **kwargs)
+            elapsed = time.time() - start_time
+            response.raise_for_status()
+            logger.info(f"✅ 连接成功 ({elapsed:.1f}秒)，状态码: {response.status_code}")
+            return response
+        except Exception as e:
+            elapsed = time.time() - start_time
+            logger.error(f"❌ 连接失败 (耗时{elapsed:.1f}秒): {str(e)[:100]}")
+            raise
+        finally:
+            session.close()  # 关闭session
     
     return _request()
 
