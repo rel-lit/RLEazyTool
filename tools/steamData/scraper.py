@@ -109,29 +109,78 @@ class SteamGameScraper:
     def _extract_review(self, soup):
         """提取好评率/评测信息"""
         try:
-            # 优先尝试提取百分比
-            # Steam 通常显示为 "80% of the ..." 或 "特别好评 (80%)"
+            import re
+                
+            # 方法1: 查找用户评测区域的详细统计（优先，因为这里通常有百分比）
+            user_reviews = soup.find('div', id='userReviews')
+            if user_reviews:
+                review_text = user_reviews.get_text()
+                # 尝试匹配百分比模式，如 "80% of the 1,234 user reviews..."
+                match = re.search(r'(\d+)%.*?(?:positive|好评)', review_text, re.IGNORECASE)
+                if match:
+                    percentage = match.group(1)
+                    logger.debug(f"从用户评测区提取到百分比: {percentage}%")
+                    return f"{percentage}%"
+                # 或者匹配 "特别好评" 等文本
+                positive_match = re.search(r'(特别好评|好评如潮|褒贬不一|差评如潮|多半好评|多半差评)', review_text)
+                if positive_match:
+                    logger.debug(f"从用户评测区提取到评价: {positive_match.group(1)}")
+                    return positive_match.group(1)
+                
+            # 方法2: 查找游戏评测摘要（常见位置，但可能没有百分比）
             review_elem = soup.find('span', class_='game_review_summary')
             if review_elem:
                 text = review_elem.get_text(strip=True)
-                # 尝试提取百分比数字
-                import re
+                logger.debug(f"找到评测摘要: {text}")
+                # 尝试提取百分比数字 (例如: "80%", "95%")
                 match = re.search(r'(\d+)%', text)
                 if match:
-                    return f"{match.group(1)}%"
-                return text
-            
-            # 备用方案
-            percent_tag = soup.find(string=re.compile(r"%.*positive|positive.*%|特别好评|好评如潮", re.IGNORECASE))
-            if percent_tag:
-                text = percent_tag.parent.get_text(strip=True)
-                match = re.search(r'(\d+)%', text)
-                if match:
-                    return f"{match.group(1)}%"
-                return text
+                    percentage = match.group(1)
+                    logger.debug(f"从评测摘要提取到百分比: {percentage}%")
+                    return f"{percentage}%"
+                # 如果没有百分比，返回原文（如"特别好评"、"好评如潮"等）
+                if text:
+                    logger.debug(f"从评测摘要提取到评价: {text}")
+                    return text
                 
+            # 方法3: 查找任何包含百分比和positive/review的文本
+            percent_tags = soup.find_all(string=re.compile(r'\d+%.*(?:positive|review|好评|评测)', re.IGNORECASE))
+            for tag in percent_tags:
+                text = tag.parent.get_text(strip=True)
+                match = re.search(r'(\d+)%', text)
+                if match:
+                    percentage = match.group(1)
+                    logger.debug(f"从其他位置提取到百分比: {percentage}%")
+                    return f"{match.group(1)}%"
+                
+            # 方法4: 全局搜索页面中的评测相关信息
+            page_text = soup.get_text()
+            # 匹配常见的评测格式
+            patterns = [
+                r'(\d+)%\s*of\s*(?:the\s*)?[\d,]+\s*user\s*reviews',  # 80% of the 1,234 user reviews
+                r'(\d+)%.*?(?:positive|好评)',  # 80% positive
+            ]
+            for pattern in patterns:
+                match = re.search(pattern, page_text, re.IGNORECASE)
+                if match:
+                    if match.group(1).isdigit():
+                        logger.debug(f"从页面全文提取到百分比: {match.group(1)}%")
+                        return f"{match.group(1)}%"
+                
+            # 方法5: 最后尝试匹配中文评测总结
+            chinese_patterns = [
+                r'(特别好评|好评如潮|褒贬不一|差评如潮|多半好评|多半差评)',
+            ]
+            for pattern in chinese_patterns:
+                match = re.search(pattern, page_text)
+                if match:
+                    logger.debug(f"从页面全文提取到评价: {match.group(1)}")
+                    return match.group(1)
+                
+            return '暂无评测'
+                    
         except Exception as e:
-            logger.warning(f"提取评测信息失败: {str(e)}")
+            logger.warning(f"提取评测信息失败: {str(e)}", exc_info=True)
         return '暂无评测'
     
     def _extract_tags(self, soup):
@@ -157,19 +206,72 @@ class SteamGameScraper:
     def _extract_languages(self, soup):
         """提取支持的语言 (简化为：中文/无中文)"""
         try:
-            # 查找语言区域
+            logger.debug("开始提取语言信息...")
+            
+            # 方法1: 查找语言区域（旧版Steam页面）
             lang_div = soup.find('div', class_='game_language_options')
             if lang_div:
-                lang_text = lang_div.get_text(strip=True)
+                logger.debug("找到 game_language_options div")
+                lang_text = lang_div.get_text()
+                logger.debug(f"语言区域文本长度: {len(lang_text)} 字符")
                 # 检查是否包含中文
-                if '简体中文' in lang_text or '繁体中文' in lang_text or 'Simplified Chinese' in lang_text:
+                if '简体中文' in lang_text or '繁体中文' in lang_text or 'Simplified Chinese' in lang_text or 'Traditional Chinese' in lang_text:
+                    logger.debug("检测到中文支持")
                     return '中文'
                 else:
+                    logger.debug("未检测到中文")
                     return '无中文'
             
+            # 方法2: 查找新版Steam页面的语言表格
+            lang_table = soup.find('table', class_='game_language_options')
+            if lang_table:
+                logger.debug("找到 game_language_options table")
+                lang_text = lang_table.get_text()
+                logger.debug(f"语言表格文本长度: {len(lang_text)} 字符")
+                if '简体中文' in lang_text or '繁体中文' in lang_text or 'Simplified Chinese' in lang_text or 'Traditional Chinese' in lang_text:
+                    logger.debug("检测到中文支持")
+                    return '中文'
+                else:
+                    logger.debug("未检测到中文")
+                    return '无中文'
+            
+            # 方法3: 通过JSON-LD或script标签查找语言信息
+            scripts = soup.find_all('script', type='application/ld+json')
+            logger.debug(f"找到 {len(scripts)} 个 JSON-LD script 标签")
+            for script in scripts:
+                if script.string:
+                    import json
+                    try:
+                        data = json.loads(script.string)
+                        if isinstance(data, dict):
+                            # 检查inLanguage字段
+                            if 'inLanguage' in data:
+                                langs = data['inLanguage']
+                                logger.debug(f"JSON-LD 中的语言: {langs}")
+                                if isinstance(langs, list):
+                                    for lang in langs:
+                                        if 'zh' in lang.lower() or 'chinese' in lang.lower():
+                                            logger.debug("从 JSON-LD 检测到中文")
+                                            return '中文'
+                                elif isinstance(langs, str):
+                                    if 'zh' in langs.lower() or 'chinese' in langs.lower():
+                                        logger.debug("从 JSON-LD 检测到中文")
+                                        return '中文'
+                    except Exception as e:
+                        logger.debug(f"解析 JSON-LD 失败: {e}")
+                        pass
+            
+            # 方法4: 在整个页面中搜索中文关键词（备用方案）
+            page_text = soup.get_text()
+            logger.debug("在页面全文中搜索中文关键词...")
+            if any(keyword in page_text for keyword in ['简体中文', '繁體中文', 'Simplified Chinese', 'Traditional Chinese']):
+                logger.debug("从页面全文检测到中文")
+                return '中文'
+            
+            logger.debug("未找到任何中文支持信息")
             return '无中文'
         except Exception as e:
-            logger.warning(f"提取语言信息失败: {str(e)}")
+            logger.warning(f"提取语言信息失败: {str(e)}", exc_info=True)
         return '无中文'
     
     def download_image(self, image_url):
