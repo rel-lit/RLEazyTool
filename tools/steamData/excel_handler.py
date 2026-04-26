@@ -102,13 +102,13 @@ class ExcelHandler:
             logger.error(f"图片下载失败: {str(e)}")
             return None
     
-    def _resize_image_to_fit_cell(self, pil_image, target_width=220, target_height=150):
-        """调整图片尺寸以完全贴合单元格（列宽30，行高40）"""
+    def _resize_image_to_fit_cell(self, pil_image, target_width=210, target_height=53):
+        """强制拉伸图片以完全填充单元格（不保持比例）"""
         if pil_image is None:
             return None
         
-        # 直接调整图片到目标尺寸，完全贴合单元格
-        # 列宽30 ≈ 220像素，行高40 ≈ 150像素
+        # 直接强制调整图片到目标尺寸，不保持原始比例
+        # Excel列宽30 = 210像素，行高40 = 53像素
         resized_img = pil_image.resize((target_width, target_height), PILImage.LANCZOS)
         
         return resized_img
