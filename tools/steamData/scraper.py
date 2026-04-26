@@ -86,21 +86,46 @@ class SteamGameScraper:
         return None
     
     def _extract_price(self, soup):
-        """提取价格信息"""
+        """提取基础版游戏价格信息"""
         try:
             # 检查是否免费
             if soup.find('div', string=re.compile("免费开玩|Free to Play")):
                 return '免费'
             
-            # 尝试提取价格
+            # 优先查找购买区域的基础价格（标准版）
+            # Steam页面中，基础版价格通常在 game_area_purchase 区域内
+            purchase_section = soup.find('div', id='game_area_purchase')
+            if purchase_section:
+                # 查找第一个购买选项（通常是基础版）
+                first_purchase = purchase_section.find('div', class_='game_purchase_action')
+                if first_purchase:
+                    # 尝试获取折扣后的价格
+                    discount_price = first_purchase.find('div', class_='discount_final_price')
+                    if discount_price:
+                        price_text = discount_price.get_text(strip=True)
+                        logger.debug(f"提取到基础版折扣价格: {price_text}")
+                        return price_text
+                    
+                    # 如果没有折扣，获取正常价格
+                    normal_price = first_purchase.find('div', class_='game_purchase_price')
+                    if normal_price:
+                        price_text = normal_price.get_text(strip=True)
+                        logger.debug(f"提取到基础版价格: {price_text}")
+                        return price_text
+            
+            # 备用方案：直接查找页面上的第一个价格（可能是基础版）
             price_block = soup.find('div', class_='game_purchase_price')
             if price_block:
-                return price_block.get_text(strip=True)
+                price_text = price_block.get_text(strip=True)
+                logger.debug(f"备用方案提取到价格: {price_text}")
+                return price_text
             
             # 另一种价格格式（折扣后价格）
             discount_price = soup.find('div', class_='discount_final_price')
             if discount_price:
-                return discount_price.get_text(strip=True)
+                price_text = discount_price.get_text(strip=True)
+                logger.debug(f"备用方案提取到折扣价格: {price_text}")
+                return price_text
                 
         except Exception as e:
             logger.warning(f"提取价格失败: {str(e)}")

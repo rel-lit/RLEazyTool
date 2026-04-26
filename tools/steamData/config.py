@@ -18,9 +18,9 @@ STORE_COUNTRY_COOKIE = 'birthtime=0; lastagecheckage=1-January-1990; mature_cont
 # STORE_COUNTRY_COOKIE = None
 
 # 网络请求配置
-REQUEST_TIMEOUT = 30  # 超时时间（秒）- Steam访问较慢，增加到30秒
+REQUEST_TIMEOUT = 60  # 超时时间（秒）- Steam访问较慢，增加到60秒
 MAX_RETRIES = 3  # 最大重试次数
-RETRY_DELAY = 3  # 重试间隔（秒）
+RETRY_DELAY = 5  # 重试间隔（秒）- 增加到5秒，避免频繁请求
 
 # 代理配置（可选）
 # 如果手动配置代理，取消注释并设置；否则将自动检测系统代理

@@ -1,10 +1,14 @@
 """
-Excel 处理模块 - 负责将游戏数据保存到Excel文件（链接模式）
+Excel 处理模块 - 负责将游戏数据保存到Excel文件（图片嵌入模式）
 """
 import os
 import logging
 from openpyxl import Workbook, load_workbook
 from openpyxl import styles
+from openpyxl.drawing.image import Image
+from PIL import Image as PILImage
+import io
+import requests
 
 from utils import get_excel_path, is_file_open, logger
 
@@ -25,9 +29,9 @@ class ExcelHandler:
         self.sheet = self.workbook.active
         self.sheet.title = 'Steam游戏数据'
         
-        # 设置表头 - 使用链接模式
+        # 设置表头 - 使用图片嵌入模式
         headers = [
-            '图片链接', '游戏名', '价格', '好评率', 
+            '封面图片', '游戏名', '价格', '好评率', 
             '标签', '标签',
             '商店链接', '语言', 
             '评分员1', '短评', '分数',
@@ -38,8 +42,8 @@ class ExcelHandler:
         ]
         self.sheet.append(headers)
         
-        # 设置列宽
-        self.sheet.column_dimensions['A'].width = 60  # 图片链接
+        # 设置列宽 - 为图片列设置合适的宽度
+        self.sheet.column_dimensions['A'].width = 42  # 封面图片（300像素 ≈ 42字符宽度）
         self.sheet.column_dimensions['B'].width = 25  # 游戏名
         self.sheet.column_dimensions['C'].width = 10  # 价格
         self.sheet.column_dimensions['D'].width = 10  # 好评率
@@ -80,14 +84,42 @@ class ExcelHandler:
                 return False
         return True
     
+    def _download_image_from_url(self, image_url):
+        """从URL下载图片并返回PIL Image对象"""
+        try:
+            if not image_url:
+                return None
+            
+            logger.info(f"正在下载图片: {image_url}")
+            response = requests.get(image_url, timeout=10)
+            response.raise_for_status()
+            
+            # 将字节数据转换为PIL Image对象
+            img = PILImage.open(io.BytesIO(response.content))
+            logger.info("图片下载成功")
+            return img
+        except Exception as e:
+            logger.error(f"图片下载失败: {str(e)}")
+            return None
+    
+    def _resize_image_to_fit_cell(self, pil_image, target_width=300, target_height=100):
+        """调整图片尺寸以完全贴合单元格（300x100像素）"""
+        if pil_image is None:
+            return None
+        
+        # 直接调整图片到目标尺寸，完全贴合单元格
+        resized_img = pil_image.resize((target_width, target_height), PILImage.LANCZOS)
+        
+        return resized_img
+    
     def _add_game_row(self, game_data):
-        """添加一行游戏数据"""
+        """添加一行游戏数据，包含嵌入式图片"""
         tags = game_data.get('tags', [])
         tag1 = tags[0] if len(tags) > 0 else ''
         tag2 = tags[1] if len(tags) > 1 else ''
         
         row_data = [
-            game_data.get('cover_image', ''),  # A: 图片链接
+            '',  # A: 封面图片（稍后插入图片对象）
             game_data.get('name', '未知'),  # B: 游戏名
             game_data.get('price', '未知'),  # C: 价格
             game_data.get('review', '暂无评测'),  # D: 好评率
@@ -104,11 +136,42 @@ class ExcelHandler:
         
         self.sheet.append(row_data)
         row_num = self.sheet.max_row
+        
+        # 设置该行所有单元格垂直居中
+        for col_idx in range(1, len(row_data) + 1):
+            cell = self.sheet.cell(row=row_num, column=col_idx)
+            cell.alignment = styles.Alignment(horizontal='left', vertical='center', wrap_text=True)
+        
+        # 尝试下载并插入图片
+        cover_image_url = game_data.get('cover_image')
+        if cover_image_url:
+            pil_image = self._download_image_from_url(cover_image_url)
+            if pil_image:
+                # 调整图片大小以适应单元格
+                resized_img = self._resize_image_to_fit_cell(pil_image)
+                if resized_img:
+                    # 将PIL Image转换为openpyxl兼容的Image对象
+                    img_stream = io.BytesIO()
+                    resized_img.save(img_stream, format='PNG')
+                    img_stream.seek(0)
+                    
+                    openpyxl_img = Image(img_stream)
+                    # 设置图片在单元格中的位置
+                    cell_ref = f'A{row_num}'
+                    openpyxl_img.anchor = cell_ref
+                    
+                    # 设置固定行高100像素（100px ≈ 75pt）
+                    self.sheet.row_dimensions[row_num].height = 75  # 固定行高75pt（100像素）
+                    
+                    # 添加图片到工作表
+                    self.sheet.add_image(openpyxl_img, cell_ref)
+                    logger.info(f"在第{row_num}行插入图片")
+        
         logger.info(f"添加游戏数据到第{row_num}行：{game_data.get('name')}")
         return row_num
     
     def save_game_data(self, game_data):
-        """保存游戏数据到Excel（链接模式）"""
+        """保存游戏数据到Excel（图片嵌入模式）"""
         if not self._check_file_availability():
             return False
         

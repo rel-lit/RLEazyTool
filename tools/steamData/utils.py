@@ -99,20 +99,20 @@ def retry_on_failure(max_retries=MAX_RETRIES, delay=RETRY_DELAY):
 
 
 def send_request(url, timeout=REQUEST_TIMEOUT):
-    """发送HTTP GET请求，支持虚拟网卡模式"""
-    active_proxies = PROXIES if PROXIES else get_system_proxy()
-    
-    # 检测是否为虚拟网卡模式
-    use_virtual_nic = False
-    if active_proxies:
-        try:
-            test_response = requests.get('https://www.baidu.com', proxies=active_proxies, timeout=5, verify=False)
-            if test_response.status_code != 200:
-                use_virtual_nic = True
-                logger.info("⚠️ HTTP代理不可用，切换到虚拟网卡模式")
-        except Exception:
-            use_virtual_nic = True
-            logger.info("⚠️ HTTP代理连接失败，切换到虚拟网卡模式")
+    """发送HTTP GET请求，支持虚拟网卡模式（UU加速器等）"""
+    # 如果手动配置了PROXIES，使用配置的代理
+    if PROXIES:
+        active_proxies = PROXIES
+        logger.info(f"✅ 使用手动配置的代理")
+    else:
+        # 否则尝试自动检测系统代理
+        detected_proxy = get_system_proxy()
+        if detected_proxy:
+            logger.info(f"⚠️ 检测到系统代理端口，但将优先使用虚拟网卡直连")
+            logger.info(f"💡 如果直连失败，请在config.py中手动配置正确的代理")
+        # 对于虚拟网卡模式的加速器（如UU），不应该使用HTTP代理
+        # 直接设置为None，让系统路由自动处理
+        active_proxies = None
     
     @retry_on_failure()
     def _request():
@@ -121,15 +121,21 @@ def send_request(url, timeout=REQUEST_TIMEOUT):
             'timeout': timeout,
             'verify': False,
         }
-        if not use_virtual_nic:
+        # 只有当明确配置了代理时才使用
+        if active_proxies:
             kwargs['proxies'] = active_proxies
+            logger.debug(f"使用HTTP代理: {active_proxies}")
+        else:
+            logger.debug("使用直连（虚拟网卡模式）")
         
         if STORE_COUNTRY_COOKIE:
             kwargs['headers'] = HEADERS.copy()
             kwargs['headers']['Cookie'] = STORE_COUNTRY_COOKIE
         
+        logger.info(f"🌐 正在连接: {url}")
         response = requests.get(url, **kwargs)
         response.raise_for_status()
+        logger.info(f"✅ 连接成功，状态码: {response.status_code}")
         return response
     
     return _request()
