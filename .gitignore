@@ -36,9 +36,8 @@ desktop.ini
 # 日志文件
 *.log
 
-# 忽略所有 json 文件（含 merge / steamData 等本地配置）
+# 忽略所有 json 文件（含 merge 等本地配置）
 *.json
 # 常见用户配置文件（已由 *.json 覆盖，便于检索）:
 #   tools/merge/merge_config.json
-#   tools/steamData/steamdata_config.json
 # 如需提交示例配置，对单文件使用 !path/to/file.json

@@ -16,15 +16,16 @@
    .venv\Scripts\activate
    ```
 
-2. **安装依赖**：
+2. **merge 工具无需额外依赖**（仅标准库）。若日后为其它子项目安装包：
    ```bash
-   cd tools\steamData
-   pip install -r requirements.txt
+   .venv\Scripts\activate
+   pip install <包名>
    ```
 
-3. **运行程序**：
+3. **运行 merge（示例）**：
    ```bash
-   python main.py
+   cd tools\merge
+   py main.py
    ```
 
 4. **退出虚拟环境**：
@@ -32,9 +33,9 @@
    deactivate
    ```
 
-### 使用批处理文件（推荐）
+### 使用批处理文件（merge）
 
-直接双击 `tools\steamData\run.bat`，它会自动检测并激活虚拟环境！
+在 `tools\merge\` 下双击 **`merge.bat`**，或在项目根目录激活 `.venv` 后运行 `py tools\merge\main.py`。
 
 ## 🔧 手动创建虚拟环境（如需重新创建）
 
@@ -75,11 +76,9 @@ where pip       # Windows
 which pip       # Linux/Mac
 ```
 
-### 5. 安装依赖
-```bash
-cd tools\steamData
-pip install -r requirements.txt
-```
+### 5. （可选）为子项目安装第三方依赖
+
+当前仓库中的 **merge** 仅使用 Python 标准库，通常**不必**执行 `pip install`。若你新增依赖型子工具，再在已激活的 `.venv` 中安装即可。
 
 ## 📦 依赖管理
 
@@ -161,33 +160,18 @@ where python
 D:\WorkTool\RLEazyTool\.venv\
 ```
 
-所有工具的依赖都安装在这个环境中，包括：
-- merge工具（标准库，无需额外依赖）
-- steamData工具（需要requests、beautifulsoup4等）
+当前子工具 **merge** 为纯标准库实现；其它脚本如需第三方库，请在本目录激活 `.venv` 后自行 `pip install`。
 
-### 为steamData工具安装依赖
-
-```bash
-# 方法1: 激活环境后安装
-.venv\Scripts\activate
-cd tools\steamData
-pip install -r requirements.txt
-
-# 方法2: 直接使用虚拟环境的pip
-.venv\Scripts\pip.exe install -r tools\steamData\requirements.txt
-```
-
-## 🔍 验证安装
-
-运行测试脚本验证环境是否正确配置：
+## 🔍 验证安装（可选）
 
 ```bash
 .venv\Scripts\activate
-cd tools\steamData
-python test.py
+cd tools\merge
+py test_merge_logic.py
+py test_path_utils.py
 ```
 
-如果看到 "🎉 所有测试通过!"，说明环境配置成功！
+若测试通过，说明 Python 与路径正常。
 
 ---
 

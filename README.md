@@ -4,12 +4,9 @@
 
 ## 📢 最新更新
 
-- ✨ **新增**: Steam游戏数据抓取工具 (tools/steamData)
-- 🔧 **steamData**: Store JSON API 优先 + HTML 补缺；HTTP Session 复用；详见子目录 README
 - 🔧 **Merge 工具**: 重构为分层架构（解析 / 引擎 / 报表 / REPL），详见 [tools/merge/README.md](tools/merge/README.md)
 - 🔧 **优化**: 添加虚拟环境支持 (.venv)
 - 📝 **文档**: 完善使用指南和快速开始文档
-- 🎯 **改进**: 优化网络请求、代理支持和错误处理
 
 ## 依赖与环境说明
 
@@ -37,7 +34,6 @@ source .venv/bin/activate
 
 ### 核心库
 - **merge 工具**: 无需第三方库，全部标准库实现
-- **steamData 工具**: requests, beautifulsoup4, openpyxl, Pillow, urllib3
 
 ## 目录结构
 
@@ -61,18 +57,6 @@ RLEazyTool/
 │   │   ├── merge_config.json   # 用户配置（通常被 .gitignore）
 │   │   ├── test_merge_logic.py
 │   │   └── test_path_utils.py
-│   └── steamData/              # Steam 游戏数据抓取工具
-│       ├── steamData.bat
-│       ├── launcher.py
-│       ├── main.py
-│       ├── store_api.py        # Store JSON API
-│       ├── scraper.py
-│       ├── excel_handler.py
-│       ├── config.py
-│       ├── utils.py
-│       ├── test_connection.py
-│       ├── requirements.txt
-│       └── README.md
 ├── .gitignore
 ├── README.md
 └── VENV_GUIDE.md               # 虚拟环境设置指南
@@ -138,79 +122,6 @@ RLEazyTool/
 
 单元测试：`tools/merge/test_merge_logic.py`、`test_path_utils.py`。
 
----
-
-### 2. steamData —— Steam 游戏数据抓取工具
-
-从商店页抓取信息并写入 `steam_games.xlsx`；**默认走 Steam Store 公开 JSON API**，不足时自动用 HTML 解析补齐。网络与 Excel 等可通过 **终端配置**（`steamdata_config.json`，类 merge 工具）调整，详见 [tools/steamData/README.md](tools/steamData/README.md)。
-
-**功能概要：**
-- 名称、国区价格/免费、`appreviews` 评测摘要、类型标签、中文支持、封面内嵌 Excel
-- `requests.Session` 复用、可配置重试与 `STEAMDATA_LOG=DEBUG`
-- 直连（虚拟网卡加速）、自动探测本机代理，或终端 `proxy` / `config.PROXIES` 手动代理
-- **终端配置**：`python launcher.py config`、主界面输入 `config`、或双击 `steamData_config.bat`
-
-#### 使用方法
-
-**方法一：双击运行（推荐）**
-```bash
-cd tools\steamData
-双击 steamData.bat
-# 仅调网络/代理/Excel 等：双击 steamData_config.bat
-```
-
-**方法二：命令行运行**
-```bash
-# 激活虚拟环境
-.venv\Scripts\activate
-
-# 安装依赖
-cd tools\steamData
-pip install -r requirements.txt
-
-# 运行启动器
-python launcher.py
-
-# 或仅打开终端配置（写入 steamdata_config.json）
-python launcher.py config
-
-# 或直接运行主程序
-python main.py
-```
-
-**输入示例：**
-```
-请输入Steam游戏URL: https://store.steampowered.com/app/1091500/
-```
-
-#### 输出文件
-
-- **文件名**: `steam_games.xlsx`
-- **位置**: `tools/steamData/` 目录
-- **格式**:
-  | 列A | 列B | 列C | 列D | 列E | 列F | 列G | 列H |
-  |-----|-----|-----|-----|-----|-----|-----|-----|
-  | 封面图 | 游戏名 | 价格 | 好评率 | 标签1 | 标签2 | 商店链接 | 语言 |
-
-#### 核心特性
-
-**稳定性与容错**
-- 多策略连接：**默认先走本机 HTTP 代理**（系统代理 / 环境变量 / 7890 等常见端口），再直连；仅虚拟网卡可改用 `direct_first`
-- 单次策略内失败自动重试（指数退避）
-- API + HTML 双通道，页面改版时较易恢复
-
-**反爬虫对抗**
-- 完整的浏览器请求头伪装
-- SSL证书验证问题自动处理
-
-**文件管理**
-- 基于脚本目录的绝对路径
-- Excel文件占用检测，提示用户关闭
-
-#### 文档
-
-- 完整说明: [tools/steamData/README.md](tools/steamData/README.md)
-
 ## 贡献与反馈
 
 如有建议或问题，欢迎 issue 或 PR。
@@ -220,4 +131,3 @@ python main.py
 
 - [虚拟环境设置指南](VENV_GUIDE.md) - 详细的虚拟环境配置说明
 - [merge 工具说明](tools/merge/README.md) - 代码合并工具（指令、架构、测试）
-- [steamData 工具说明](tools/steamData/README.md) - Steam 数据抓取（API + Excel）
