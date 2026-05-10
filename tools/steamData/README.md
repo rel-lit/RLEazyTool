@@ -47,13 +47,50 @@ python launcher.py
 
 # 或直接运行主程序
 python main.py
+
+# 仅打开终端配置（与 merge 工具类似：改完即写入 JSON）
+python launcher.py config
+python main.py config
+python config_repl.py
+
+# 或双击 steamData_config.bat
 ```
+
+## 终端配置（类 merge 工具）
+
+除直接改 `config.py` 外，可用**交互式终端**修改网络、API、Excel 等；每次有效修改会**重置 HTTP Session** 并写入同目录下的 **`steamdata_config.json`**（已加入 `.gitignore`，不参与版本库）。启动时自动合并该 JSON 覆盖默认值。
+
+**进入方式（任选其一）：**
+
+| 方式 | 说明 |
+|------|------|
+| 主程序内输入 `config` / `cfg` / `settings` | 不退出抓取流程，配完返回 URL 输入 |
+| `python launcher.py config`（或 `--config` / `-c`） | 经启动器检查环境与依赖后进入 |
+| `python main.py config`（或 `--config` / `-c`） | 直接进入配置，不跑抓取横幅循环 |
+| `python config_repl.py` | 同上 |
+| 双击 `steamData_config.bat` | 调用 `launcher.py config` |
+
+**常用命令（完整列表在配置里输入 `help`）：**
+
+- `ll` / `now`：打印当前可持久化项
+- `reload`：从磁盘重新加载 JSON
+- `reset`：删除 `steamdata_config.json` 并恢复代码默认值（需确认 `y`）
+- `strategy proxy_first|direct_first|proxy_only|direct_only`
+- `proxy off` 或 `proxy http://127.0.0.1:7890`
+- `connect` / `read`（秒）、`retries`、`delay`、`verify on|off`
+- `api on|off`、`lang`、`cc`
+- `excel <文件名>`、`cookie default|off|...`、`reqto`、`rowh`、`imgcol`
+
+**持久化键名（与 JSON 字段一致）：**  
+`CONNECTION_STRATEGY`, `PROXIES`, `CONNECT_TIMEOUT`, `READ_TIMEOUT`, `VERIFY_SSL`, `USE_STORE_API`, `STEAM_API_LANGUAGE`, `STEAM_API_CC`, `MAX_RETRIES`, `RETRY_DELAY`, `REQUEST_TIMEOUT`, `EXCEL_FILENAME`, `STORE_COUNTRY_COOKIE`, `DEFAULT_ROW_HEIGHT`, `IMAGE_COLUMN_WIDTH`
+
+> **注意**：在主会话中修改 `excel` 后，当前已打开的 `ExcelHandler` 仍指向旧路径；**建议改完配置后退出并重新启动主程序**，或仅在进入抓取前完成 Excel 文件名调整。
 
 ## 使用说明
 
 1. **输入Steam游戏URL**
    ```
-   请输入Steam游戏URL (输入'q'退出, 'help'查看帮助): 
+   请输入Steam游戏URL (q退出 help帮助 config配置): 
    ```
    
    示例URL：
@@ -86,7 +123,7 @@ python main.py
 
 ### 1. 稳定性与容错
 
-- ✅ **重试机制**: 请求失败按配置指数退避重试（默认最多 5 次，见 `config.py`）
+- ✅ **重试机制**: 请求失败按配置指数退避重试（默认 `MAX_RETRIES` 见 `config.py` / 终端 `retries`）
 - ✅ **双通道数据**: API 优先，缺字段时再拉 HTML 补缺
 - ✅ **连接复用**: `requests.Session` 进程内复用，减少握手开销
 - ✅ **图片容错**: 封面下载失败不影响文字写入
@@ -106,10 +143,20 @@ python main.py
 
 1. **首次运行**需要联网安装依赖库
 2. **Excel文件被打开时**无法保存，请先关闭Excel
-3. **网络连接**需要能够访问Steam商店（程序会自动检测加速器）
-4. **封面图片**A列嵌入游戏封面图片，自动调整大小保持一致
-5. **代理**: 默认**直连**（适合 UU 等虚拟网卡）；若需 HTTP 代理，在 `config.py` 设置 `PROXIES`
-6. **关闭 API**: 将 `USE_STORE_API = False` 可退回「纯 HTML 解析」模式
+3. **网络连接**：默认 **`proxy_first`**（先尝试系统/环境代理与本机 **7890** 等 Clash 端口，再直连）；仅 UU 虚拟网卡、无 HTTP 代理时用 **`direct_first`**
+4. **封面图片** A 列嵌入游戏封面图片，自动调整大小保持一致
+5. **手动代理**：终端 `proxy` 或 `config.PROXIES`
+6. **关闭 API**: 终端 `api off` 或 `USE_STORE_API = False`（纯 HTML）
+
+## 连接策略（`config.py`）
+
+| 配置项 | 含义 |
+|--------|------|
+| `CONNECTION_STRATEGY` | `proxy_first`（默认） / `direct_first` / `proxy_only` / `direct_only` |
+| `CONNECT_TIMEOUT` / `READ_TIMEOUT` | 连接与读取超时拆分 |
+| `VERIFY_SSL` | 默认 `False`；走部分代理时需保持 False |
+
+`proxy_only` 且未配置也未探测到代理时，会**立即报错提示**，避免误以为在爬数据。
 
 ## 常见问题
 
@@ -119,18 +166,12 @@ A: 运行 `pip install -r requirements.txt` 安装所有依赖
 ### Q: Excel文件保存失败？
 A: 检查Excel文件是否被其他程序打开，关闭后重试
 
-### Q: 连接Steam超时怎么办？
-A: 程序会自动检测系统代理和常见加速器（UU、Clash、V2Ray等），一般无需手动配置。
-   如果仍然超时：
-   1. **确保加速器已开启**
-   2. **手动配置代理**：编辑 `config.py`，设置PROXIES
-      ```python
-      PROXIES = {
-          'http': 'http://127.0.0.1:7890',
-          'https': 'http://127.0.0.1:7890',
-      }
-      ```
-   3. **增加超时时间**：在 `config.py` 中调整 REQUEST_TIMEOUT（默认30秒）
+### Q: 连接 Steam 超时、`RemoteDisconnected`？
+
+1. **Clash / V2 等**：确认 HTTP 端口（如 **7890**）已开；程序默认 **proxy_first** 会自动走本机代理。
+2. 仍失败：在 `config.py` 设置 `PROXIES`。
+3. **只有 UU、无 HTTP 代理**：`CONNECTION_STRATEGY = "direct_first"`。
+4. 增大 `READ_TIMEOUT`。详见上文「连接策略」表。
 
 ### Q: 价格/语言不是国区？
 A: 检查 `config.py` 中 `STEAM_API_CC`、`STEAM_API_LANGUAGE` 与 `STORE_COUNTRY_COOKIE`；必要时更换代理节点。
@@ -139,15 +180,18 @@ A: 检查 `config.py` 中 `STEAM_API_CC`、`STEAM_API_LANGUAGE` 与 `STORE_COUNT
 A: Steam页面结构可能变化，程序会尽量提取可用信息
 
 ### Q: 如何修改保存位置？
-A: 编辑 `config.py` 中的 `EXCEL_FILENAME` 配置项
+A: 终端配置里执行 `excel 新文件名.xlsx`，或编辑 `config.py` 中的 `EXCEL_FILENAME`；**改后建议重启主程序**以便 Excel 模块使用新路径。
 
 ## 项目结构
 
 ```
 tools/steamData/
 ├── steamData.bat       # 启动脚本
-├── launcher.py         # 启动器（虚拟环境 + 依赖）
-├── main.py             # 交互主程序
+├── steamData_config.bat # 仅打开终端配置
+├── launcher.py         # 启动器（虚拟环境 + 依赖）；`config` 参数进配置 REPL
+├── main.py             # 交互主程序；`config` 参数或循环内 `config` 进配置 REPL
+├── config_repl.py      # 终端配置（写入 steamdata_config.json）
+├── settings_store.py   # JSON 持久化与 `PERSIST_KEYS`
 ├── store_api.py        # Steam Store JSON API（appdetails / 评测摘要）
 ├── scraper.py          # HTML 解析与 API 结果合并
 ├── excel_handler.py    # Excel 与内嵌封面
@@ -162,11 +206,19 @@ tools/steamData/
 ## 技术实现
 
 - **数据**: Store `appdetails` + `appreviews?filter=summary`，必要时 BeautifulSoup 补全
-- **网络**: `requests.Session` + 指数退避重试、`verify=False`（与现有工具行为一致）
-- **Excel**: openpyxl + Pillow；表头样式使用 `Font`/`Alignment`（兼容新版 openpyxl）
+- **网络**: 多策略连接（`proxy_first` 等）+ Session；分拆连接/读超时；各策略内重试
+- **Excel**: openpyxl + Pillow；表头样式使用 `Font`/`Alignment`
 - **日志**: 标准 `logging`，`STEAMDATA_LOG` 控制级别
 
-## 更新日志
+### v1.7.0 (2026-05-10)
+- ✨ **终端配置**：`config_repl` + `steamdata_config.json`（行为对齐 merge 的 JSON 覆盖）
+- ✨ `launcher.py` / `main.py` 支持 `config`、`--config`、`-c`；主循环内 `config` / `cfg` / `settings`
+- ✨ `steamData_config.bat`；`.gitignore` 与仓库根目录说明同步忽略用户 JSON
+
+### v1.6.0 (2026-05-10)
+- 🔧 **修复国内长期连接失败**：默认代理优先（含本机 7890 等端口），不再在探测到代理后仍强制直连
+- 🔧 连接/读取超时拆分；`trust_env=False` 与显式代理链避免混乱
+- 🔧 请求头去掉 `br` 编码，减少解码异常
 
 ### v1.5.0 (2026-05-10)
 - ✨ 默认启用 Store JSON API + HTML 补缺合并

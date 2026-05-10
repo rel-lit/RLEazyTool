@@ -5,6 +5,7 @@ import re
 import logging
 from bs4 import BeautifulSoup
 
+import config
 from utils import send_request, logger
 
 logger = logging.getLogger(__name__)
@@ -358,9 +359,7 @@ class SteamGameScraper:
         """
         抓取流程：默认优先 Steam Store JSON API，失败或不完整时回退/补充 HTML 解析。
         """
-        from config import USE_STORE_API
-
-        if USE_STORE_API:
+        if config.USE_STORE_API:
             try:
                 from store_api import build_game_data_from_store_api
 

@@ -117,10 +117,19 @@ def start_main_program():
     print_separator()
     print()
     
-    # 导入并运行主程序
     try:
-        import main
-        main.main()
+        if len(sys.argv) > 1 and sys.argv[1].lower() in (
+            "config",
+            "--config",
+            "-c",
+        ):
+            import config_repl
+
+            config_repl.run_config_repl()
+        else:
+            import main
+
+            main.main()
     except Exception as e:
         print(f"\n[错误] 程序运行出错: {e}")
         import traceback

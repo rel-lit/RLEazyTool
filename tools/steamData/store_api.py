@@ -11,7 +11,7 @@ import logging
 import re
 from typing import Any
 
-from config import STEAM_API_CC, STEAM_API_LANGUAGE, USE_STORE_API
+import config
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ def extract_app_id(url: str) -> int | None:
 def _appdetails_url(app_id: int) -> str:
     return (
         "https://store.steampowered.com/api/appdetails"
-        f"?appids={app_id}&l={STEAM_API_LANGUAGE}&cc={STEAM_API_CC}"
+        f"?appids={app_id}&l={config.STEAM_API_LANGUAGE}&cc={config.STEAM_API_CC}"
     )
 
 
@@ -120,7 +120,7 @@ def _languages_from_details(d: dict[str, Any]) -> str:
 
 def build_game_data_from_store_api(url: str) -> dict[str, Any] | None:
     """用 Store API 构造与 scraper.parse_game_data 相同键结构的字典；失败返回 None。"""
-    if not USE_STORE_API:
+    if not config.USE_STORE_API:
         return None
     app_id = extract_app_id(url)
     if not app_id:

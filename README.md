@@ -142,12 +142,13 @@ RLEazyTool/
 
 ### 2. steamData —— Steam 游戏数据抓取工具
 
-从商店页抓取信息并写入 `steam_games.xlsx`；**默认走 Steam Store 公开 JSON API**，不足时自动用 HTML 解析补齐。详见 [tools/steamData/README.md](tools/steamData/README.md)。
+从商店页抓取信息并写入 `steam_games.xlsx`；**默认走 Steam Store 公开 JSON API**，不足时自动用 HTML 解析补齐。网络与 Excel 等可通过 **终端配置**（`steamdata_config.json`，类 merge 工具）调整，详见 [tools/steamData/README.md](tools/steamData/README.md)。
 
 **功能概要：**
 - 名称、国区价格/免费、`appreviews` 评测摘要、类型标签、中文支持、封面内嵌 Excel
 - `requests.Session` 复用、可配置重试与 `STEAMDATA_LOG=DEBUG`
-- 直连（虚拟网卡加速）或 `config.PROXIES` 手动代理
+- 直连（虚拟网卡加速）、自动探测本机代理，或终端 `proxy` / `config.PROXIES` 手动代理
+- **终端配置**：`python launcher.py config`、主界面输入 `config`、或双击 `steamData_config.bat`
 
 #### 使用方法
 
@@ -155,6 +156,7 @@ RLEazyTool/
 ```bash
 cd tools\steamData
 双击 steamData.bat
+# 仅调网络/代理/Excel 等：双击 steamData_config.bat
 ```
 
 **方法二：命令行运行**
@@ -168,6 +170,9 @@ pip install -r requirements.txt
 
 # 运行启动器
 python launcher.py
+
+# 或仅打开终端配置（写入 steamdata_config.json）
+python launcher.py config
 
 # 或直接运行主程序
 python main.py
@@ -190,9 +195,9 @@ python main.py
 #### 核心特性
 
 **稳定性与容错**
-- 请求失败按配置重试（指数退避，默认最多 5 次）
-- API + HTML 双通道，页面改版时仍较易恢复
-- 系统/环境代理检测；需 HTTP 代理时在 `config.py` 填写 `PROXIES`
+- 多策略连接：**默认先走本机 HTTP 代理**（系统代理 / 环境变量 / 7890 等常见端口），再直连；仅虚拟网卡可改用 `direct_first`
+- 单次策略内失败自动重试（指数退避）
+- API + HTML 双通道，页面改版时较易恢复
 
 **反爬虫对抗**
 - 完整的浏览器请求头伪装

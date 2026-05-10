@@ -20,16 +20,21 @@ def print_banner():
 
 def print_instructions():
     """打印使用说明"""
+    import config
+
     print("使用说明:")
     print("  1. 输入Steam游戏商店页面的完整URL")
     print("     例如: https://store.steampowered.com/app/1091500/")
     print("  2. 程序将自动抓取游戏信息并保存到Excel文件")
     print("  3. 输入 'q' 或 'quit' 退出程序")
     print("  4. 输入 'help' 显示此帮助信息")
+    print("  5. 输入 'config' 进入终端配置（代理/超时/API 等，类似 merge 工具）")
     print()
     print("📌 注意:")
-    print("  - 程序会自动检测加速器（支持UU、Clash等）")
-    print("  - 如需手动配置代理，请编辑 config.py 文件")
+    print(
+        f"  - 连接策略: {config.CONNECTION_STRATEGY}（详见终端 config 或 steamdata_config.json）"
+    )
+    print("  - 若仍超时：在 config 里执行 proxy / strategy，或双击 steamData_config.bat")
     print()
 
 
@@ -41,15 +46,20 @@ def get_user_input():
         str: 用户输入的URL，或None表示退出
     """
     try:
-        url = input("\n请输入Steam游戏URL (输入'q'退出, 'help'查看帮助): ").strip()
-        
-        if url.lower() in ['q', 'quit', 'exit']:
+        url = input(
+            "\n请输入Steam游戏URL (q退出 help帮助 config配置): "
+        ).strip()
+
+        if url.lower() in ["q", "quit", "exit"]:
             return None
-        
-        if url.lower() == 'help':
+
+        if url.lower() == "help":
             print_instructions()
-            return 'HELP'
-        
+            return "HELP"
+
+        if url.lower() in ("config", "cfg", "settings"):
+            return "CONFIG"
+
         return url if url else None
         
     except (KeyboardInterrupt, EOFError):
@@ -119,6 +129,12 @@ def process_game_url(url, scraper, excel_handler):
 
 def main():
     """主函数"""
+    if len(sys.argv) > 1 and sys.argv[1].lower() in ("config", "--config", "-c"):
+        from config_repl import run_config_repl
+
+        run_config_repl()
+        return 0
+
     print_banner()
     print_instructions()
     
@@ -138,9 +154,15 @@ def main():
             break
         
         # 显示帮助
-        if url == 'HELP':
+        if url == "HELP":
             continue
-        
+
+        if url == "CONFIG":
+            from config_repl import run_config_repl
+
+            run_config_repl()
+            continue
+
         # 跳过空输入
         if not url:
             print("⚠️  请输入有效的URL")
