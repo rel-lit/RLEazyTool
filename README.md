@@ -5,6 +5,7 @@
 ## 📢 最新更新
 
 - ✨ **新增**: Steam游戏数据抓取工具 (tools/steamData)
+- 🔧 **Merge 工具**: 重构为分层架构（解析 / 引擎 / 报表 / REPL），详见 [tools/merge/README.md](tools/merge/README.md)
 - 🔧 **优化**: 添加虚拟环境支持 (.venv)
 - 📝 **文档**: 完善使用指南和快速开始文档
 - 🎯 **改进**: 优化网络请求、代理支持和错误处理
@@ -12,7 +13,7 @@
 ## 依赖与环境说明
 
 ### Python 版本
-- Python 3.6 及以上（推荐 3.10+）
+- Python 3.6 及以上（推荐 3.10+；当前 merge 工具在 3.10+ 下开发与测试）
 - Windows 系统（部分功能依赖 Windows API）
 
 ### 虚拟环境（推荐）
@@ -34,38 +35,42 @@ source .venv/bin/activate
 详细虚拟环境设置指南请查看：[VENV_GUIDE.md](VENV_GUIDE.md)
 
 ### 核心库
-- **merge工具**: 无需第三方库，全部标准库实现
-- **steamData工具**: requests, beautifulsoup4, openpyxl, Pillow, urllib3
+- **merge 工具**: 无需第三方库，全部标准库实现
+- **steamData 工具**: requests, beautifulsoup4, openpyxl, Pillow, urllib3
 
 ## 目录结构
 
 ```
 RLEazyTool/
-├── .venv/                      # Python虚拟环境（已忽略）
+├── .venv/                      # Python 虚拟环境（已忽略）
 ├── tools/
-│   ├── merge/                  # 代码合并工具
-│   │   ├── main.py
-│   │   ├── config_manager.py
-│   │   ├── path_utils.py
-│   │   ├── merge_logic.py
-│   │   ├── utils.py
-│   │   ├── cli.py
-│   │   ├── __init__.py
+│   ├── merge/                  # 代码合并工具 → 完整说明见 README.md
+│   │   ├── README.md           # merge 使用与架构说明
+│   │   ├── main.py             # 入口
+│   │   ├── repl.py             # 交互主循环
+│   │   ├── input_parser.py     # 指令解析
+│   │   ├── command_handlers.py # mod / exc
+│   │   ├── merge_engine.py     # 扫描与合并（无控制台输出）
+│   │   ├── cs_analyzer.py      # C# 粗统计
+│   │   ├── merge_report.py     # 终端汇总与写盘
+│   │   ├── storage.py          # merge_config.json 读写
+│   │   ├── models.py           # 配置与选项模型
+│   │   ├── path_tools.py       # 路径、桌面、模糊匹配
 │   │   ├── merge.bat
-│   │   ├── merge_config.json
+│   │   ├── merge_config.json   # 用户配置（通常被 .gitignore）
 │   │   ├── test_merge_logic.py
 │   │   └── test_path_utils.py
-│   └── steamData/              # Steam游戏数据抓取工具
-│       ├── steamData.bat       # 启动脚本
-│       ├── launcher.py         # 启动器
-│       ├── main.py             # 主程序
-│       ├── scraper.py          # 爬虫模块
-│       ├── excel_handler.py    # Excel处理模块
-│       ├── config.py           # 配置模块
-│       ├── utils.py            # 工具模块
-│       ├── test.py             # 测试脚本
-│       ├── requirements.txt    # 依赖清单
-│       └── README.md           # 说明文档
+│   └── steamData/              # Steam 游戏数据抓取工具
+│       ├── steamData.bat
+│       ├── launcher.py
+│       ├── main.py
+│       ├── scraper.py
+│       ├── excel_handler.py
+│       ├── config.py
+│       ├── utils.py
+│       ├── test.py
+│       ├── requirements.txt
+│       └── README.md
 ├── .gitignore
 ├── README.md
 └── VENV_GUIDE.md               # 虚拟环境设置指南
@@ -75,94 +80,61 @@ RLEazyTool/
 
 ### 1. merge —— 多类型代码合并工具
 
-用于将指定目录下所有指定类型（如 `.cs`、`.txt` 等）文件合并为一个文本文件，便于代码查阅、归档或分享。
+将指定目录下选定后缀的文件合并为一个文本文件，默认输出到桌面，并附带统计（含 `.cs` 时粗粒度 C# 结构统计）。
 
 **典型使用场景：**
-- 将大量 C# 源码或其它类型文件合并为单个文件，方便上传给 Web AI（如大模型代码分析、自动文档生成等）。
-- 快速打包项目代码，一键分享给同事或好友，无需逐个文件整理。
-- 归档、备份、代码查阅等其它批量处理场景。
+- 将大量源码合并为单文件，便于交给大模型分析或生成文档。
+- 快速打包分享、归档与查阅。
 
-#### 使用方法
+#### 快速开始
 
-1. 进入 `tools/merge/` 目录，双击 `merge.bat`，或在命令行中运行：
-   ```
-   py main.py
-   ```
-   > Linux/Mac 下请用 `python3 main.py`，桌面路径自动适配。
-2. 按照提示输入要合并的代码目录路径（支持绝对路径、相对路径、模糊匹配）。
-3. 回车即可在桌面生成合并后的 txt 文件，文件名格式为：`<目录名>_MergedFiles_<时间戳>.txt`。
+1. 进入 `tools/merge/`，双击 **`merge.bat`**，或执行：`py main.py`
+2. 按提示切换目录（绝对路径、`\\` 相对路径、历史记录 `1`–`9` 等），**回车**执行合并。
+3. 桌面上生成：`<目录名>_MergedFiles_<时间戳>.txt`
 
-#### 常用指令
+若在 Windows 默认控制台遇到 emoji 编码报错，可先设置：`PYTHONIOENCODING=utf-8`。
 
-- 输入 `help`：显示所有指令及说明
-- 输入 `m`：显示历史记忆的路径列表（最多9条）
-- 输入 `1-9`：直接切换到对应历史路径
-- 输入 `ll`：列出当前路径下的所有文件夹
-- 输入 `q`：退出程序
-- 输入 `r`：进入持续合并模式（每次回车合并，q 退出循环）
-- 输入绝对路径或 `\相对路径`：切换当前目录（支持模糊匹配，未找到时自动修正为最相近文件夹）
-- 直接回车：执行合并操作
+**更完整的指令表、模块说明与测试方式**见：📖 **[tools/merge/README.md](tools/merge/README.md)**
 
-- `mod a <组名> <.cs> <.txt> ...`：新增类型组
-- `mod u <组名>`：切换当前类型组
-- `mod ll`：列出所有类型组
-- `mod d <组名>`：删除类型组（默认组不可删）
-- `mod ll now`：显示当前类型组
+#### 指令摘要
 
-- `exc a <组名> <词1> <词2> ...`：新增排除组（默认区分大小写）
-- `exc d <组名>`：删除排除组
-- `exc u <组名>`：切换当前排除组（仅此时启用）
-- `exc q`：退出排除模式
-- `exc ll`：列出所有排除组
-- `exc case <组名> <on|off>`：设置组是否区分大小写
-- `exc`：启用上次合并成功时的排除组
+| 类别 | 指令 |
+|------|------|
+| 基础 | `help`、`q`、`m`、`1`–`9`、`ll`、`r`、回车合并 |
+| 范围 | `this` — 切换「仅当前目录」/「含子文件夹」 |
+| 路径 | 绝对路径；`\\` 或 `/` 开头的相对路径（支持末级文件夹模糊匹配） |
+| 类型组 | `mod a` / `mod u` / `mod ll` / `mod ll now` / `mod d` |
+| 排除 | `exc a` / `exc u` / `exc q` / `exc ll` / `exc d` / `exc case` / 单独 `exc`（恢复上次成功合并时的排除组） |
 
-#### 类型组与多类型合并
+#### 配置文件 `merge_config.json`
 
-- 支持自定义类型组，合并时可选择不同类型组（如只合并 .cs，或同时合并 .cs/.txt/.json 等）。
-- 类型组相关指令：
-  - `mod a <组名> <.cs> <.txt> ...`：新增类型组
-  - `mod u <组名>`：切换当前类型组
-  - `mod ll`：列出所有类型组
-  - `mod d <组名>`：删除类型组（默认组不可删）
-  - `mod ll now`：显示当前类型组
+记录历史路径（最多 9 条）、类型组、当前 mod、排除组、是否包含子目录、上次成功合并时的 mod/排除组等；通常已被 `.gitignore` 忽略。结构示例：
 
-#### 路径切换与模糊匹配
+```json
+{
+  "history": ["D:/project/src"],
+  "type_groups": {
+    "default": [".cs"],
+    "web": [".cs", ".tsx"]
+  },
+  "current_type_group": "default",
+  "last_success_type_group": "default",
+  "exclude_groups": {},
+  "current_exclude_group": null,
+  "last_success_exclude_group": null,
+  "merge_subfolders": true
+}
+```
 
-- 支持输入绝对路径或 `\相对路径` 切换目录。
-- 支持模糊匹配最后一级文件夹名，未找到时自动修正为最相近的文件夹。
-- 多次路径切换有趣味提示。
+#### 统计说明
 
-#### 配置文件
-
-- `merge_config.json`：自动记录最近9次合并成功的目录、类型组、当前类型组等信息，程序自动读取和更新。该文件已被 `.gitignore` 忽略，不会提交到 git。
-- 配置结构示例：
-  ```json
-  {
-    "history": ["D:/xxx", ...],
-    "type_groups": {"default": [".cs"], "all": [".cs", ".txt"]},
-    "current_type_group": "default",
-    "last_success_type_group": "default"
-  }
-  ```
-
-#### 统计信息
-
-合并完成后，工具会自动统计并输出如下信息（在合并结果文件头部和控制台均可见）：
-
-- 合并的各类型文件总数
-- 合并后的总行数
-- 类（class）数、结构体（struct）数、枚举（enum）数、接口（interface）数
-- 变量/字段/属性数、方法数
-- 平均类长度、最大/最小类长度、平均每类方法/字段数、枚举成员数、结构体字段数、接口方法数等
-- 读取失败文件数
-
-> ⚠️ 统计 C# 结构信息基于正则表达式，仅供参考。极端复杂/嵌套/特殊语法下可能有误判，建议人工复核。
+合并结果文件头部与控制台会输出各类型文件数、行数；对 `.cs` 还会输出类/结构体/枚举/接口及方法、字段等**粗粒度**统计（基于正则，复杂语法可能有偏差，仅供参考）。
 
 #### 性能说明
 
-- 当前实现为全量内存合并，极大目录下可能内存占用较高。建议分批处理或流式合并。
-- 单元测试见 test_merge_logic.py、test_path_utils.py。
+当前为整体读入后再写出，体量极大时内存占用会升高，可分批目录或使用「仅本层」模式（`this`）控制范围。
+
+单元测试：`tools/merge/test_merge_logic.py`、`test_path_utils.py`。
 
 ---
 
@@ -250,6 +222,6 @@ python main.py
 ## 📚 相关文档
 
 - [虚拟环境设置指南](VENV_GUIDE.md) - 详细的虚拟环境配置说明
-- [merge工具文档](tools/merge/) - 代码合并工具详细说明
+- [merge 工具说明](tools/merge/README.md) - 代码合并工具（指令、架构、测试）
 - [steamData工具文档](tools/steamData/README.md) - Steam数据抓取工具详细说明
 - [steamData快速开始](tools/steamData/QUICKSTART.md) - 5分钟上手指南
