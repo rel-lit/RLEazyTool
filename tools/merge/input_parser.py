@@ -1,0 +1,61 @@
+"""纯解析：输入字符串 -> (Action, payload)。无副作用。"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from actions import Action
+
+
+def _is_exc_command(user_input: str) -> bool:
+    s = user_input.strip().lower()
+    return s == "exc" or s.startswith("exc ")
+
+
+def parse_input(user_input: str, history_length: int) -> tuple[Action, Any]:
+    user_input = user_input.strip()
+    if user_input.lower().startswith("mod "):
+        return Action.MOD, user_input.split()
+    if user_input.lower() == "q":
+        return Action.QUIT, None
+    if user_input.lower() == "help":
+        return Action.HELP, None
+    if user_input.lower() == "m":
+        return Action.HISTORY, None
+    if user_input.lower() == "ll":
+        return Action.LIST_DIRS, None
+    if user_input.lower() == "this":
+        return Action.TOGGLE_MERGE_SCOPE, None
+    if user_input.lower() == "r":
+        return Action.CONTINUOUS_MODE, None
+    if (
+        user_input.isdigit()
+        and 1 <= int(user_input) <= history_length
+    ):
+        return Action.SWITCH_HISTORY, int(user_input) - 1
+    if user_input == "":
+        return Action.MERGE, None
+    if user_input.startswith('"') and user_input.endswith('"'):
+        user_input = user_input[1:-1]
+    if ":" in user_input:
+        return Action.SWITCH_ABS, user_input
+    if user_input.startswith("\\") or user_input.startswith("/"):
+        return Action.SWITCH_REL, user_input
+    if _is_exc_command(user_input):
+        parts = user_input.strip().split()
+        if len(parts) == 1:
+            return Action.EXC_LAST, None
+        if len(parts) >= 3 and parts[1] == "a":
+            return Action.EXC_ADD, (parts[2], parts[3:])
+        if len(parts) == 3 and parts[1] == "d":
+            return Action.EXC_DEL, parts[2]
+        if len(parts) == 3 and parts[1] == "u":
+            return Action.EXC_USE, parts[2]
+        if len(parts) == 2 and parts[1] == "q":
+            return Action.EXC_DISABLE, None
+        if len(parts) == 2 and parts[1] == "ll":
+            return Action.EXC_LIST, None
+        if len(parts) == 4 and parts[1] == "case":
+            return Action.EXC_CASE, (parts[2], parts[3])
+        return Action.EXC_INVALID, None
+    return Action.INVALID, user_input

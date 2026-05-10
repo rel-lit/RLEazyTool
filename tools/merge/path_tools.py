@@ -1,41 +1,48 @@
-﻿import os
-import winreg
-import re
+"""路径相关：桌面、规范化路径、列目录、模糊匹配文件夹。"""
 
-def get_desktop_path():
-    """使用注册表获取真实的桌面路径"""
+from __future__ import annotations
+
+import os
+import re
+import winreg
+
+
+def get_real_path(path: str) -> str:
+    if os.path.exists(path):
+        return os.path.realpath(path)
+    return path
+
+
+def get_desktop_path() -> str:
     try:
         key = winreg.OpenKey(
             winreg.HKEY_CURRENT_USER,
-            r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders"
+            r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders",
         )
         desktop_path, _ = winreg.QueryValueEx(key, "Desktop")
         winreg.CloseKey(key)
         return desktop_path
     except Exception:
-        return os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop')
+        return os.path.join(os.environ["USERPROFILE"], "Desktop")
 
-def list_directories(path):
-    """列出当前路径下的所有文件夹 (ll 指令)"""
+
+def list_directories(path: str) -> None:
     try:
         items = os.listdir(path)
-        dirs = []
-        for item in items:
-            if os.path.isdir(os.path.join(path, item)):
-                dirs.append(item)
+        dirs = [item for item in items if os.path.isdir(os.path.join(path, item))]
         print(f"\n📂 当前路径下的文件夹 ({len(dirs)}个):")
         for i, d in enumerate(sorted(dirs)):
             print(f"   {d}", end="")
             if (i + 1) % 3 == 0:
-                print()  # 每3个换行
-        print("\n")  # 结尾补个空行
+                print()
+        print("\n")
     except PermissionError:
         print("⚠️ 权限不足，无法列出目录。")
     except Exception as e:
         print(f"❌ 列出目录失败: {e}")
 
-def levenshtein_distance(s1, s2):
-    """计算两个字符串的编辑距离（相似度）"""
+
+def levenshtein_distance(s1: str, s2: str) -> int:
     if len(s1) < len(s2):
         return levenshtein_distance(s2, s1)
     if len(s2) == 0:
@@ -51,34 +58,36 @@ def levenshtein_distance(s1, s2):
         previous_row = current_row
     return previous_row[-1]
 
-def split_camel_case(s):
-    """将文件夹名分割成单词列表，支持驼峰和下划线"""
-    parts = re.split(r'[^a-zA-Z0-9]', s)
-    result = []
+
+def split_camel_case(s: str) -> list[str]:
+    parts = re.split(r"[^a-zA-Z0-9]", s)
+    result: list[str] = []
     for part in parts:
-        camel_parts = re.findall(r'[A-Z]?[a-z]+|[A-Z]+(?=[A-Z][a-z]|\d|\W|$)|\d+', part)
+        camel_parts = re.findall(
+            r"[A-Z]?[a-z]+|[A-Z]+(?=[A-Z][a-z]|\d|\W|$)|\d+", part
+        )
         result.extend(camel_parts)
     return [w.lower() for w in result if w]
 
-def find_best_match(current_dir, target_name):
-    """在当前目录下寻找最匹配的文件夹名"""
+
+def find_best_match(current_dir: str, target_name: str) -> str | None:
     try:
         items = os.listdir(current_dir)
         dirs = [item for item in items if os.path.isdir(os.path.join(current_dir, item))]
         if not dirs:
             return None
         best_match = None
-        min_distance = float('inf')
+        min_distance = float("inf")
         target_lower = target_name.lower()
-        containing_matches = []
-        partial_matches = []
+        containing_matches: list[str] = []
+        partial_matches: list[str] = []
         for d in dirs:
             d_lower = d.lower()
             if target_lower in d_lower:
                 containing_matches.append(d)
             else:
-                parts = split_camel_case(d)
-                for part in parts:
+                parts_cc = split_camel_case(d)
+                for part in parts_cc:
                     distance = levenshtein_distance(target_lower, part)
                     if distance <= 1:
                         partial_matches.append(d)
@@ -86,12 +95,7 @@ def find_best_match(current_dir, target_name):
                 if d not in partial_matches:
                     distance = levenshtein_distance(target_lower, d_lower)
                     dir_count = len(dirs)
-                    if dir_count <= 5:
-                        threshold = 3
-                    elif dir_count <= 10:
-                        threshold = 2
-                    else:
-                        threshold = 1
+                    threshold = 3 if dir_count <= 5 else 2 if dir_count <= 10 else 1
                     if distance <= threshold and distance < min_distance:
                         min_distance = distance
                         best_match = d
@@ -106,3 +110,11 @@ def find_best_match(current_dir, target_name):
         return best_match
     except Exception:
         return None
+
+
+def print_type_groups(type_groups: dict[str, list[str]], current: str) -> None:
+    print("\n📦 类型组列表：")
+    for name, types in type_groups.items():
+        mark = "*" if name == current else " "
+        print(f"  {mark} {name}: {', '.join(types)}")
+    print("")

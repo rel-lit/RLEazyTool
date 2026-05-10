@@ -1,4 +1,4 @@
-﻿from path_utils import levenshtein_distance, split_camel_case, find_best_match
+﻿from path_tools import find_best_match, levenshtein_distance, split_camel_case
 import os
 
 def test_levenshtein_distance():
@@ -27,7 +27,7 @@ def run():
     test_split_camel_case()
     with tempfile.TemporaryDirectory() as tmp:
         test_find_best_match(Path(tmp))
-    print("path_utils 单元测试通过")
+    print("path_tools 单元测试通过")
 
 if __name__ == "__main__":
     run()
