@@ -19,7 +19,8 @@ def load_config():
                         "current_type_group": "default",
                         "exclude_groups": {},
                         "current_exclude_group": None,
-                        "last_success_exclude_group": None
+                        "last_success_exclude_group": None,
+                        "merge_subfolders": True,
                     }
                 if isinstance(data, dict):
                     # 填补缺失字段
@@ -35,6 +36,8 @@ def load_config():
                         data["current_exclude_group"] = None
                     if "last_success_exclude_group" not in data:
                         data["last_success_exclude_group"] = None
+                    if "merge_subfolders" not in data:
+                        data["merge_subfolders"] = True
                     return data
         except Exception as e:
             print(f"⚠️ 配置文件读取失败: {e}")
@@ -44,7 +47,8 @@ def load_config():
                 "current_type_group": "default",
                 "exclude_groups": {},
                 "current_exclude_group": None,
-                "last_success_exclude_group": None
+                "last_success_exclude_group": None,
+                "merge_subfolders": True,
             }
     return {
         "history": [],
@@ -52,7 +56,8 @@ def load_config():
         "current_type_group": "default",
         "exclude_groups": {},
         "current_exclude_group": None,
-        "last_success_exclude_group": None
+        "last_success_exclude_group": None,
+        "merge_subfolders": True,
     }
 
 def save_config(config):
@@ -85,6 +90,7 @@ def print_help():
     print("  m         : 显示历史记忆的路径列表")
     print("  1-9       : 直接切换到对应历史路径")
     print("  ll        : 列出当前路径下的所有文件夹")
+    print("  this      : 切换是否合并子文件夹（仅当前目录 ⇄ 含子目录）")
     print("  r         : 进入持续合并模式（每次回车合并，q 退出循环）")
     print("  q         : 退出程序")
     print("  绝对路径  : 以盘符开头（如 D:\\xxx），切换到指定绝对路径")

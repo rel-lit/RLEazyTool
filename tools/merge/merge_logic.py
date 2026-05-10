@@ -4,10 +4,28 @@ import os
 import re
 from datetime import datetime
 
-def merge_files_by_types(source_dir, output_path, file_types, joke_state=None, exclude_words=None, case_sensitive=True):
+def _iter_merge_files(source_dir, exclude_dirs, recursive):
+    """产出 (所在目录, 文件名) 供合并；recursive 为 False 时仅当前目录下的文件。"""
+    if recursive:
+        for root, dirs, files in os.walk(source_dir):
+            dirs[:] = [d for d in dirs if d not in exclude_dirs]
+            for file in files:
+                yield root, file
+    else:
+        try:
+            for name in sorted(os.listdir(source_dir)):
+                path = os.path.join(source_dir, name)
+                if os.path.isfile(path):
+                    yield source_dir, name
+        except OSError:
+            return
+
+
+def merge_files_by_types(source_dir, output_path, file_types, joke_state=None, exclude_words=None, case_sensitive=True, recursive=True):
     """支持多类型文件合并，.cs 文件统计 C# 结构，其余类型只统计文件数和行数
     exclude_words: 排除词列表，文件名包含任一词则排除
     case_sensitive: 是否区分大小写
+    recursive: 是否包含子文件夹；False 时只合并 source_dir 直接下的文件
     """
     if exclude_words is None:
         exclude_words = []
@@ -31,6 +49,7 @@ def merge_files_by_types(source_dir, output_path, file_types, joke_state=None, e
     re_method = re.compile(r'\b(public|private|protected|internal)\s+((static|virtual|override|async|sealed|new|partial)\s+)*[\w<>\[\],]+\s+\w+\s*\([^;]*\)\s*(\{|where|$)')
 
     print(f"🔍 正在扫描目录: {source_dir}")
+    print("📂 扫描范围: " + ("含子文件夹" if recursive else "仅当前文件夹（不含子目录）"))
 
     cs_class_infos = []
     enum_member_counts = []
@@ -94,43 +113,42 @@ def merge_files_by_types(source_dir, output_path, file_types, joke_state=None, e
         return ''.join(body)
 
     merged_contents = []
-    for root, dirs, files in os.walk(source_dir):
-        dirs[:] = [d for d in dirs if d not in exclude_dirs]
-        for file in files:
-            # 排除文件名包含排除词的文件
-            file_check = file if case_sensitive else file.lower()
-            skip = False
-            for word in exclude_words:
-                w = word if case_sensitive else word.lower()
-                if w in file_check:
-                    skip = True
-                    break
-            if skip:
-                continue
-            for ext in file_types:
-                if file.endswith(ext):
-                    file_path = os.path.join(root, file)
-                    relative_path = os.path.relpath(file_path, source_dir)
-                    merged_contents.append(f"\n\n// ==================== 文件: {relative_path} ====================\n\n")
-                    try:
-                        with open(file_path, 'r', encoding='utf-8', errors='ignore') as infile:
-                            content = infile.read()
-                        lines = content.splitlines()
-                        total_lines += len(lines)
-                        type_file_count[ext] += 1
-                        if ext == '.cs':
-                            analyze_cs_classes(content)
-                        merged_contents.append(content)
-                        file_count += 1
-                    except Exception as e:
-                        merged_contents.append(f"// [错误] 无法读取文件: {e}\n")
-                        error_count += 1
-                    break
+    for root, file in _iter_merge_files(source_dir, exclude_dirs, recursive):
+        # 排除文件名包含排除词的文件
+        file_check = file if case_sensitive else file.lower()
+        skip = False
+        for word in exclude_words:
+            w = word if case_sensitive else word.lower()
+            if w in file_check:
+                skip = True
+                break
+        if skip:
+            continue
+        for ext in file_types:
+            if file.endswith(ext):
+                file_path = os.path.join(root, file)
+                relative_path = os.path.relpath(file_path, source_dir)
+                merged_contents.append(f"\n\n// ==================== 文件: {relative_path} ====================\n\n")
+                try:
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as infile:
+                        content = infile.read()
+                    lines = content.splitlines()
+                    total_lines += len(lines)
+                    type_file_count[ext] += 1
+                    if ext == '.cs':
+                        analyze_cs_classes(content)
+                    merged_contents.append(content)
+                    file_count += 1
+                except Exception as e:
+                    merged_contents.append(f"// [错误] 无法读取文件: {e}\n")
+                    error_count += 1
+                break
 
     merge_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     stat_lines = []
     stat_lines.append(f"// 合并时间: {merge_time}")
     stat_lines.append(f"// 来源目录: {source_dir}")
+    stat_lines.append("// 扫描范围: " + ("含子文件夹" if recursive else "仅当前文件夹（不含子目录）"))
     main_stat = "// 合并统计：共 {} 个文件，总行数 {}，".format(file_count, total_lines)
     main_stat += ", ".join(["{} 文件 {} 个".format(ext, type_file_count[ext]) for ext in file_types])
     if '.cs' in file_types:

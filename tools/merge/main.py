@@ -187,13 +187,14 @@ def main():
         print("-" * 30)
         print(f"📁 当前路径为: {current_path}")
         print("💡 输入 'D:\...' 盘符开头绝对路径 '\相对路径' 修改当前路径 (支持模糊)")
-        print("💡 输入 help 查看所有指令, q 退出, 回车执行或合并, 默认基于当前路径")
+        print("💡 输入 help 查看所有指令, q 退出, 回车执行或合并, this 切换是否含子文件夹")
         mod_str = config.get("current_type_group", "default")
         exc_str = config.get("current_exclude_group")
+        scope_str = "含子目录" if config.get("merge_subfolders", True) else "仅本层"
+        status_parts = [f"当前mod: {mod_str}", f"范围: {scope_str}"]
         if exc_str:
-            print(f"当前mod: {mod_str} | exc: {exc_str}")
-        else:
-            print(f"当前mod: {mod_str}")
+            status_parts.append(f"exc: {exc_str}")
+        print(" | ".join(status_parts))
         if first_run:
             print_history(config.get("history", []))
             first_run = False
@@ -213,6 +214,14 @@ def main():
             continue
         if action == "list_dirs":
             list_directories(current_path)
+            continue
+        if action == "toggle_merge_scope":
+            config["merge_subfolders"] = not config.get("merge_subfolders", True)
+            save_config(config)
+            if config["merge_subfolders"]:
+                print("✅ 合并范围: 含子文件夹")
+            else:
+                print("✅ 合并范围: 仅当前文件夹（不进入子目录）")
             continue
         if action == "continuous_mode":
             continuous_mode = True
@@ -282,6 +291,7 @@ def main():
                     joke_state=joke_state,
                     exclude_words=exclude_words,
                     case_sensitive=case_sensitive,
+                    recursive=config.get("merge_subfolders", True),
                 )
                 config["history"] = add_to_history(config.get("history", []), current_path)
                 config["last_success_type_group"] = config.get("current_type_group", "default")
