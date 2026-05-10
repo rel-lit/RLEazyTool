@@ -4,13 +4,10 @@ Steam游戏数据抓取工具 - 主程序
 功能：从Steam商店页面抓取游戏信息并保存到Excel文件
 """
 import sys
-import logging
 
 from scraper import SteamGameScraper
 from excel_handler import ExcelHandler
-from utils import validate_steam_url, clean_steam_url, logger
-
-logger = logging.getLogger(__name__)
+from utils import clean_steam_url, logger, validate_steam_url
 
 
 def print_banner():

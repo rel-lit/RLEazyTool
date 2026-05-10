@@ -12,10 +12,17 @@ HEADERS = {
     'Upgrade-Insecure-Requests': '1',
 }
 
-# Cookie配置（可选）- 用于设置Steam区域为简体中文
-# 如果需要强制显示CN区域，可以添加Cookie
-STORE_COUNTRY_COOKIE = 'birthtime=0; lastagecheckage=1-January-1990; mature_content=1; wants_mature_content=1; Steam_Language=schinese; steamCountry=CN'
-# STORE_COUNTRY_COOKIE = None
+# Cookie（可选）- 区域与语言偏好；写入 Session 默认头
+STORE_COUNTRY_COOKIE = (
+    "birthtime=0; lastagecheckage=1-January-1990; mature_content=1; "
+    "wants_mature_content=1; Steam_Language=schinese; steamCountry=CN"
+)
+# STORE_COUNTRY_COOKIE = None  # 若无需强制国区可关闭
+
+# Store API（优先于 HTML 解析，更抗页面改版）
+USE_STORE_API = True
+STEAM_API_LANGUAGE = "schinese"
+STEAM_API_CC = "cn"
 
 # 网络请求配置
 REQUEST_TIMEOUT = 90  # 超时时间（秒）- Steam访问较慢，增加到90秒

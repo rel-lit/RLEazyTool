@@ -2,14 +2,15 @@
 
 ## 功能说明
 
-从Steam商店页面自动抓取游戏信息并保存到Excel文件，支持：
-- ✅ 游戏名称提取
-- ✅ 封面图片链接保存
-- ✅ 价格信息识别（免费/付费）
-- ✅ 好评率/评测信息
-- ✅ 游戏标签（前2个主要标签）
-- ✅ 支持语言检测
-- ✅ 自动代理检测（支持UU、Clash等加速器）
+从 Steam 商店自动抓取游戏信息并保存到 Excel，默认采用 **Steam Store 公开 JSON API**（`appdetails` + `appreviews` 摘要），在数据不全或对特殊页面时再 **回退并合并 HTML 解析**，比纯爬虫更抗页面改版。
+
+支持能力：
+- ✅ 游戏名称、国区价格（`cc`/`l` 可配置）、是否免费
+- ✅ 评测摘要（Steam 评价词或大致好评占比）
+- ✅ 类型标签（来自 API 的 genres，至多 2 个）
+- ✅ 是否支持中文界面语言
+- ✅ 封面图下载并嵌入 Excel（与主程序**同一套**重试与 Session）
+- ✅ 直连虚拟网卡加速器或手动 HTTP 代理（`config.PROXIES`）
 
 ## 环境要求
 
@@ -85,9 +86,11 @@ python main.py
 
 ### 1. 稳定性与容错
 
-- ✅ **重试机制**: 网络请求超时自动重试3次，每次间隔2秒
-- ✅ **图片容错**: 图片下载失败不影响文字信息保存
-- ✅ **异常捕获**: HTML结构变化时不会崩溃，打印错误日志
+- ✅ **重试机制**: 请求失败按配置指数退避重试（默认最多 5 次，见 `config.py`）
+- ✅ **双通道数据**: API 优先，缺字段时再拉 HTML 补缺
+- ✅ **连接复用**: `requests.Session` 进程内复用，减少握手开销
+- ✅ **图片容错**: 封面下载失败不影响文字写入
+- ✅ **调试日志**: 设置环境变量 `STEAMDATA_LOG=DEBUG` 可查看详细请求日志
 
 ### 2. 反爬虫对抗
 
@@ -105,7 +108,8 @@ python main.py
 2. **Excel文件被打开时**无法保存，请先关闭Excel
 3. **网络连接**需要能够访问Steam商店（程序会自动检测加速器）
 4. **封面图片**A列嵌入游戏封面图片，自动调整大小保持一致
-5. **代理配置**程序会自动检测系统代理，无需手动配置
+5. **代理**: 默认**直连**（适合 UU 等虚拟网卡）；若需 HTTP 代理，在 `config.py` 设置 `PROXIES`
+6. **关闭 API**: 将 `USE_STORE_API = False` 可退回「纯 HTML 解析」模式
 
 ## 常见问题
 
@@ -128,14 +132,8 @@ A: 程序会自动检测系统代理和常见加速器（UU、Clash、V2Ray等�
       ```
    3. **增加超时时间**：在 `config.py` 中调整 REQUEST_TIMEOUT（默认30秒）
 
-### Q: Steam显示HK/其他区域而不是CN？
-A: 这是因为代理或网络环境导致Steam判断为其他地区。解决方法：
-   1. **配置Cookie强制区域**：编辑 `config.py`，设置STORE_COUNTRY_COOKIE
-      ```python
-      STORE_COUNTRY_COOKIE = 'birthtime=0; lastagecheckage=1-January-1990; Steam_Language=schinese; steamCountry=CN'
-      ```
-   2. **更换代理节点**：选择中国大陆或亚洲节点
-   3. **清除浏览器缓存**：如果使用浏览器测试，清除Cookie后重试
+### Q: 价格/语言不是国区？
+A: 检查 `config.py` 中 `STEAM_API_CC`、`STEAM_API_LANGUAGE` 与 `STORE_COUNTRY_COOKIE`；必要时更换代理节点。
 
 ### Q: 某些游戏信息抓取不完整？
 A: Steam页面结构可能变化，程序会尽量提取可用信息
@@ -148,25 +146,33 @@ A: 编辑 `config.py` 中的 `EXCEL_FILENAME` 配置项
 ```
 tools/steamData/
 ├── steamData.bat       # 启动脚本
-├── launcher.py         # 启动器（环境检测+依赖安装）
-├── main.py             # 主程序入口
-├── scraper.py          # 爬虫模块（数据抓取）
-├── excel_handler.py    # Excel处理模块
-├── config.py           # 配置模块
-├── utils.py            # 工具模块
-├── test.py             # 测试脚本
-├── requirements.txt    # 依赖清单
-└── README.md           # 说明文档
+├── launcher.py         # 启动器（虚拟环境 + 依赖）
+├── main.py             # 交互主程序
+├── store_api.py        # Steam Store JSON API（appdetails / 评测摘要）
+├── scraper.py          # HTML 解析与 API 结果合并
+├── excel_handler.py    # Excel 与内嵌封面
+├── config.py           # 请求头、API 开关、代理、超时
+├── utils.py            # Session、重试、代理探测、URL 校验
+├── test_connection.py  # 网络连通性诊断
+├── check_uu.py         # 虚拟网卡 / DNS 简单检测
+├── requirements.txt
+└── README.md
 ```
 
 ## 技术实现
 
-- **网络请求**: requests库 + 重试装饰器
-- **HTML解析**: BeautifulSoup4
-- **Excel操作**: openpyxl + Pillow（图片处理）
-- **日志记录**: logging模块
+- **数据**: Store `appdetails` + `appreviews?filter=summary`，必要时 BeautifulSoup 补全
+- **网络**: `requests.Session` + 指数退避重试、`verify=False`（与现有工具行为一致）
+- **Excel**: openpyxl + Pillow；表头样式使用 `Font`/`Alignment`（兼容新版 openpyxl）
+- **日志**: 标准 `logging`，`STEAMDATA_LOG` 控制级别
 
 ## 更新日志
+
+### v1.5.0 (2026-05-10)
+- ✨ 默认启用 Store JSON API + HTML 补缺合并
+- ✨ 进程内 HTTP Session 复用；封面下载与页面请求策略统一
+- ✨ Excel 表头样式修复；封面下载走 `download_bytes`
+- 📝 更新配置项说明（`USE_STORE_API`、`STEAM_API_*`）
 
 ### v1.4.0 (2026-04-26)
 - 🎯 改回图片嵌入模式，在Excel中直接显示游戏封面图片

@@ -1,16 +1,16 @@
 """
 Excel 处理模块 - 负责将游戏数据保存到Excel文件（图片嵌入模式）
 """
-import os
-import logging
-from openpyxl import Workbook, load_workbook
-from openpyxl import styles
-from openpyxl.drawing.image import Image
-from PIL import Image as PILImage
 import io
-import requests
+import logging
+import os
 
-from utils import get_excel_path, is_file_open, logger
+from openpyxl import Workbook, load_workbook
+from openpyxl.drawing.image import Image
+from openpyxl.styles import Alignment, Font
+from PIL import Image as PILImage
+
+from utils import download_bytes, get_excel_path, is_file_open
 
 logger = logging.getLogger(__name__)
 
@@ -59,10 +59,9 @@ class ExcelHandler:
             self.sheet.column_dimensions[col].width = 8
         self.sheet.column_dimensions['U'].width = 10
         
-        # 设置表头样式
         for cell in self.sheet[1]:
-            cell.font = cell.font.copy(bold=True)
-            cell.alignment = styles.Alignment(horizontal='center', vertical='center')
+            cell.font = Font(bold=True)
+            cell.alignment = Alignment(horizontal="center", vertical="center")
         
         logger.info("创建新的Excel工作簿")
     
@@ -85,21 +84,19 @@ class ExcelHandler:
         return True
     
     def _download_image_from_url(self, image_url):
-        """从URL下载图片并返回PIL Image对象"""
+        """从 URL 下载图片并返回 PIL Image（与主程序共用重试/代理策略）。"""
+        if not image_url:
+            return None
+        logger.info(f"正在下载图片: {image_url}")
+        raw = download_bytes(image_url, timeout=30)
+        if not raw:
+            return None
         try:
-            if not image_url:
-                return None
-            
-            logger.info(f"正在下载图片: {image_url}")
-            response = requests.get(image_url, timeout=10)
-            response.raise_for_status()
-            
-            # 将字节数据转换为PIL Image对象
-            img = PILImage.open(io.BytesIO(response.content))
+            img = PILImage.open(io.BytesIO(raw))
             logger.info("图片下载成功")
             return img
         except Exception as e:
-            logger.error(f"图片下载失败: {str(e)}")
+            logger.error(f"图片解析失败: {e}")
             return None
     
     def _resize_image_to_fit_cell(self, pil_image, target_width=210, target_height=53):
@@ -141,7 +138,9 @@ class ExcelHandler:
         # 设置该行所有单元格垂直居中
         for col_idx in range(1, len(row_data) + 1):
             cell = self.sheet.cell(row=row_num, column=col_idx)
-            cell.alignment = styles.Alignment(horizontal='left', vertical='center', wrap_text=True)
+            cell.alignment = Alignment(
+                horizontal="left", vertical="center", wrap_text=True
+            )
         
         # 尝试下载并插入图片
         cover_image_url = game_data.get('cover_image')

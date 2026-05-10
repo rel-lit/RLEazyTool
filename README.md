@@ -5,6 +5,7 @@
 ## 📢 最新更新
 
 - ✨ **新增**: Steam游戏数据抓取工具 (tools/steamData)
+- 🔧 **steamData**: Store JSON API 优先 + HTML 补缺；HTTP Session 复用；详见子目录 README
 - 🔧 **Merge 工具**: 重构为分层架构（解析 / 引擎 / 报表 / REPL），详见 [tools/merge/README.md](tools/merge/README.md)
 - 🔧 **优化**: 添加虚拟环境支持 (.venv)
 - 📝 **文档**: 完善使用指南和快速开始文档
@@ -64,11 +65,12 @@ RLEazyTool/
 │       ├── steamData.bat
 │       ├── launcher.py
 │       ├── main.py
+│       ├── store_api.py        # Store JSON API
 │       ├── scraper.py
 │       ├── excel_handler.py
 │       ├── config.py
 │       ├── utils.py
-│       ├── test.py
+│       ├── test_connection.py
 │       ├── requirements.txt
 │       └── README.md
 ├── .gitignore
@@ -138,22 +140,14 @@ RLEazyTool/
 
 ---
 
-### 2. steamData —— Steam游戏数据抓取工具
+### 2. steamData —— Steam 游戏数据抓取工具
 
-从Steam商店页面自动抓取游戏信息并保存到Excel文件，支持图片嵌入。
+从商店页抓取信息并写入 `steam_games.xlsx`；**默认走 Steam Store 公开 JSON API**，不足时自动用 HTML 解析补齐。详见 [tools/steamData/README.md](tools/steamData/README.md)。
 
-**功能特性：**
-- ✅ 游戏名称、价格、好评率提取
-- ✅ 封面图片下载并嵌入Excel
-- ✅ 游戏标签和支持语言识别
-- ✅ 自动重试机制和异常处理
-- ✅ 文件占用检测
-
-**典型使用场景：**
-- 批量收集Steam游戏信息建立数据库
-- 跟踪游戏价格变化
-- 分析游戏评测和标签数据
-- 制作个人游戏收藏清单
+**功能概要：**
+- 名称、国区价格/免费、`appreviews` 评测摘要、类型标签、中文支持、封面内嵌 Excel
+- `requests.Session` 复用、可配置重试与 `STEAMDATA_LOG=DEBUG`
+- 直连（虚拟网卡加速）或 `config.PROXIES` 手动代理
 
 #### 使用方法
 
@@ -191,15 +185,14 @@ python main.py
 - **格式**:
   | 列A | 列B | 列C | 列D | 列E | 列F | 列G | 列H |
   |-----|-----|-----|-----|-----|-----|-----|-----|
-  | 图片链接 | 游戏名 | 价格 | 好评率 | 标签1 | 标签2 | 商店链接 | 语言 |
+  | 封面图 | 游戏名 | 价格 | 好评率 | 标签1 | 标签2 | 商店链接 | 语言 |
 
 #### 核心特性
 
 **稳定性与容错**
-- 网络请求超时自动重试3次，每次间隔2秒
-- 自动检测系统代理和常见加速器（UU、Clash、V2Ray等）
-- URL 自动清洗，去除追踪参数
-- HTML结构变化时不会崩溃，打印错误日志
+- 请求失败按配置重试（指数退避，默认最多 5 次）
+- API + HTML 双通道，页面改版时仍较易恢复
+- 系统/环境代理检测；需 HTTP 代理时在 `config.py` 填写 `PROXIES`
 
 **反爬虫对抗**
 - 完整的浏览器请求头伪装
@@ -211,8 +204,7 @@ python main.py
 
 #### 文档
 
-- 📖 完整文档: [tools/steamData/README.md](tools/steamData/README.md)
-- 🚀 快速开始: [tools/steamData/QUICKSTART.md](tools/steamData/QUICKSTART.md)
+- 完整说明: [tools/steamData/README.md](tools/steamData/README.md)
 
 ## 贡献与反馈
 
@@ -223,5 +215,4 @@ python main.py
 
 - [虚拟环境设置指南](VENV_GUIDE.md) - 详细的虚拟环境配置说明
 - [merge 工具说明](tools/merge/README.md) - 代码合并工具（指令、架构、测试）
-- [steamData工具文档](tools/steamData/README.md) - Steam数据抓取工具详细说明
-- [steamData快速开始](tools/steamData/QUICKSTART.md) - 5分钟上手指南
+- [steamData 工具说明](tools/steamData/README.md) - Steam 数据抓取（API + Excel）

@@ -134,9 +134,6 @@ class SteamGameScraper:
     def _extract_review(self, soup):
         """提取好评率/评测信息"""
         try:
-            import re
-                
-            # 方法1: 查找用户评测区域的详细统计（优先，因为这里通常有百分比）
             user_reviews = soup.find('div', id='userReviews')
             if user_reviews:
                 review_text = user_reviews.get_text()
@@ -299,19 +296,55 @@ class SteamGameScraper:
             logger.warning(f"提取语言信息失败: {str(e)}", exc_info=True)
         return '无中文'
     
+    def _merge_game_data(self, primary: dict, secondary: dict | None) -> dict:
+        if not secondary:
+            return primary
+        out = dict(primary)
+        for key in ("name", "cover_image", "price", "review", "languages"):
+            pv = out.get(key)
+            sv = secondary.get(key)
+            if pv in (None, "", "未知", "暂无评测") and sv:
+                out[key] = sv
+        pt = out.get("tags") or []
+        st = secondary.get("tags") or []
+        if (not any(pt)) and st:
+            out["tags"] = st
+        return out
+
+    def _needs_html_enrichment(self, game_data: dict) -> bool:
+        if game_data.get("price") in (None, "", "未知"):
+            return True
+        if game_data.get("review") in (None, "", "暂无评测"):
+            return True
+        if not game_data.get("cover_image"):
+            return True
+        tags = game_data.get("tags") or []
+        if not any(tags):
+            return True
+        return False
+
+    def _enrich_from_html(self, game_data: dict, url: str) -> dict:
+        if not self._needs_html_enrichment(game_data):
+            return game_data
+        html = self.fetch_page(url)
+        if not html:
+            return game_data
+        extra = self.parse_game_data(html, url)
+        return self._merge_game_data(game_data, extra)
+
     def download_image(self, image_url):
         """
         下载封面图片
-        
+
         Args:
             image_url: 图片URL
-        
+
         Returns:
             bytes: 图片二进制数据，失败返回None
         """
         if not image_url:
             return None
-        
+
         try:
             logger.info(f"正在下载图片: {image_url}")
             response = send_request(image_url)
@@ -320,30 +353,22 @@ class SteamGameScraper:
         except Exception as e:
             logger.error(f"图片下载失败: {str(e)}")
             return None
-    
+
     def scrape(self, url):
         """
-        完整的抓取流程（链接模式）
-        
-        Args:
-            url: Steam商店页面URL
-        
-        Returns:
-            dict: 包含游戏信息的字典，失败返回None
+        抓取流程：默认优先 Steam Store JSON API，失败或不完整时回退/补充 HTML 解析。
         """
-        # 获取页面
-        html = self.fetch_page(url)
-        if not html:
-            return None
-        
-        # 解析数据
-        game_data = self.parse_game_data(html, url)
-        if not game_data:
-            return None
-        
-        # 链接模式：不需要下载图片，只保存 URL
-        # 如果需要下载图片，取消下面的注释
-        # if game_data['cover_image']:
-        #     game_data['image_data'] = self.download_image(game_data['cover_image'])
-        
-        return game_data
+        from config import USE_STORE_API
+
+        if USE_STORE_API:
+            try:
+                from store_api import build_game_data_from_store_api
+
+                api_data = build_game_data_from_store_api(url)
+                if api_data and api_data.get("name") not in (None, "", "未知"):
+                    logger.info("使用 Store API 数据（必要时补充 HTML）")
+                    return self._enrich_from_html(api_data, url)
+            except Exception as e:
+                logger.warning(f"Store API 路径异常，回退纯 HTML: {e}")
+
+        return self._scrape_html_only(url)
