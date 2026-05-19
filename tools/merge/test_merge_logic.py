@@ -25,6 +25,8 @@ def test_merge_files_by_types(tmp_path):
     assert "hello" in content
     assert "world" in content
     assert "合并统计" in content
+    assert "文件分析" in content
+    assert "a.cs" in content
 
 
 def test_merge_non_recursive_skips_subfolders(tmp_path):

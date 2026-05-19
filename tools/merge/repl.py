@@ -16,7 +16,6 @@ from command_handlers import handle_exc, handle_mod
 from input_parser import parse_input
 from merge_engine import MergeRunOptions, run_merge
 from merge_report import (
-    apply_merge_jokes,
     print_merge_summary,
     print_scan_banner,
     write_merged_output,
@@ -36,9 +35,6 @@ class MergeRepl:
             self.config.history[0] if self.config.history else script_dir
         )
         self.first_run = True
-        self.relative_switch_count = 0
-        self.relative_switch_joked: set[int] = set()
-        self.joke_state: dict = {}
         self.continuous_mode = False
         self.choose_mode = False
         self.choose_list: list[str] | None = None
@@ -123,7 +119,6 @@ class MergeRepl:
             print_scan_banner(self.current_path, self.config.merge_subfolders)
             result = run_merge(options)
             print_merge_summary(result, options.file_types)
-            apply_merge_jokes(self.joke_state, result)
             write_merged_output(output_path, result)
             self.config.history = add_to_history(
                 list(self.config.history), self.current_path
@@ -214,11 +209,8 @@ class MergeRepl:
                     self._invalidate_choose("已切换路径")
                     continue
                 if action == Action.SWITCH_REL:
-                    self.current_path, self.relative_switch_count = switch_relative(
-                        payload,
-                        self.current_path,
-                        self.relative_switch_count,
-                        self.relative_switch_joked,
+                    self.current_path = switch_relative(
+                        payload, self.current_path
                     )
                     self._invalidate_choose("已切换路径")
                     continue

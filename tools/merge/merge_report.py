@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from file_analysis import build_console_file_hints, build_neutral_notices
 from merge_engine import MergeRunResult
 
 
@@ -27,52 +28,13 @@ def print_merge_summary(result: MergeRunResult, file_types: tuple[str, ...]) -> 
             f"枚举: {cs.enum_count}，接口: {cs.interface_count}"
         )
         print(f"变量/字段/属性: {cs.variable_count}，方法: {cs.method_count}")
-        print("")
         for line in result.console_detail_lines:
             print(line)
-        print("")
-
-
-def apply_merge_jokes(joke_state: dict, result: MergeRunResult) -> None:
-    if joke_state is None:
-        return
-    if result.scan_error and not joke_state.get("scan_error"):
-        print("目录我读不动啦，检查一下路径或权限再试试吧~")
-        joke_state["scan_error"] = True
-    fc = result.file_count
-    if fc >= 50 and not joke_state.get("file50"):
-        print("哇哦，50个以上文件？你是要挑战我的极限吗？美少女架构师可不会轻易认输哦！")
-        joke_state["file50"] = True
-    elif fc >= 30 and not joke_state.get("file30"):
-        print("30+文件合并，今天也是元气满满地搬砖呢！不过你可别偷懒让我全干了呀~")
-        joke_state["file30"] = True
-    elif fc >= 20 and not joke_state.get("file20"):
-        print("20个文件，批量操作才是大佬的日常，继续加油哦！")
-        joke_state["file20"] = True
-    elif fc >= 10 and not joke_state.get("file10"):
-        print("文件数量上双，手速跟得上我可爱的嘴炮吗？")
-        joke_state["file10"] = True
-    tl = result.total_lines
-    if tl >= 5000 and not joke_state.get("line5000"):
-        print("5000+行代码，眼睛要保护好哦，不然我可要心疼你啦！")
-        joke_state["line5000"] = True
-    elif tl >= 2000 and not joke_state.get("line2000"):
-        print("合并内容超过2000行，代码海洋都快淹没我这小小美少女了！")
-        joke_state["line2000"] = True
-    cs = result.cs_stats
-    if cs is not None and cs.cs_class_infos:
-        real_classes = [c for c in cs.cs_class_infos if not c[0] and not c[1]]
-        avg_real = (
-            round(sum(c[3] for c in real_classes) / len(real_classes), 2)
-            if real_classes
-            else 0
-        )
-        if avg_real > 200 and not joke_state.get("avg_class_len200"):
-            print("欸？你这要成为屎山了吧？美少女架构师在线劝退大类，快拆分一下啦！")
-            joke_state["avg_class_len200"] = True
-    if result.error_count > 0 and not joke_state.get("error"):
-        print("有文件读取失败啦，别怕，有我罩着你，快检查下路径或权限吧~")
-        joke_state["error"] = True
+    for line in build_console_file_hints(result.file_entries):
+        print(line)
+    for line in build_neutral_notices(result):
+        print(line)
+    print("")
 
 
 def write_merged_output(output_path: str, result: MergeRunResult) -> None:

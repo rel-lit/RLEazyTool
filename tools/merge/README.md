@@ -80,8 +80,9 @@
 | `path_switch.py` / `path_tools.py` | 路径切换与桌面、模糊匹配 |
 | `models.py` / `storage.py` | 配置模型与 JSON 读写 |
 | `merge_engine.py` | 扫描与合并（无控制台输出） |
+| `file_analysis.py` | 单文件/目录/后缀统计（写入输出头部） |
 | `cs_analyzer.py` | C# 内容粗统计 |
-| `merge_report.py` | 终端输出与合并文件写盘 |
+| `merge_report.py` | 终端摘要与合并文件写盘 |
 | `constants.py` | 递归遍历时跳过的目录名 |
 
 ## 测试
@@ -98,4 +99,5 @@ py test_path_utils.py
 ## 输出文件
 
 - 默认保存在 **桌面**，文件名形如：`<文件夹名>_MergedFiles_<时间戳>.txt`
-- 文件开头为统计注释块（合并时间、路径、范围、文件数与 C# 粗统计等），其后为各文件内容区块。
+- 文件开头为统计注释块（合并时间、路径、范围、文件数、按后缀/目录分析、文件清单与 Top 排行、C# 粗统计等），其后为各文件内容区块。
+- 终端仅输出简短摘要（含行数 Top5），详细分析见输出文件头部。

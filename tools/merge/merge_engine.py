@@ -9,6 +9,7 @@ from typing import Iterator
 
 from constants import EXCLUDE_DIR_NAMES
 from cs_analyzer import RunningCsStats, analyze_cs_content
+from file_analysis import FileEntry, build_file_analysis_header_lines
 from models import MergeRunOptions
 
 
@@ -84,6 +85,7 @@ class MergeRunResult:
     console_detail_lines: list[str] = field(default_factory=list)
     cs_stats: RunningCsStats | None = None
     scan_error: str | None = None
+    file_entries: list[FileEntry] = field(default_factory=list)
 
 
 def _merge_one_file(
@@ -99,14 +101,24 @@ def _merge_one_file(
         f"\n\n// ==================== 文件: {relative_path} ====================\n\n"
     )
     try:
+        size_bytes = os.path.getsize(file_path)
         with open(file_path, encoding="utf-8", errors="ignore") as infile:
             content = infile.read()
-        result.total_lines += len(content.splitlines())
+        line_count = len(content.splitlines())
+        result.total_lines += line_count
         result.type_file_count[matched_ext] += 1
         if matched_ext == ".cs" and cs is not None:
             analyze_cs_content(cs, content)
         merged.append(content)
         result.file_count += 1
+        result.file_entries.append(
+            FileEntry(
+                relative_path=relative_path,
+                lines=line_count,
+                size_bytes=size_bytes,
+                ext=matched_ext,
+            )
+        )
     except OSError as e:
         merged.append(f"// [错误] 无法读取文件: {e}\n")
         result.error_count += 1
@@ -268,5 +280,13 @@ def _build_report_lines(
             line_b.replace("// ", ""),
             line_c.replace("// ", ""),
         ]
+    if result.file_entries:
+        stat_lines.extend(
+            build_file_analysis_header_lines(
+                result.file_entries,
+                options.file_types,
+                cs.cs_class_infos if cs is not None else None,
+            )
+        )
     stat_lines.append("// ==========================================")
     return stat_lines, detail_lines
