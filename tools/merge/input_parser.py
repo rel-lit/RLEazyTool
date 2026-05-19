@@ -12,10 +12,46 @@ def _is_exc_command(user_input: str) -> bool:
     return s == "exc" or s.startswith("exc ")
 
 
+def _is_c_command(user_input: str) -> bool:
+    s = user_input.strip().lower()
+    return s == "c" or s.startswith("c ")
+
+
+def _parse_c_command(user_input: str) -> tuple[Action, Any]:
+    parts = user_input.strip().split()
+    low = [p.lower() for p in parts]
+    if len(parts) == 1:
+        return Action.CHOOSE, ("enter_or_list", None)
+    if len(parts) == 2 and low[1] == "q":
+        return Action.CHOOSE, ("quit", None)
+    if low[1] == "limit":
+        if len(parts) == 2:
+            return Action.CHOOSE, ("limit_show", None)
+        if len(parts) == 3:
+            return Action.CHOOSE, ("limit_set", parts[2])
+        return Action.CHOOSE_INVALID, None
+    if len(parts) == 2 and low[1] == "all":
+        return Action.CHOOSE, ("select_all", None)
+    if low[1] == "s":
+        if len(parts) == 2:
+            return Action.CHOOSE, ("deselect_usage", None)
+        if len(parts) == 3 and low[2] == "all":
+            return Action.CHOOSE, ("deselect_all", None)
+        if len(parts) >= 3:
+            return Action.CHOOSE, ("deselect", parts[2:])
+        return Action.CHOOSE_INVALID, None
+    return Action.CHOOSE, ("select", parts[1:])
+
+
 def parse_input(user_input: str, history_length: int) -> tuple[Action, Any]:
     user_input = user_input.strip()
     if user_input.lower().startswith("mod "):
         return Action.MOD, user_input.split()
+    if _is_c_command(user_input):
+        action, payload = _parse_c_command(user_input)
+        if action == Action.CHOOSE_INVALID:
+            return action, None
+        return action, payload
     if user_input.lower() == "q":
         return Action.QUIT, None
     if user_input.lower() == "help":

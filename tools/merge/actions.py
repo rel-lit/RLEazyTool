@@ -23,4 +23,6 @@ class Action(StrEnum):
     EXC_LIST = "exc_list"
     EXC_CASE = "exc_case"
     EXC_INVALID = "exc_invalid"
+    CHOOSE = "choose"
+    CHOOSE_INVALID = "choose_invalid"
     INVALID = "invalid"

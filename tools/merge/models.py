@@ -18,6 +18,7 @@ class MergeConfig:
     current_exclude_group: Optional[str] = None
     last_success_exclude_group: Optional[str] = None
     merge_subfolders: bool = True
+    c_limit: int = 50
 
     def to_json_dict(self) -> dict[str, Any]:
         return {
@@ -29,6 +30,7 @@ class MergeConfig:
             "current_exclude_group": self.current_exclude_group,
             "last_success_exclude_group": self.last_success_exclude_group,
             "merge_subfolders": self.merge_subfolders,
+            "c_limit": self.c_limit,
         }
 
     @classmethod
@@ -51,6 +53,7 @@ class MergeConfig:
             current_exclude_group=d.get("current_exclude_group"),
             last_success_exclude_group=d.get("last_success_exclude_group"),
             merge_subfolders=d.get("merge_subfolders", True),
+            c_limit=int(d.get("c_limit", 50)),
         )
 
 
@@ -62,3 +65,4 @@ class MergeRunOptions:
     exclude_words: tuple[str, ...] = ()
     case_sensitive: bool = True
     recursive: bool = True
+    only_relative_paths: tuple[str, ...] | None = None
