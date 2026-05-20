@@ -35,6 +35,18 @@ def _save(config: MergeConfig) -> None:
     save_config(config)
 
 
+def _activate_exclude_group(config: MergeConfig, name: str) -> None:
+    config.current_exclude_group = name
+    config.last_exclude_group = name
+
+
+def _resolve_last_exclude_group(config: MergeConfig) -> str | None:
+    name = config.last_exclude_group
+    if name and name in config.exclude_groups:
+        return name
+    return None
+
+
 def _invalidate_choose_if_active(repl) -> None:
     if hasattr(repl, "_invalidate_choose"):
         repl._invalidate_choose("已修改 exc 排除组")
@@ -91,26 +103,28 @@ def handle_exc(repl, payload: tuple[str, object]) -> None:
             print(f"  已加载规则: {n} 条")
         return
 
-    if cmd == "last":
-        last = config.last_success_exclude_group
-        if last and last in config.exclude_groups:
-            config.current_exclude_group = last
-            _save(config)
-            _invalidate_choose_if_active(repl)
-            print(f"✅ 已启用排除组: {last}")
-        else:
-            print("❌ 没有可用的上次排除组。")
-        return
-
-    if cmd == "off":
+    if cmd == "toggle":
         if config.current_exclude_group:
             old = config.current_exclude_group
+            config.last_exclude_group = old
             config.current_exclude_group = None
             _save(config)
             _invalidate_choose_if_active(repl)
-            print(f"✅ 已关闭排除组: {old}")
+            print(
+                f"✅ 已关闭排除（组「{old}」仍保留，再次输入 exc 可启用）。"
+            )
         else:
-            print("ℹ️ 当前没有启用的排除组。")
+            name = _resolve_last_exclude_group(config)
+            if not name:
+                print(
+                    "❌ 没有可启用的排除组。请先 exc a <组名> 新建，"
+                    "或 exc <组名> 指定组。"
+                )
+                return
+            _activate_exclude_group(config, name)
+            _save(config)
+            _invalidate_choose_if_active(repl)
+            print(f"✅ 已启用排除组: {name}")
         return
 
     if cmd == "use":
@@ -118,7 +132,7 @@ def handle_exc(repl, payload: tuple[str, object]) -> None:
         if name not in config.exclude_groups:
             print(f"❌ 排除组 '{name}' 不存在。")
             return
-        config.current_exclude_group = name
+        _activate_exclude_group(config, name)
         _save(config)
         _invalidate_choose_if_active(repl)
         print(f"✅ 已启用排除组: {name}")
@@ -142,6 +156,8 @@ def handle_exc(repl, payload: tuple[str, object]) -> None:
         del config.exclude_groups[name]
         if config.current_exclude_group == name:
             config.current_exclude_group = None
+        if config.last_exclude_group == name:
+            config.last_exclude_group = None
         _save(config)
         _invalidate_choose_if_active(repl)
         print(f"✅ 已删除排除组: {name}")
@@ -166,7 +182,7 @@ def handle_exc(repl, payload: tuple[str, object]) -> None:
     if cmd == "list_now":
         cur = config.current_exclude_group
         if not cur or cur not in config.exclude_groups:
-            print("ℹ️ 当前未启用排除组。请 exc u <组名>")
+            print("ℹ️ 当前未启用排除组。请 exc <组名> 或输入 exc 开关。")
             return
         g = _get_group(config, cur)
         assert g is not None

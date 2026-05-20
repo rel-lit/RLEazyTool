@@ -46,12 +46,12 @@
 
 ### 排除模板（exc，全局）
 
-与 **mod** 类似：持久化模板，`exc u` 启用一组。作用于**任意当前路径**（全局），与 **this**（当前目录范围）独立。
+与 **mod** 类似：排除组持久保存。`exc` 开关启用/关闭（恢复上次使用的组）；`exc <组名>` 指定组。作用于**任意当前路径**（全局），与 **this**（当前目录范围）独立。
 
 | 指令 | 说明 |
 |------|------|
-| `exc` | 启用**上次合并成功时**的排除组 |
-| `exc u <组名>` / `exc off` | 启用 / 关闭排除组 |
+| `exc` | 开关排除（关闭后再开恢复 `last_exclude_group`） |
+| `exc <组名>` | 启用指定排除组 |
 | `exc a <组名>` / `exc d <组名>` | 新建空组 / 删除组 |
 | `exc ll` / `exc ll now` | 列出所有组 / 当前启用组详情 |
 
@@ -181,7 +181,7 @@
     }
   },
   "current_exclude_group": "dotnet-dev",
-  "last_success_exclude_group": "dotnet-dev",
+  "last_exclude_group": "dotnet-dev",
   "merge_max_depth": null,
   "merge_scope_exclude": [],
   "merge_scope_include": [],
@@ -196,7 +196,8 @@
 | 配置项 | 含义 | REPL 等价 |
 |--------|------|-----------|
 | `current_type_group` | 当前 mod 组 | `mod u <组名>` |
-| `current_exclude_group` | 当前 exc 组；`null` 表示关闭 | `exc u <组名>` / `exc off` |
+| `current_exclude_group` | 当前启用的 exc 组；`null` 表示关闭 | `exc` 开关 / `exc <组名>` |
+| `last_exclude_group` | 上次启用或合并成功的组，供 `exc` 开关恢复 | 启用组或合并成功时写入 |
 | `merge_max_depth` | `null` 不限深度；`0` 仅本层；`N` 最多 N 层 | `this max` / `this 0` / `this N` |
 | `merge_scope_include` / `exclude` | 相对当前合并根目录的路径细则 | `this` 模式下 `this a` / `this s` |
 | `scope_enabled` | 合并时是否应用上述范围；退出 `this` 时为 `false` | 输入 `this` 进入配置模式为 `true` |

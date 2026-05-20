@@ -20,7 +20,8 @@ class MergeConfig:
     last_success_type_group: str | None = None
     exclude_groups: dict[str, dict[str, Any]] = field(default_factory=dict)
     current_exclude_group: Optional[str] = None
-    last_success_exclude_group: Optional[str] = None
+    last_exclude_group: Optional[str] = None  # 上次启用/合并成功的组，供 exc 开关恢复
+    last_success_exclude_group: Optional[str] = None  # 兼容旧配置，加载时并入 last_exclude_group
     merge_subfolders: bool = True  # 已废弃，仅用于旧配置迁移
     merge_layer_only: bool = False  # 与 merge_max_depth==0 同步，兼容旧配置
     merge_max_depth: int | None = None  # None=不限深度；0=仅本层
@@ -41,6 +42,7 @@ class MergeConfig:
                 for k, v in self.exclude_groups.items()
             },
             "current_exclude_group": self.current_exclude_group,
+            "last_exclude_group": self.last_exclude_group,
             "last_success_exclude_group": self.last_success_exclude_group,
             "merge_max_depth": self.merge_max_depth,
             "merge_scope_exclude": self.merge_scope_exclude,
@@ -74,6 +76,7 @@ class MergeConfig:
                 for k, v in exclude_groups.items()
             },
             current_exclude_group=d.get("current_exclude_group"),
+            last_exclude_group=cls._load_last_exclude_group(d),
             last_success_exclude_group=d.get("last_success_exclude_group"),
             merge_subfolders=d.get("merge_subfolders", True),
             merge_max_depth=merge_max_depth,
@@ -86,6 +89,12 @@ class MergeConfig:
             c_limit=int(d.get("c_limit", 50)),
             use_gitignore=bool(d.get("use_gitignore", False)),
         )
+
+    @staticmethod
+    def _load_last_exclude_group(d: dict[str, Any]) -> str | None:
+        if d.get("last_exclude_group"):
+            return d.get("last_exclude_group")
+        return d.get("last_success_exclude_group")
 
     @staticmethod
     def _load_scope_enabled(

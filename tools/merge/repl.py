@@ -92,7 +92,7 @@ class MergeRepl:
         if self.choose_mode:
             hint = "回车合并已选文件 (c 模式)"
         print(
-            f"💡 输入 help 查看所有指令, q 退出, {hint}, this 开关范围配置"
+            f"💡 输入 help 查看所有指令, q 退出, {hint}, this/exc 开关范围与排除"
         )
         mod_str = self.config.current_type_group
         exc_str = self.config.current_exclude_group
@@ -178,6 +178,8 @@ class MergeRepl:
                 list(self.config.history), self.current_path
             )
             self.config.last_success_type_group = self.config.current_type_group
+            if self.config.current_exclude_group:
+                self.config.last_exclude_group = self.config.current_exclude_group
             self.config.last_success_exclude_group = self.config.current_exclude_group
             save_config(self.config)
             print(f"\n✅ 合并完成，文件已生成: {output_path}\n")
