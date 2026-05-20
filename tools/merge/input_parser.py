@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import shlex
 from typing import Any
 
 from actions import Action
+from exclude_rules import FILE_RULE_KINDS
 
 
 def _is_exc_command(user_input: str) -> bool:
@@ -54,6 +56,65 @@ def _parse_this_command(user_input: str) -> tuple[Action, Any]:
             return Action.THIS, ("exclude", parts[2:])
         return Action.THIS_INVALID, None
     return Action.THIS_INVALID, None
+
+
+def _parse_exc_command(user_input: str) -> tuple[Action, Any]:
+    try:
+        parts = shlex.split(user_input.strip(), posix=False)
+    except ValueError:
+        return Action.EXC_INVALID, None
+    if not parts:
+        return Action.EXC_INVALID, None
+    low = [p.lower() for p in parts]
+    if low[0] != "exc":
+        return Action.EXC_INVALID, None
+    if len(parts) == 1:
+        return Action.EXC, ("last", None)
+    if len(parts) == 2 and low[1] == "off":
+        return Action.EXC, ("off", None)
+    if len(parts) == 3 and low[1] == "u":
+        return Action.EXC, ("use", parts[2])
+    if len(parts) == 3 and low[1] == "a":
+        return Action.EXC, ("group_add", parts[2])
+    if len(parts) == 3 and low[1] == "d":
+        return Action.EXC, ("group_del", parts[2])
+    if low[1] == "ll":
+        if len(parts) == 2:
+            return Action.EXC, ("list", None)
+        if len(parts) == 3 and low[2] == "now":
+            return Action.EXC, ("list_now", None)
+    if low[1] == "dir" and len(parts) >= 4:
+        group = parts[3]
+        if low[2] == "a":
+            return Action.EXC, ("dir_add", (group, parts[4:]))
+        if low[2] == "d":
+            return Action.EXC, ("dir_del", (group, parts[4:]))
+        if low[2] == "clr" and len(parts) == 4:
+            return Action.EXC, ("dir_clr", group)
+        if low[2] == "ll" and len(parts) == 4:
+            return Action.EXC, ("dir_ll", group)
+    if low[1] == "f" and len(parts) >= 4:
+        group = parts[3]
+        if low[2] == "a" and len(parts) >= 6:
+            kind = parts[4].lower()
+            if kind not in FILE_RULE_KINDS:
+                return Action.EXC_INVALID, None
+            return Action.EXC, ("f_add", (group, kind, parts[5]))
+        if low[2] == "clr" and len(parts) == 4:
+            return Action.EXC, ("f_clr", group)
+        if low[2] == "ll" and len(parts) == 4:
+            return Action.EXC, ("f_ll", group)
+        if low[2] == "d" and len(parts) >= 5:
+            if parts[4].isdigit():
+                indices = [int(x) for x in parts[4:] if x.isdigit()]
+                if indices:
+                    return Action.EXC, ("f_del_index", (group, indices))
+            if len(parts) >= 6 and parts[4].lower() in FILE_RULE_KINDS:
+                return Action.EXC, (
+                    "f_del_rule",
+                    (group, parts[4].lower(), parts[5]),
+                )
+    return Action.EXC_INVALID, None
 
 
 def _is_c_command(user_input: str) -> bool:
@@ -125,20 +186,6 @@ def parse_input(user_input: str, history_length: int) -> tuple[Action, Any]:
     if user_input.startswith("\\") or user_input.startswith("/"):
         return Action.SWITCH_REL, user_input
     if _is_exc_command(user_input):
-        parts = user_input.strip().split()
-        if len(parts) == 1:
-            return Action.EXC_LAST, None
-        if len(parts) >= 3 and parts[1] == "a":
-            return Action.EXC_ADD, (parts[2], parts[3:])
-        if len(parts) == 3 and parts[1] == "d":
-            return Action.EXC_DEL, parts[2]
-        if len(parts) == 3 and parts[1] == "u":
-            return Action.EXC_USE, parts[2]
-        if len(parts) == 2 and parts[1] == "q":
-            return Action.EXC_DISABLE, None
-        if len(parts) == 2 and parts[1] == "ll":
-            return Action.EXC_LIST, None
-        if len(parts) == 4 and parts[1] == "case":
-            return Action.EXC_CASE, (parts[2], parts[3])
-        return Action.EXC_INVALID, None
+        action, payload = _parse_exc_command(user_input)
+        return action, payload
     return Action.INVALID, user_input

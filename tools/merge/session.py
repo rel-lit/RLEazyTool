@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from exc_handlers import exc_filter_from_config
 from models import MergeConfig, MergeRunOptions, ScopeSettings
 
 if TYPE_CHECKING:
@@ -12,18 +13,12 @@ if TYPE_CHECKING:
 
 def filter_settings_from_config(
     config: MergeConfig,
-) -> tuple[tuple[str, ...], tuple[str, ...], bool]:
+) -> tuple[tuple[str, ...], tuple[str, ...], tuple]:
     file_types = tuple(
         config.type_groups.get(config.current_type_group, [".cs"])
     )
-    exclude_words: tuple[str, ...] = ()
-    case_sensitive = True
-    exc_group = config.current_exclude_group
-    if exc_group and exc_group in config.exclude_groups:
-        g = config.exclude_groups[exc_group]
-        exclude_words = tuple(g["words"])
-        case_sensitive = g.get("case_sensitive", True)
-    return file_types, exclude_words, case_sensitive
+    exc_skip_dirs, exc_file_rules = exc_filter_from_config(config)
+    return file_types, exc_skip_dirs, exc_file_rules
 
 
 def scope_settings_from_config(config: MergeConfig) -> ScopeSettings:
@@ -40,7 +35,7 @@ def build_run_options(
     *,
     only_relative_paths: tuple[str, ...] | None = None,
 ) -> MergeRunOptions:
-    file_types, exclude_words, case_sensitive = filter_settings_from_config(
+    file_types, exc_skip_dirs, exc_file_rules = filter_settings_from_config(
         repl.config
     )
     scope = scope_settings_from_config(repl.config)
@@ -48,8 +43,8 @@ def build_run_options(
         source_dir=repl.current_path,
         output_path=output_path,
         file_types=file_types,
-        exclude_words=exclude_words,
-        case_sensitive=case_sensitive,
+        exc_skip_dirs=exc_skip_dirs,
+        exc_file_rules=exc_file_rules,
         merge_max_depth=scope.max_depth,
         merge_scope_exclude=scope.exclude,
         merge_scope_include=scope.include,

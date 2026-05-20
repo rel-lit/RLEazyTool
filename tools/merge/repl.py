@@ -11,7 +11,8 @@ from choose_handlers import (
     invalidate_choose_state,
     print_choose_selected_line,
 )
-from command_handlers import handle_exc, handle_mod
+from command_handlers import handle_mod
+from exc_handlers import handle_exc
 from input_parser import parse_input
 from merge_engine import run_merge
 from merge_report import (
@@ -156,17 +157,6 @@ class MergeRepl:
             return False
 
     def run(self) -> None:
-        exc_actions = frozenset(
-            {
-                Action.EXC_LAST,
-                Action.EXC_ADD,
-                Action.EXC_DEL,
-                Action.EXC_USE,
-                Action.EXC_DISABLE,
-                Action.EXC_LIST,
-                Action.EXC_CASE,
-            }
-        )
         try:
             while True:
                 self._print_status_header()
@@ -208,12 +198,11 @@ class MergeRepl:
                     handle_mod(payload, self.config)
                     self._invalidate_choose("已修改类型组")
                     continue
-                if action in exc_actions:
-                    handle_exc(action, payload, self.config)
-                    self._invalidate_choose("已修改排除组")
+                if action == Action.EXC:
+                    handle_exc(self, payload)
                     continue
                 if action == Action.EXC_INVALID:
-                    print("❌ exc 指令格式错误。用法: exc a/u/d/ll/case ...")
+                    print("❌ exc 指令格式错误。输入 help 查看 exc 说明。")
                     continue
                 if action == Action.CHOOSE:
                     handle_choose(self, payload)

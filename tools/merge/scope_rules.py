@@ -73,7 +73,6 @@ def list_folder_nodes_at_layer(source_dir: str, layer: int) -> list[str]:
     found: set[str] = set()
     try:
         for root, dirs, _files in os.walk(source_dir):
-            dirs[:] = [d for d in dirs if d not in EXCLUDE_DIR_NAMES]
             rel_root = os.path.relpath(root, source_dir)
             if rel_root == ".":
                 rel_root = ""
@@ -82,6 +81,7 @@ def list_folder_nodes_at_layer(source_dir: str, layer: int) -> list[str]:
             if depth != layer:
                 dirs[:] = []
                 continue
+            dirs[:] = [d for d in dirs if d not in EXCLUDE_DIR_NAMES]
             for d in dirs:
                 if rel_root:
                     found.add(f"{rel_root}/{d}")

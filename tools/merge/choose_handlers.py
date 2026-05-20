@@ -23,15 +23,15 @@ def scan_choose_list(repl: "MergeRepl") -> bool:
     if not os.path.isdir(repl.current_path):
         print(f"❌ 当前路径无效: {repl.current_path}")
         return False
-    file_types, exclude_words, case_sensitive = filter_settings_from_config(
+    file_types, exc_skip_dirs, exc_file_rules = filter_settings_from_config(
         repl.config
     )
     scope = scope_settings_from_config(repl.config)
     paths, scan_error = collect_candidate_paths(
         repl.current_path,
         file_types,
-        exclude_words,
-        case_sensitive,
+        exc_skip_dirs,
+        exc_file_rules,
         scope.max_depth,
         scope.exclude,
         scope.include,

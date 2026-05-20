@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from typing import Iterator
 
-from constants import EXCLUDE_DIR_NAMES
+from exclude_rules import FileExcludeRule, filename_excluded, walk_skip_dir_names
 from cs_analyzer import RunningCsStats, analyze_cs_content
 from file_analysis import FileEntry
 from merge_report import build_report_lines
@@ -16,13 +16,9 @@ from scope_rules import ScopeContext, file_in_merge_scope
 def _file_passes_filters(
     file: str,
     file_types: tuple[str, ...],
-    exclude_words: list[str],
-    case_sensitive: bool,
+    exc_file_rules: tuple[FileExcludeRule, ...],
 ) -> str | None:
-    file_check = file if case_sensitive else file.lower()
-    if any(
-        (w if case_sensitive else w.lower()) in file_check for w in exclude_words
-    ):
+    if filename_excluded(file, exc_file_rules):
         return None
     for ext in file_types:
         if file.endswith(ext):
@@ -33,23 +29,23 @@ def _file_passes_filters(
 def collect_candidate_paths(
     source_dir: str,
     file_types: tuple[str, ...],
-    exclude_words: tuple[str, ...],
-    case_sensitive: bool,
+    exc_skip_dirs: tuple[str, ...],
+    exc_file_rules: tuple[FileExcludeRule, ...],
     merge_max_depth: int | None,
     scope_exclude: tuple[str, ...] = (),
     scope_include: tuple[str, ...] = (),
 ) -> tuple[list[str] | None, str | None]:
     """返回 (相对路径列表, 扫描错误)。路径按字典序排序。"""
-    exclude_list = list(exclude_words)
     scope = ScopeContext.create(
         source_dir, merge_max_depth, scope_exclude, scope_include
     )
+    skip_dirs = walk_skip_dir_names(exc_skip_dirs)
     rel_paths: list[str] = []
-    for item in _iter_scoped_file_pairs(source_dir, merge_max_depth):
+    for item in _iter_scoped_file_pairs(source_dir, merge_max_depth, skip_dirs):
         if item[0] is None:
             return None, item[1]
         root, file = item[0], item[1]
-        if _file_passes_filters(file, file_types, exclude_list, case_sensitive) is None:
+        if _file_passes_filters(file, file_types, exc_file_rules) is None:
             continue
         file_path = os.path.join(root, file)
         rel = os.path.relpath(file_path, source_dir)
@@ -61,7 +57,9 @@ def collect_candidate_paths(
 
 
 def _iter_scoped_file_pairs(
-    source_dir: str, max_depth: int | None
+    source_dir: str,
+    max_depth: int | None,
+    skip_dirs: frozenset[str],
 ) -> Iterator[tuple[str, str] | tuple[None, str]]:
     if max_depth == 0:
         try:
@@ -74,7 +72,7 @@ def _iter_scoped_file_pairs(
         return
     try:
         for root, dirs, files in os.walk(source_dir):
-            dirs[:] = [d for d in dirs if d not in EXCLUDE_DIR_NAMES]
+            dirs[:] = [d for d in dirs if d not in skip_dirs]
             if max_depth is not None:
                 rel_root = os.path.relpath(root, source_dir)
                 if rel_root == ".":
@@ -128,13 +126,13 @@ def _merge_one_file(
 
 
 def run_merge(options: MergeRunOptions) -> MergeRunResult:
-    exclude_words = list(options.exclude_words)
-    case_sensitive = options.case_sensitive
     result = MergeRunResult(
         type_file_count={ext: 0 for ext in options.file_types},
         cs_stats=RunningCsStats() if ".cs" in options.file_types else None,
     )
     merged: list[str] = []
+    skip_dirs = walk_skip_dir_names(options.exc_skip_dirs)
+    exc_rules = options.exc_file_rules
 
     if options.only_relative_paths is not None:
         for relative_path in sorted(options.only_relative_paths):
@@ -148,7 +146,7 @@ def run_merge(options: MergeRunOptions) -> MergeRunResult:
                 continue
             file_name = os.path.basename(file_path)
             matched_ext = _file_passes_filters(
-                file_name, options.file_types, exclude_words, case_sensitive
+                file_name, options.file_types, exc_rules
             )
             if matched_ext is None:
                 continue
@@ -162,13 +160,15 @@ def run_merge(options: MergeRunOptions) -> MergeRunResult:
             options.merge_scope_exclude,
             options.merge_scope_include,
         )
-        for item in _iter_scoped_file_pairs(options.source_dir, scope.max_depth):
+        for item in _iter_scoped_file_pairs(
+            options.source_dir, scope.max_depth, skip_dirs
+        ):
             if item[0] is None:
                 result.scan_error = item[1]
                 break
             root, file = item[0], item[1]
             matched_ext = _file_passes_filters(
-                file, options.file_types, exclude_words, case_sensitive
+                file, options.file_types, exc_rules
             )
             if matched_ext is None:
                 continue

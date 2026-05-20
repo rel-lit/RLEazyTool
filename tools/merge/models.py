@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from cs_analyzer import RunningCsStats
+from exclude_rules import FileExcludeRule, normalize_exclude_group
 from file_analysis import FileEntry
 
 
@@ -33,7 +34,10 @@ class MergeConfig:
             "type_groups": self.type_groups,
             "current_type_group": self.current_type_group,
             "last_success_type_group": self.last_success_type_group,
-            "exclude_groups": self.exclude_groups,
+            "exclude_groups": {
+                k: normalize_exclude_group(v)
+                for k, v in self.exclude_groups.items()
+            },
             "current_exclude_group": self.current_exclude_group,
             "last_success_exclude_group": self.last_success_exclude_group,
             "merge_max_depth": self.merge_max_depth,
@@ -58,7 +62,10 @@ class MergeConfig:
             type_groups=type_groups,
             current_type_group=current_type_group,
             last_success_type_group=d.get("last_success_type_group"),
-            exclude_groups=exclude_groups,
+            exclude_groups={
+                k: normalize_exclude_group(v)
+                for k, v in exclude_groups.items()
+            },
             current_exclude_group=d.get("current_exclude_group"),
             last_success_exclude_group=d.get("last_success_exclude_group"),
             merge_subfolders=d.get("merge_subfolders", True),
@@ -101,8 +108,8 @@ class MergeRunOptions:
     source_dir: str
     output_path: str
     file_types: tuple[str, ...]
-    exclude_words: tuple[str, ...] = ()
-    case_sensitive: bool = True
+    exc_skip_dirs: tuple[str, ...] = ()
+    exc_file_rules: tuple[FileExcludeRule, ...] = ()
     merge_max_depth: int | None = None
     merge_scope_exclude: tuple[str, ...] = ()
     merge_scope_include: tuple[str, ...] = ()
