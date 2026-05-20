@@ -22,6 +22,8 @@ from merge_report import (
 )
 from path_switch import switch_absolute, switch_relative
 from path_tools import get_desktop_path, list_directories
+from scope_handlers import handle_this, invalidate_scope_on_path_change
+from scope_rules import format_scope_for_header
 from storage import add_to_history, load_config, print_help, print_history, save_config
 
 
@@ -37,8 +39,18 @@ class MergeRepl:
         self.first_run = True
         self.continuous_mode = False
         self.choose_mode = False
+        self.this_mode = False
         self.choose_list: list[str] | None = None
         self.choose_selected: set[int] = set()
+        self._depth_include_warned = False
+
+    def _scope_text(self) -> str:
+        return format_scope_for_header(
+            self.current_path,
+            self.config.merge_max_depth,
+            tuple(self.config.merge_scope_exclude),
+            tuple(self.config.merge_scope_include),
+        )
 
     def _invalidate_choose(self, reason: str = "") -> None:
         if not (
@@ -49,6 +61,17 @@ class MergeRepl:
         if self.choose_mode and reason:
             print(f"ℹ️ c 模式候选已清空（{reason}），请重新输入 c ll 列出。")
 
+    def _invalidate_scope(self, reason: str = "") -> None:
+        had_rules = bool(
+            self.config.merge_scope_exclude or self.config.merge_scope_include
+        )
+        invalidate_scope_on_path_change(self.config)
+        self._depth_include_warned = False
+        save_config(self.config)
+        if had_rules and reason:
+            print(f"ℹ️ 目录范围细则已清空（{reason}）。")
+        self._invalidate_choose(reason)
+
     def _print_status_header(self) -> None:
         print("-" * 30)
         print(f"📁 当前路径为: {self.current_path}")
@@ -58,13 +81,16 @@ class MergeRepl:
         hint = "回车执行或合并"
         if self.choose_mode:
             hint = "回车合并已选文件 (c 模式)"
-        print(f"💡 输入 help 查看所有指令, q 退出, {hint}, this 切换是否含子文件夹")
+        print(
+            f"💡 输入 help 查看所有指令, q 退出, {hint}, this 开关范围配置"
+        )
         mod_str = self.config.current_type_group
         exc_str = self.config.current_exclude_group
-        scope_str = "含子目录" if self.config.merge_subfolders else "仅本层"
-        parts = [f"当前mod: {mod_str}", f"范围: {scope_str}"]
+        parts = [f"当前mod: {mod_str}", f"范围: {self._scope_text()}"]
         if exc_str:
             parts.append(f"exc: {exc_str}")
+        if self.this_mode:
+            parts.insert(0, "this: 配置中")
         if self.choose_mode:
             c_part = (
                 f"c: 已选 {len(self.choose_selected)} 个 | limit: {self.config.c_limit}"
@@ -86,7 +112,10 @@ class MergeRepl:
         only_paths: tuple[str, ...] | None = None
         if self.choose_mode:
             if not self.choose_selected:
-                print("❌ c 模式下未选择任何文件。请 c <编号> 或 c all，或 c 关闭点名模式后全量合并。")
+                print(
+                    "❌ c 模式下未选择任何文件。请 c <编号> 或 c all，"
+                    "或 c 关闭点名模式后全量合并。"
+                )
                 return False
             if self.choose_list is None:
                 print("❌ 请先输入 c ll 列出候选，再选择编号。")
@@ -112,11 +141,13 @@ class MergeRepl:
             file_types=tuple(file_types),
             exclude_words=tuple(exclude_words),
             case_sensitive=case_sensitive,
-            recursive=self.config.merge_subfolders,
+            merge_max_depth=self.config.merge_max_depth,
+            merge_scope_exclude=tuple(self.config.merge_scope_exclude),
+            merge_scope_include=tuple(self.config.merge_scope_include),
             only_relative_paths=only_paths,
         )
         try:
-            print_scan_banner(self.current_path, self.config.merge_subfolders)
+            print_scan_banner(self.current_path, self._scope_text())
             result = run_merge(options)
             print_merge_summary(result, options.file_types)
             write_merged_output(output_path, result)
@@ -165,14 +196,11 @@ class MergeRepl:
                 if action == Action.LIST_DIRS:
                     list_directories(self.current_path)
                     continue
-                if action == Action.TOGGLE_MERGE_SCOPE:
-                    self.config.merge_subfolders = not self.config.merge_subfolders
-                    save_config(self.config)
-                    if self.config.merge_subfolders:
-                        print("✅ 合并范围: 含子文件夹")
-                    else:
-                        print("✅ 合并范围: 仅当前文件夹（不进入子目录）")
-                    self._invalidate_choose("已切换合并范围")
+                if action == Action.THIS:
+                    handle_this(self, payload)
+                    continue
+                if action == Action.THIS_INVALID:
+                    print("❌ this 指令格式错误。输入 help 查看说明。")
                     continue
                 if action == Action.CONTINUOUS_MODE:
                     self.continuous_mode = True
@@ -183,7 +211,7 @@ class MergeRepl:
                 if action == Action.SWITCH_HISTORY:
                     self.current_path = self.config.history[payload]
                     print(f"✅ 已切换到历史路径: {self.current_path}")
-                    self._invalidate_choose("已切换路径")
+                    self._invalidate_scope("已切换路径")
                     continue
                 if action == Action.MOD:
                     handle_mod(payload, self.config)
@@ -206,13 +234,13 @@ class MergeRepl:
                     self.current_path = switch_absolute(
                         payload, self.current_path
                     )
-                    self._invalidate_choose("已切换路径")
+                    self._invalidate_scope("已切换路径")
                     continue
                 if action == Action.SWITCH_REL:
                     self.current_path = switch_relative(
                         payload, self.current_path
                     )
-                    self._invalidate_choose("已切换路径")
+                    self._invalidate_scope("已切换路径")
                     continue
                 if action == Action.MERGE:
                     if self._merge():

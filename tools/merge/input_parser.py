@@ -12,6 +12,50 @@ def _is_exc_command(user_input: str) -> bool:
     return s == "exc" or s.startswith("exc ")
 
 
+def _is_this_command(user_input: str) -> bool:
+    s = user_input.strip().lower()
+    return s == "this" or s.startswith("this ")
+
+
+def _parse_this_command(user_input: str) -> tuple[Action, Any]:
+    parts = user_input.strip().split()
+    low = [p.lower() for p in parts]
+    if len(parts) == 1:
+        return Action.THIS, ("toggle", None)
+    if len(parts) == 2:
+        if low[1] == "0":
+            return Action.THIS, ("set_depth", 0)
+        if low[1] == "max":
+            return Action.THIS, ("set_depth", None)
+        try:
+            n = int(parts[1])
+            if n < 0:
+                return Action.THIS_INVALID, None
+            return Action.THIS, ("set_depth", n)
+        except ValueError:
+            pass
+    if low[1] == "ll":
+        if len(parts) == 2:
+            return Action.THIS, ("list", 0)
+        if len(parts) == 3 and low[2] == "all":
+            return Action.THIS, ("list_all", None)
+        if len(parts) == 3:
+            try:
+                return Action.THIS, ("list", int(parts[2]))
+            except ValueError:
+                return Action.THIS_INVALID, None
+        return Action.THIS_INVALID, None
+    if low[1] == "a" and len(parts) >= 2:
+        return Action.THIS, ("include", parts[2:])
+    if low[1] == "s":
+        if len(parts) == 2:
+            return Action.THIS, ("exclude_usage", None)
+        if len(parts) >= 3:
+            return Action.THIS, ("exclude", parts[2:])
+        return Action.THIS_INVALID, None
+    return Action.THIS_INVALID, None
+
+
 def _is_c_command(user_input: str) -> bool:
     s = user_input.strip().lower()
     return s == "c" or s.startswith("c ")
@@ -52,6 +96,11 @@ def parse_input(user_input: str, history_length: int) -> tuple[Action, Any]:
         if action == Action.CHOOSE_INVALID:
             return action, None
         return action, payload
+    if _is_this_command(user_input):
+        action, payload = _parse_this_command(user_input)
+        if action == Action.THIS_INVALID:
+            return action, None
+        return action, payload
     if user_input.lower() == "q":
         return Action.QUIT, None
     if user_input.lower() == "help":
@@ -60,8 +109,6 @@ def parse_input(user_input: str, history_length: int) -> tuple[Action, Any]:
         return Action.HISTORY, None
     if user_input.lower() == "ll":
         return Action.LIST_DIRS, None
-    if user_input.lower() == "this":
-        return Action.TOGGLE_MERGE_SCOPE, None
     if user_input.lower() == "r":
         return Action.CONTINUOUS_MODE, None
     if (

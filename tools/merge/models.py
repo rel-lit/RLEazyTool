@@ -17,7 +17,11 @@ class MergeConfig:
     exclude_groups: dict[str, dict[str, Any]] = field(default_factory=dict)
     current_exclude_group: Optional[str] = None
     last_success_exclude_group: Optional[str] = None
-    merge_subfolders: bool = True
+    merge_subfolders: bool = True  # 已废弃，仅用于旧配置迁移
+    merge_layer_only: bool = False  # 与 merge_max_depth==0 同步，兼容旧配置
+    merge_max_depth: int | None = None  # None=不限深度；0=仅本层
+    merge_scope_exclude: list[str] = field(default_factory=list)
+    merge_scope_include: list[str] = field(default_factory=list)
     c_limit: int = 50
 
     def to_json_dict(self) -> dict[str, Any]:
@@ -30,6 +34,10 @@ class MergeConfig:
             "current_exclude_group": self.current_exclude_group,
             "last_success_exclude_group": self.last_success_exclude_group,
             "merge_subfolders": self.merge_subfolders,
+            "merge_layer_only": self.merge_layer_only,
+            "merge_max_depth": self.merge_max_depth,
+            "merge_scope_exclude": self.merge_scope_exclude,
+            "merge_scope_include": self.merge_scope_include,
             "c_limit": self.c_limit,
         }
 
@@ -53,8 +61,31 @@ class MergeConfig:
             current_exclude_group=d.get("current_exclude_group"),
             last_success_exclude_group=d.get("last_success_exclude_group"),
             merge_subfolders=d.get("merge_subfolders", True),
+            merge_max_depth=cls._load_merge_max_depth(d),
+            merge_layer_only=cls._load_merge_layer_only(d),
+            merge_scope_exclude=list(d.get("merge_scope_exclude") or []),
+            merge_scope_include=list(d.get("merge_scope_include") or []),
             c_limit=int(d.get("c_limit", 50)),
         )
+
+    @staticmethod
+    def _load_merge_max_depth(d: dict[str, Any]) -> int | None:
+        if "merge_max_depth" in d:
+            raw = d["merge_max_depth"]
+            return None if raw is None else int(raw)
+        if d.get("merge_layer_only") or (
+            "merge_layer_only" not in d and not d.get("merge_subfolders", True)
+        ):
+            return 0
+        return None
+
+    @staticmethod
+    def _load_merge_layer_only(d: dict[str, Any]) -> bool:
+        if "merge_max_depth" in d:
+            return d["merge_max_depth"] == 0
+        if "merge_layer_only" in d:
+            return bool(d["merge_layer_only"])
+        return not d.get("merge_subfolders", True)
 
 
 @dataclass(frozen=True)
@@ -64,5 +95,8 @@ class MergeRunOptions:
     file_types: tuple[str, ...]
     exclude_words: tuple[str, ...] = ()
     case_sensitive: bool = True
-    recursive: bool = True
+    recursive: bool = True  # 已废弃
+    merge_max_depth: int | None = None
+    merge_scope_exclude: tuple[str, ...] = ()
+    merge_scope_include: tuple[str, ...] = ()
     only_relative_paths: tuple[str, ...] | None = None

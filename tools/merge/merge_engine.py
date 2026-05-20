@@ -11,6 +11,7 @@ from constants import EXCLUDE_DIR_NAMES
 from cs_analyzer import RunningCsStats, analyze_cs_content
 from file_analysis import FileEntry, build_file_analysis_header_lines
 from models import MergeRunOptions
+from scope_rules import file_in_merge_scope, format_scope_for_header
 
 
 def _file_passes_filters(
@@ -35,21 +36,62 @@ def collect_candidate_paths(
     file_types: tuple[str, ...],
     exclude_words: tuple[str, ...],
     case_sensitive: bool,
-    recursive: bool,
+    merge_max_depth: int | None,
+    scope_exclude: tuple[str, ...] = (),
+    scope_include: tuple[str, ...] = (),
 ) -> tuple[list[str] | None, str | None]:
     """返回 (相对路径列表, 扫描错误)。路径按字典序排序。"""
     exclude_list = list(exclude_words)
     rel_paths: list[str] = []
-    for item in _iter_file_pairs(source_dir, recursive):
+    for item in _iter_scoped_file_pairs(source_dir, merge_max_depth):
         if item[0] is None:
             return None, item[1]
         root, file = item[0], item[1]
         if _file_passes_filters(file, file_types, exclude_list, case_sensitive) is None:
             continue
         file_path = os.path.join(root, file)
-        rel_paths.append(os.path.relpath(file_path, source_dir))
+        rel = os.path.relpath(file_path, source_dir)
+        if not file_in_merge_scope(
+            rel, source_dir, merge_max_depth, scope_exclude, scope_include
+        ):
+            continue
+        rel_paths.append(rel)
     rel_paths.sort()
     return rel_paths, None
+
+
+def _iter_scoped_file_pairs(
+    source_dir: str, max_depth: int | None
+) -> Iterator[tuple[str, str] | tuple[None, str]]:
+    if max_depth == 0:
+        try:
+            for name in sorted(os.listdir(source_dir)):
+                path = os.path.join(source_dir, name)
+                if os.path.isfile(path):
+                    yield source_dir, name
+        except OSError as e:
+            yield None, str(e)
+        return
+    if max_depth is None:
+        yield from _iter_file_pairs(source_dir, True)
+        return
+    try:
+        for root, dirs, files in os.walk(source_dir):
+            dirs[:] = [d for d in dirs if d not in EXCLUDE_DIR_NAMES]
+            rel_root = os.path.relpath(root, source_dir)
+            if rel_root == ".":
+                rel_root = ""
+            rel_root = rel_root.replace("\\", "/")
+            pruned: list[str] = []
+            for d in dirs:
+                child = f"{rel_root}/{d}" if rel_root else d
+                if child.count("/") + 1 <= max_depth:
+                    pruned.append(d)
+            dirs[:] = pruned
+            for file in files:
+                yield root, file
+    except OSError as e:
+        yield None, str(e)
 
 
 def _iter_file_pairs(
@@ -154,7 +196,10 @@ def run_merge(options: MergeRunOptions) -> MergeRunResult:
                 options, file_path, relative_path, matched_ext, merged, result
             )
     else:
-        for item in _iter_file_pairs(options.source_dir, options.recursive):
+        max_depth = options.merge_max_depth
+        scope_exc = options.merge_scope_exclude
+        scope_inc = options.merge_scope_include
+        for item in _iter_scoped_file_pairs(options.source_dir, max_depth):
             if item[0] is None:
                 result.scan_error = item[1]
                 break
@@ -166,6 +211,14 @@ def run_merge(options: MergeRunOptions) -> MergeRunResult:
                 continue
             file_path = os.path.join(root, file)
             relative_path = os.path.relpath(file_path, options.source_dir)
+            if not file_in_merge_scope(
+                relative_path,
+                options.source_dir,
+                max_depth,
+                scope_exc,
+                scope_inc,
+            ):
+                continue
             _merge_one_file(
                 options, file_path, relative_path, matched_ext, merged, result
             )
@@ -185,7 +238,12 @@ def _build_report_lines(
         f"// 合并时间: {merge_time}",
         f"// 来源目录: {options.source_dir}",
         "// 扫描范围: "
-        + ("含子文件夹" if options.recursive else "仅当前文件夹（不含子目录）"),
+        + format_scope_for_header(
+            options.source_dir,
+            options.merge_max_depth,
+            options.merge_scope_exclude,
+            options.merge_scope_include,
+        ),
     ]
     if options.only_relative_paths is not None:
         stat_lines.append(

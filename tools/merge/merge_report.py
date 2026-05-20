@@ -6,12 +6,9 @@ from file_analysis import build_console_file_hints, build_neutral_notices
 from merge_engine import MergeRunResult
 
 
-def print_scan_banner(source_dir: str, recursive: bool) -> None:
+def print_scan_banner(source_dir: str, scope_text: str) -> None:
     print(f"🔍 正在扫描目录: {source_dir}")
-    print(
-        "📂 扫描范围: "
-        + ("含子文件夹" if recursive else "仅当前文件夹（不含子目录）")
-    )
+    print(f"📂 扫描范围: {scope_text}")
 
 
 def print_merge_summary(result: MergeRunResult, file_types: tuple[str, ...]) -> None:

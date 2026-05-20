@@ -42,7 +42,9 @@ def scan_choose_list(repl: "MergeRepl") -> bool:
         tuple(file_types),
         tuple(exclude_words),
         case_sensitive,
-        repl.config.merge_subfolders,
+        repl.config.merge_max_depth,
+        tuple(repl.config.merge_scope_exclude),
+        tuple(repl.config.merge_scope_include),
     )
     if scan_error:
         print(f"❌ 扫描失败: {scan_error}")

@@ -1,7 +1,8 @@
-﻿from input_parser import parse_input
+﻿from actions import Action
+from input_parser import parse_input
 from merge_engine import MergeRunOptions, collect_candidate_paths, run_merge
 from merge_report import write_merged_output
-from actions import Action
+from scope_rules import file_in_merge_scope
 
 
 def test_merge_files_by_types(tmp_path):
@@ -16,7 +17,7 @@ def test_merge_files_by_types(tmp_path):
         source_dir=str(d),
         output_path=str(output),
         file_types=(".cs", ".txt"),
-        recursive=True,
+        merge_max_depth=None,
     )
     result = run_merge(opts)
     write_merged_output(str(output), result)
@@ -29,7 +30,7 @@ def test_merge_files_by_types(tmp_path):
     assert "a.cs" in content
 
 
-def test_merge_non_recursive_skips_subfolders(tmp_path):
+def test_merge_max_depth_zero_skips_subfolders(tmp_path):
     root = tmp_path / "src"
     root.mkdir()
     (root / "root.cs").write_text("// root")
@@ -41,7 +42,7 @@ def test_merge_non_recursive_skips_subfolders(tmp_path):
         source_dir=str(root),
         output_path=str(output),
         file_types=(".cs",),
-        recursive=False,
+        merge_max_depth=0,
     )
     result = run_merge(opts)
     write_merged_output(str(output), result)
@@ -52,12 +53,37 @@ def test_merge_non_recursive_skips_subfolders(tmp_path):
     assert "// nested" not in text
 
 
+def test_merge_max_depth_one(tmp_path):
+    root = tmp_path / "src"
+    root.mkdir()
+    (root / "root.cs").write_text("// root")
+    core = root / "Core"
+    core.mkdir()
+    (core / "in.cs").write_text("// in")
+    deep = core / "Sub"
+    deep.mkdir()
+    (deep / "deep.cs").write_text("// deep")
+    output = tmp_path / "out.txt"
+    opts = MergeRunOptions(
+        source_dir=str(root),
+        output_path=str(output),
+        file_types=(".cs",),
+        merge_max_depth=1,
+    )
+    result = run_merge(opts)
+    write_merged_output(str(output), result)
+    text = output.read_text(encoding="utf-8")
+    assert "root.cs" in text
+    assert "in.cs" in text or "Core\\in.cs" in text
+    assert "deep.cs" not in text
+
+
 def test_collect_candidate_paths_sorted(tmp_path):
     d = tmp_path / "src"
     d.mkdir()
     (d / "z.cs").write_text("// z")
     (d / "a.cs").write_text("// a")
-    paths, err = collect_candidate_paths(str(d), (".cs",), (), True, False)
+    paths, err = collect_candidate_paths(str(d), (".cs",), (), True, None, (), ())
     assert err is None
     assert paths == ["a.cs", "z.cs"]
 
@@ -72,7 +98,7 @@ def test_merge_only_relative_paths(tmp_path):
         source_dir=str(d),
         output_path=str(output),
         file_types=(".cs",),
-        recursive=True,
+        merge_max_depth=None,
         only_relative_paths=("pick.cs",),
     )
     result = run_merge(opts)
@@ -81,6 +107,58 @@ def test_merge_only_relative_paths(tmp_path):
     assert "pick.cs" in text
     assert "picked" in text
     assert "skip.cs" not in text
+
+
+def test_scope_exclude_subfolder(tmp_path):
+    root = tmp_path / "src"
+    root.mkdir()
+    (root / "keep.cs").write_text("// keep")
+    core = root / "Core"
+    core.mkdir()
+    (core / "in.cs").write_text("// in")
+    skip = root / "Skip"
+    skip.mkdir()
+    (skip / "out.cs").write_text("// out")
+    output = tmp_path / "out.txt"
+    opts = MergeRunOptions(
+        source_dir=str(root),
+        output_path=str(output),
+        file_types=(".cs",),
+        merge_max_depth=None,
+        merge_scope_exclude=("Skip",),
+    )
+    result = run_merge(opts)
+    write_merged_output(str(output), result)
+    text = output.read_text(encoding="utf-8")
+    assert "keep.cs" in text
+    assert "Core/in.cs" in text or "Core\\in.cs" in text
+    assert "out.cs" not in text
+
+
+def test_file_in_merge_scope_rules(tmp_path):
+    root = tmp_path / "proj"
+    root.mkdir()
+    (root / "Sub").mkdir()
+    src = str(root)
+    assert file_in_merge_scope("a.cs", src, None, (), ()) is True
+    assert file_in_merge_scope("Sub/a.cs", src, None, ("Sub",), ()) is False
+    assert file_in_merge_scope("Sub/a.cs", src, None, ("Sub",), ("Sub",)) is True
+    assert file_in_merge_scope("only.cs", src, 0, (), ()) is True
+    assert file_in_merge_scope("Sub/x.cs", src, 0, (), ()) is False
+    assert file_in_merge_scope("Sub/x.cs", src, 1, (), ()) is True
+    assert file_in_merge_scope("A/B/x.cs", src, 1, (), ()) is False
+
+
+def test_parse_this_commands():
+    assert parse_input("this", 0) == (Action.THIS, ("toggle", None))
+    assert parse_input("this 0", 0) == (Action.THIS, ("set_depth", 0))
+    assert parse_input("this 2", 0) == (Action.THIS, ("set_depth", 2))
+    assert parse_input("this max", 0) == (Action.THIS, ("set_depth", None))
+    assert parse_input("this ll", 0) == (Action.THIS, ("list", 0))
+    assert parse_input("this ll 0", 0) == (Action.THIS, ("list", 0))
+    assert parse_input("this ll 2", 0) == (Action.THIS, ("list", 2))
+    assert parse_input("this ll all", 0) == (Action.THIS, ("list_all", None))
+    assert parse_input("this s Core", 0) == (Action.THIS, ("exclude", ["Core"]))
 
 
 def test_parse_c_commands():
@@ -98,11 +176,18 @@ def run():
     with tempfile.TemporaryDirectory() as tmp:
         test_merge_files_by_types(Path(tmp))
     with tempfile.TemporaryDirectory() as tmp:
-        test_merge_non_recursive_skips_subfolders(Path(tmp))
+        test_merge_max_depth_zero_skips_subfolders(Path(tmp))
+    with tempfile.TemporaryDirectory() as tmp:
+        test_merge_max_depth_one(Path(tmp))
     with tempfile.TemporaryDirectory() as tmp:
         test_collect_candidate_paths_sorted(Path(tmp))
     with tempfile.TemporaryDirectory() as tmp:
         test_merge_only_relative_paths(Path(tmp))
+    with tempfile.TemporaryDirectory() as tmp:
+        test_scope_exclude_subfolder(Path(tmp))
+    with tempfile.TemporaryDirectory() as tmp:
+        test_file_in_merge_scope_rules(Path(tmp))
+    test_parse_this_commands()
     test_parse_c_commands()
     print("merge_engine 单元测试通过")
 
