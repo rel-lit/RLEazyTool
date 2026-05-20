@@ -23,7 +23,7 @@ from merge_report import (
 from path_switch import switch_absolute, switch_relative
 from path_tools import get_desktop_path, list_directories
 from scope_handlers import handle_this, invalidate_scope_on_path_change
-from scope_rules import format_scope_for_header
+from scope_rules import format_saved_scope_hint, format_scope_for_header
 from session import build_run_options
 from storage import add_to_history, load_config, print_help, print_history, save_config
 
@@ -46,11 +46,20 @@ class MergeRepl:
         self._depth_include_warned = False
 
     def _scope_text(self) -> str:
+        exc = tuple(self.config.merge_scope_exclude)
+        inc = tuple(self.config.merge_scope_include)
+        if not self.config.scope_enabled:
+            saved = format_saved_scope_hint(
+                self.config.merge_max_depth, exc, inc
+            )
+            if saved != "无":
+                return f"未启用（已保存: {saved}；输入 this 启用）"
+            return "未启用（不限目录范围）"
         return format_scope_for_header(
             self.current_path,
             self.config.merge_max_depth,
-            tuple(self.config.merge_scope_exclude),
-            tuple(self.config.merge_scope_include),
+            exc,
+            inc,
         )
 
     def _invalidate_choose(self, reason: str = "") -> None:

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from scope_rules import (
     folder_marker,
+    format_saved_scope_hint,
     is_top_level_folder_path,
     iter_all_folder_nodes,
     list_folder_nodes_at_layer,
@@ -23,6 +24,18 @@ def invalidate_scope_on_path_change(config) -> None:
     config.merge_scope_include = []
 
 
+def _sync_scope_enabled(repl: "MergeRepl") -> None:
+    cfg = repl.config
+    if (
+        cfg.merge_max_depth is None
+        and not cfg.merge_scope_exclude
+        and not cfg.merge_scope_include
+    ):
+        cfg.scope_enabled = False
+    else:
+        cfg.scope_enabled = True
+
+
 def _apply_merge_max_depth(repl: "MergeRepl", depth: int | None) -> None:
     repl.config.merge_max_depth = depth
     repl.config.merge_layer_only = depth == 0  # 内存同步，便于旧逻辑；不再写入 JSON
@@ -30,6 +43,7 @@ def _apply_merge_max_depth(repl: "MergeRepl", depth: int | None) -> None:
         repl.config.merge_scope_exclude = []
         repl.config.merge_scope_include = []
     repl._depth_include_warned = False
+    _sync_scope_enabled(repl)
 
 
 def _bind_source(repl: "MergeRepl") -> str:
@@ -123,12 +137,26 @@ def handle_this(repl: "MergeRepl", payload: tuple[str, object]) -> None:
     if cmd == "toggle":
         if repl.this_mode:
             repl.this_mode = False
+            repl.config.scope_enabled = False
             save_config(repl.config)
-            print("✅ 已退出 this 范围配置模式，设置已保存。")
+            saved = format_saved_scope_hint(
+                repl.config.merge_max_depth,
+                tuple(repl.config.merge_scope_exclude),
+                tuple(repl.config.merge_scope_include),
+            )
+            if saved != "无":
+                print(
+                    "✅ 已退出 this 配置模式；合并不再应用目录范围限制。"
+                    f" 已保存: {saved}（再次输入 this 可重新启用）"
+                )
+            else:
+                print("✅ 已退出 this 配置模式；合并不限制目录范围。")
         else:
             repl.this_mode = True
+            repl.config.scope_enabled = True
+            save_config(repl.config)
             print(
-                "✅ 已进入 this 范围配置模式。"
+                "✅ 已进入 this 范围配置模式（合并将应用已保存的范围设置）。"
                 " this 0/N/max | this ll / this ll N / this ll all | this a / this s"
             )
         return
@@ -187,6 +215,7 @@ def handle_this(repl: "MergeRepl", payload: tuple[str, object]) -> None:
                     for x in repl.config.merge_scope_include
                     if not _path_prefix_match(x, p)
                 ]
+            _sync_scope_enabled(repl)
             save_config(repl.config)
             repl._invalidate_choose("已修改范围")
             return
@@ -195,6 +224,7 @@ def handle_this(repl: "MergeRepl", payload: tuple[str, object]) -> None:
             if p not in repl.config.merge_scope_include:
                 repl.config.merge_scope_include.append(p)
                 print(f"✅ 已添加细则包含: {p}")
+        _sync_scope_enabled(repl)
         save_config(repl.config)
         repl._invalidate_choose("已修改范围")
         return

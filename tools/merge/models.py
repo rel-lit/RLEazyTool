@@ -26,6 +26,7 @@ class MergeConfig:
     merge_max_depth: int | None = None  # None=不限深度；0=仅本层
     merge_scope_exclude: list[str] = field(default_factory=list)
     merge_scope_include: list[str] = field(default_factory=list)
+    scope_enabled: bool = False  # False 时合并不应用 this 范围；细则仍保存在配置中
     c_limit: int = 50
     use_gitignore: bool = False
 
@@ -44,6 +45,7 @@ class MergeConfig:
             "merge_max_depth": self.merge_max_depth,
             "merge_scope_exclude": self.merge_scope_exclude,
             "merge_scope_include": self.merge_scope_include,
+            "scope_enabled": self.scope_enabled,
             "c_limit": self.c_limit,
             "use_gitignore": self.use_gitignore,
         }
@@ -59,6 +61,9 @@ class MergeConfig:
         type_groups = d.get("type_groups") or {"default": [".cs"]}
         current_type_group = d.get("current_type_group", "default")
         exclude_groups = d.get("exclude_groups") or {}
+        merge_max_depth = cls._load_merge_max_depth(d)
+        merge_scope_exclude = list(d.get("merge_scope_exclude") or [])
+        merge_scope_include = list(d.get("merge_scope_include") or [])
         return cls(
             history=history,
             type_groups=type_groups,
@@ -71,12 +76,30 @@ class MergeConfig:
             current_exclude_group=d.get("current_exclude_group"),
             last_success_exclude_group=d.get("last_success_exclude_group"),
             merge_subfolders=d.get("merge_subfolders", True),
-            merge_max_depth=cls._load_merge_max_depth(d),
+            merge_max_depth=merge_max_depth,
             merge_layer_only=cls._load_merge_layer_only(d),
-            merge_scope_exclude=list(d.get("merge_scope_exclude") or []),
-            merge_scope_include=list(d.get("merge_scope_include") or []),
+            merge_scope_exclude=merge_scope_exclude,
+            merge_scope_include=merge_scope_include,
+            scope_enabled=cls._load_scope_enabled(
+                d, merge_max_depth, merge_scope_exclude, merge_scope_include
+            ),
             c_limit=int(d.get("c_limit", 50)),
             use_gitignore=bool(d.get("use_gitignore", False)),
+        )
+
+    @staticmethod
+    def _load_scope_enabled(
+        d: dict[str, Any],
+        merge_max_depth: int | None,
+        merge_scope_exclude: list[str],
+        merge_scope_include: list[str],
+    ) -> bool:
+        if "scope_enabled" in d:
+            return bool(d["scope_enabled"])
+        return (
+            merge_max_depth is not None
+            or bool(merge_scope_exclude)
+            or bool(merge_scope_include)
         )
 
     @staticmethod

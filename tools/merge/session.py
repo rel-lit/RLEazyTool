@@ -23,6 +23,8 @@ def filter_settings_from_config(
 
 
 def scope_settings_from_config(config: MergeConfig) -> ScopeSettings:
+    if not config.scope_enabled:
+        return ScopeSettings(max_depth=None, exclude=(), include=())
     return ScopeSettings(
         max_depth=config.merge_max_depth,
         exclude=tuple(config.merge_scope_exclude),

@@ -3,7 +3,9 @@ from input_parser import parse_input
 from exclude_rules import FileExcludeRule, filename_excluded, walk_skip_dir_names
 from merge_engine import MergeRunOptions, collect_candidate_paths, run_merge
 from merge_report import write_merged_output
+from models import MergeConfig
 from scope_rules import ScopeContext, file_in_merge_scope
+from session import scope_settings_from_config
 
 
 def test_merge_files_by_types(tmp_path):
@@ -249,6 +251,20 @@ def test_parse_exc_commands():
     assert parse_input("exc gitignore off", 0) == (Action.EXC, ("gitignore_off", None))
 
 
+def test_scope_disabled_ignores_saved_depth():
+    cfg = MergeConfig(merge_max_depth=2, scope_enabled=False)
+    scope = scope_settings_from_config(cfg)
+    assert scope.max_depth is None
+    assert scope.exclude == ()
+    assert scope.include == ()
+
+
+def test_scope_enabled_loads_saved_depth():
+    cfg = MergeConfig(merge_max_depth=2, scope_enabled=True)
+    scope = scope_settings_from_config(cfg)
+    assert scope.max_depth == 2
+
+
 def test_parse_this_commands():
     assert parse_input("this", 0) == (Action.THIS, ("toggle", None))
     assert parse_input("this 0", 0) == (Action.THIS, ("set_depth", 0))
@@ -299,6 +315,8 @@ def run():
     with tempfile.TemporaryDirectory() as tmp:
         test_merge_exc_skip_dir(Path(tmp))
     test_parse_exc_commands()
+    test_scope_disabled_ignores_saved_depth()
+    test_scope_enabled_loads_saved_depth()
     test_parse_this_commands()
     test_parse_c_commands()
     print("merge_engine 单元测试通过")

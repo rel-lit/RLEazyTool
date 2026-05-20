@@ -150,6 +150,24 @@ def file_in_merge_scope(relative_path: str, ctx: ScopeContext) -> bool:
     return True
 
 
+def format_saved_scope_hint(
+    max_depth: int | None,
+    scope_exclude: tuple[str, ...],
+    scope_include: tuple[str, ...],
+) -> str:
+    """scope_enabled 为 False 时，简述已保存但未启用的范围设置。"""
+    parts: list[str] = []
+    if max_depth == 0:
+        parts.append("深度 0")
+    elif max_depth is not None:
+        parts.append(f"深度 {max_depth}")
+    if scope_exclude:
+        parts.append(f"排除 {len(scope_exclude)} 项")
+    if scope_include:
+        parts.append(f"细则 {len(scope_include)} 项")
+    return "；".join(parts) if parts else "无"
+
+
 def format_scope_for_header(
     source_dir: str,
     max_depth: int | None,

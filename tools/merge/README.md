@@ -24,7 +24,7 @@
 | `m` | 显示历史路径 |
 | `1`～`9` | 切换到对应序号的历史路径 |
 | `ll` | 列出当前目录下的文件夹 |
-| `this` | 开关 **this 范围配置模式**（进入/退出） |
+| `this` | 开关 **this 配置模式**（进入时启用已保存的目录范围；**退出后合并不再应用**范围限制，设置仍保留） |
 | `this 0` | 仅本层文件（深度 0） |
 | `this N` | 合并时最多扫到深度 N（N≥1） |
 | `this max` | 取消深度限制 |
@@ -185,6 +185,7 @@
   "merge_max_depth": null,
   "merge_scope_exclude": [],
   "merge_scope_include": [],
+  "scope_enabled": true,
   "c_limit": 50,
   "use_gitignore": false
 }
@@ -198,6 +199,7 @@
 | `current_exclude_group` | 当前 exc 组；`null` 表示关闭 | `exc u <组名>` / `exc off` |
 | `merge_max_depth` | `null` 不限深度；`0` 仅本层；`N` 最多 N 层 | `this max` / `this 0` / `this N` |
 | `merge_scope_include` / `exclude` | 相对当前合并根目录的路径细则 | `this` 模式下 `this a` / `this s` |
+| `scope_enabled` | 合并时是否应用上述范围；退出 `this` 时为 `false` | 输入 `this` 进入配置模式为 `true` |
 | `use_gitignore` | 是否按仓库 `.gitignore` 排除 | `exc gitignore on` / `off` |
 | `c_limit` | `c ll` 候选过多时的上限 | `c limit <N>` |
 
