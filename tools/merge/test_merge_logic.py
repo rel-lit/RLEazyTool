@@ -84,7 +84,8 @@ def test_merge_only_relative_paths(tmp_path):
 
 
 def test_parse_c_commands():
-    assert parse_input("c", 0) == (Action.CHOOSE, ("enter_or_list", None))
+    assert parse_input("c", 0) == (Action.CHOOSE, ("toggle", None))
+    assert parse_input("c ll", 0) == (Action.CHOOSE, ("list", None))
     assert parse_input("c 3 5", 0) == (Action.CHOOSE, ("select", ["3", "5"]))
     assert parse_input("c s 2", 0) == (Action.CHOOSE, ("deselect", ["2"]))
     assert parse_input("c all", 0) == (Action.CHOOSE, ("select_all", None))

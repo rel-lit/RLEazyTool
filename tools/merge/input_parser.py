@@ -21,9 +21,9 @@ def _parse_c_command(user_input: str) -> tuple[Action, Any]:
     parts = user_input.strip().split()
     low = [p.lower() for p in parts]
     if len(parts) == 1:
-        return Action.CHOOSE, ("enter_or_list", None)
-    if len(parts) == 2 and low[1] == "q":
-        return Action.CHOOSE, ("quit", None)
+        return Action.CHOOSE, ("toggle", None)
+    if len(parts) == 2 and low[1] == "ll":
+        return Action.CHOOSE, ("list", None)
     if low[1] == "limit":
         if len(parts) == 2:
             return Action.CHOOSE, ("limit_show", None)

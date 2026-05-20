@@ -75,7 +75,7 @@ def print_choose_selected_line(repl: "MergeRepl") -> None:
         print("📌 已选: (无)")
         return
     if repl.choose_list is None:
-        print("📌 已选: (尚未列出候选，输入 c 列出)")
+        print("📌 已选: (尚未列出候选，输入 c ll 列出)")
         return
     parts: list[str] = []
     for idx in sorted(repl.choose_selected):
@@ -88,7 +88,7 @@ def _parse_indices(repl: "MergeRepl", tokens: list[str]) -> tuple[list[int], lis
     valid: list[int] = []
     invalid: list[str] = []
     if repl.choose_list is None:
-        print("❌ 请先输入 c 列出候选文件。")
+        print("❌ 请先输入 c ll 列出候选文件。")
         return [], tokens
     max_n = len(repl.choose_list)
     for tok in tokens:
@@ -112,32 +112,34 @@ def _report_invalid(invalid: list[str], verb: str) -> None:
 def handle_choose(repl: "MergeRepl", payload: tuple[str, object]) -> None:
     cmd, data = payload
 
-    if cmd == "enter_or_list":
-        if not repl.choose_mode:
+    if cmd == "toggle":
+        if repl.choose_mode:
+            repl.choose_mode = False
+            invalidate_choose_state(repl)
+            print("✅ 已关闭 c 模式，已清空选择。")
+        else:
             repl.choose_mode = True
             repl.choose_selected.clear()
             repl.choose_list = None
-            print("✅ 已进入 c 模式（点名合并）。输入 c 列出候选，c q 退出。")
+            print("✅ 已开启 c 模式（点名合并）。输入 c ll 列出候选，再 c 关闭。")
+        return
+
+    if cmd == "list":
+        if not repl.choose_mode:
+            print("❌ 请先输入 c 开启 c 模式。")
             return
         if not scan_choose_list(repl):
             return
         print_choose_file_list(repl)
         return
 
-    if cmd == "quit":
-        if repl.choose_mode:
-            repl.choose_mode = False
-            invalidate_choose_state(repl)
-            print("✅ 已退出 c 模式，已清空选择。")
-        else:
-            print("ℹ️ 当前不在 c 模式。")
-        return
-
-    if cmd == "limit_show":
-        print(f"当前 c limit: {repl.config.c_limit}")
-        return
-
-    if cmd == "limit_set":
+    if cmd in ("limit_show", "limit_set"):
+        if not repl.choose_mode:
+            print("❌ c limit 仅在 c 模式下可用，请先输入 c 开启。")
+            return
+        if cmd == "limit_show":
+            print(f"当前 c limit: {repl.config.c_limit}")
+            return
         try:
             n = int(str(data))
         except (TypeError, ValueError):
@@ -152,7 +154,7 @@ def handle_choose(repl: "MergeRepl", payload: tuple[str, object]) -> None:
         return
 
     if not repl.choose_mode:
-        print("❌ 请先输入 c 进入 c 模式。")
+        print("❌ 请先输入 c 开启 c 模式。")
         return
 
     if cmd == "deselect_usage":

@@ -47,7 +47,7 @@ class MergeRepl:
             return
         invalidate_choose_state(self)
         if self.choose_mode and reason:
-            print(f"ℹ️ c 模式候选已清空（{reason}），请重新输入 c 列出。")
+            print(f"ℹ️ c 模式候选已清空（{reason}），请重新输入 c ll 列出。")
 
     def _print_status_header(self) -> None:
         print("-" * 30)
@@ -86,10 +86,10 @@ class MergeRepl:
         only_paths: tuple[str, ...] | None = None
         if self.choose_mode:
             if not self.choose_selected:
-                print("❌ c 模式下未选择任何文件。请 c <编号> 或 c all，或 c q 退出 c 模式后全量合并。")
+                print("❌ c 模式下未选择任何文件。请 c <编号> 或 c all，或 c 关闭点名模式后全量合并。")
                 return False
             if self.choose_list is None:
-                print("❌ 请先输入 c 列出候选，再选择编号。")
+                print("❌ 请先输入 c ll 列出候选，再选择编号。")
                 return False
             rels = []
             for idx in sorted(self.choose_selected):
