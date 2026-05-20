@@ -195,6 +195,25 @@ def test_merge_exc_skip_dir(tmp_path):
     assert "skip.cs" not in text
 
 
+def test_gitignore_report_lists_files(tmp_path):
+    from gitignore_support import build_gitignore_report, collect_gitignore_by_file
+
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".gitignore").write_text("*.log\n", encoding="utf-8")
+    sub = tmp_path / "pkg"
+    sub.mkdir()
+    (sub / ".gitignore").write_text("build/\n", encoding="utf-8")
+    groups = collect_gitignore_by_file(str(tmp_path))
+    assert len(groups) == 2
+    lines = build_gitignore_report(str(tmp_path), filter_enabled=True)
+    text = "\n".join(lines)
+    assert ".gitignore" in text
+    assert "pkg/.gitignore" in text
+    assert "*.log" in text
+    assert "跳过目录" in text or "glob" in text
+    assert "exc gitignore" in text
+
+
 def test_gitignore_excludes_files(tmp_path):
     import subprocess
 
@@ -308,6 +327,7 @@ def run():
         print("跳过 gitignore 测试（未安装 pathspec）")
     else:
         with tempfile.TemporaryDirectory() as tmp:
+            test_gitignore_report_lists_files(Path(tmp))
             test_gitignore_excludes_files(Path(tmp))
     test_exc_filename_rules()
     test_exc_skip_dirs_merge_builtin()

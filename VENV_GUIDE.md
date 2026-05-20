@@ -41,7 +41,7 @@
 
 ### 使用批处理文件（merge）
 
-在 `tools\merge\` 下双击 **`merge.bat`**，或在项目根目录激活 `.venv` 后运行 `py tools\merge\main.py`。
+在 `tools\merge\` 下双击 **`merge.bat`**（会优先使用项目根 `.venv\Scripts\python.exe`；若无 `.venv` 则提示创建并回退系统 `py`），或在项目根目录激活 `.venv` 后运行 `py tools\merge\main.py`。
 
 ## 🔧 手动创建虚拟环境（如需重新创建）
 

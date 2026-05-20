@@ -14,6 +14,7 @@ from exclude_rules import (
 )
 from gitignore_support import (
     GitIgnoreMatcher,
+    build_gitignore_report,
     find_git_root,
     pathspec_available,
 )
@@ -58,9 +59,7 @@ def handle_exc(repl, payload: tuple[str, object]) -> None:
 
     if cmd == "gitignore_on":
         if not pathspec_available():
-            print(
-                "❌ 需要 pathspec 库。请执行: pip install -r tools/merge/requirements.txt"
-            )
+            print("❌ 无法准备 pathspec（已尝试在项目 .venv 中自动安装）。")
             return
         config.use_gitignore = True
         _save(config)
@@ -89,18 +88,12 @@ def handle_exc(repl, payload: tuple[str, object]) -> None:
         return
 
     if cmd == "gitignore_show":
-        if not pathspec_available():
-            print("ℹ️ pathspec 未安装，无法解析 .gitignore。")
-            return
-        print(f"  .gitignore 过滤: {'开' if config.use_gitignore else '关'}")
-        root = find_git_root(repl.current_path)
-        if root is None:
-            print("  当前路径不在 Git 仓库内。")
-        else:
-            matcher = GitIgnoreMatcher.load(repl.current_path)
-            n = matcher.pattern_count if matcher else 0
-            print(f"  仓库根: {root}")
-            print(f"  已加载规则: {n} 条")
+        for line in build_gitignore_report(
+            repl.current_path,
+            filter_enabled=config.use_gitignore,
+        ):
+            print(line)
+        print()
         return
 
     if cmd == "toggle":

@@ -80,7 +80,7 @@
 | 指令 | 说明 |
 |------|------|
 | `exc gitignore on` / `exc gitignore off` | 按仓库 `.gitignore` 排除 |
-| `exc gitignore` | 查看状态 |
+| `exc gitignore` | 查看开关状态、各 `.gitignore` 文件规则明细 |
 
 ### 点名合并（c）
 
@@ -253,12 +253,18 @@
 
 ## .gitignore 兼容（可选）
 
-安装依赖后，可按仓库内 `.gitignore` 排除文件（全局开关，写入配置）：
+在项目根 **`.venv`** 中安装依赖（勿全局 `pip install`），推荐直接双击 **`merge.bat`**（会自动使用 `.venv` 里的 Python）：
 
 ```text
-pip install -r tools/merge/requirements.txt
+cd <项目根>
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r tools\merge\requirements.txt
+```
+
+```text
 exc gitignore on
-exc gitignore
+exc gitignore    # 列出各 .gitignore 文件与规则明细
 ```
 
 合并与 `c ll` 扫描均会跳过被 ignore 的路径。需在 Git 仓库内（当前路径向上能找到 `.git`）。与 **this**（当前目录范围）独立。

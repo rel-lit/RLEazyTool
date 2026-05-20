@@ -159,8 +159,7 @@ class MergeRepl:
 
                 if not pathspec_available():
                     print(
-                        "❌ .gitignore 需要 pathspec 库。请执行: "
-                        "pip install -r tools/merge/requirements.txt"
+                        "❌ .gitignore 需要 pathspec（已尝试在项目 .venv 中自动安装）。"
                     )
                     return False
                 if find_git_root(self.current_path) is None:
