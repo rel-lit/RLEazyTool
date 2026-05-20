@@ -96,13 +96,13 @@ class MergeRepl:
         )
         mod_str = self.config.current_type_group
         exc_str = self.config.current_exclude_group
-        parts = [f"当前mod: {mod_str}", f"范围: {self._scope_text()}"]
+        parts = [f"当前mod: {mod_str}"]
+        if self.this_mode:
+            parts.append(f"范围: {self._scope_text()}")
         if exc_str:
             parts.append(f"exc: {exc_str}")
         if self.config.use_gitignore:
             parts.append("gitignore: 开")
-        if self.this_mode:
-            parts.insert(0, "this: 配置中")
         if self.choose_mode:
             c_part = (
                 f"c: 已选 {len(self.choose_selected)} 个 | limit: {self.config.c_limit}"
