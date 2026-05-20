@@ -113,17 +113,118 @@
 - 旧版排除组里的 `words[]` 会在加载时自动迁成 `contains` 规则
 - 首次运行或配置损坏时会使用默认值重建
 
-排除组结构示例：
+### 推荐配置示例（可直接粘贴）
+
+将下面整段保存为 **`tools/merge/merge_config.json`**（与 `merge.bat` 同目录；该文件通常已被 `.gitignore` 忽略，不会进仓库）。请先改 `history` 里的路径为你本机项目（最多保留 **9** 条，对应快捷键 `1`–`9`）；`current_*` 与 `merge_max_depth` 可按下表「常用场景」切换。程序已内置跳过 `bin`、`obj`、`.git` 等，`exc` 里可只写**额外**目录名。
 
 ```json
-"csharp-dev": {
-  "skip_dirs": ["bin", "obj", ".vs"],
-  "file_rules": [
-    { "kind": "contains", "pattern": "Generated" },
-    { "kind": "suffix", "pattern": ".Designer.cs" }
-  ]
+{
+  "history": [
+    "D:/Work/MyApp/src",
+    "D:/Work/MyApp",
+    "D:/Work/Frontend/packages/app"
+  ],
+  "type_groups": {
+    "default": [".cs"],
+    "csharp": [".cs", ".csproj", ".sln", ".props", ".targets"],
+    "web": [".ts", ".tsx", ".js", ".jsx", ".vue", ".css", ".scss", ".html"],
+    "python": [".py", ".pyi"],
+    "go": [".go", ".mod", ".sum"],
+    "java": [".java", ".kt", ".kts", ".gradle"],
+    "docs": [".md", ".txt", ".rst"],
+    "config": [".json", ".yaml", ".yml", ".toml", ".xml", ".ini", ".env.example"]
+  },
+  "current_type_group": "csharp",
+  "last_success_type_group": "csharp",
+  "exclude_groups": {
+    "dotnet-dev": {
+      "skip_dirs": [".idea", "TestResults", "artifacts"],
+      "file_rules": [
+        { "kind": "contains", "pattern": "Generated" },
+        { "kind": "suffix", "pattern": ".Designer.cs" },
+        { "kind": "suffix", "pattern": ".g.cs" },
+        { "kind": "glob", "pattern": "*.AssemblyInfo.cs" }
+      ]
+    },
+    "web-node": {
+      "skip_dirs": ["dist", "build", ".next", ".nuxt", "coverage", ".turbo", "storybook-static"],
+      "file_rules": [
+        { "kind": "suffix", "pattern": ".min.js" },
+        { "kind": "suffix", "pattern": ".min.css" },
+        { "kind": "suffix", "pattern": ".map" },
+        { "kind": "contains", "pattern": ".spec." },
+        { "kind": "contains", "pattern": ".test." }
+      ]
+    },
+    "unity": {
+      "skip_dirs": ["Library", "Temp", "Logs", "obj", "Build", "Builds", "UserSettings"],
+      "file_rules": [
+        { "kind": "suffix", "pattern": ".meta" }
+      ]
+    },
+    "python-venv": {
+      "skip_dirs": [".venv", "venv", "__pycache__", ".pytest_cache", ".mypy_cache", "htmlcov"],
+      "file_rules": [
+        { "kind": "suffix", "pattern": ".pyc" }
+      ]
+    },
+    "java-android": {
+      "skip_dirs": [".gradle", "build", ".cxx", "captures", ".externalNativeBuild"],
+      "file_rules": [
+        { "kind": "suffix", "pattern": "R.java" },
+        { "kind": "glob", "pattern": "BuildConfig.java" }
+      ]
+    },
+    "minimal": {
+      "skip_dirs": [],
+      "file_rules": []
+    }
+  },
+  "current_exclude_group": "dotnet-dev",
+  "last_success_exclude_group": "dotnet-dev",
+  "merge_max_depth": null,
+  "merge_scope_exclude": [],
+  "merge_scope_include": [],
+  "c_limit": 50,
+  "use_gitignore": false
 }
 ```
+
+**字段说明（与 REPL 对应）**
+
+| 配置项 | 含义 | REPL 等价 |
+|--------|------|-----------|
+| `current_type_group` | 当前 mod 组 | `mod u <组名>` |
+| `current_exclude_group` | 当前 exc 组；`null` 表示关闭 | `exc u <组名>` / `exc off` |
+| `merge_max_depth` | `null` 不限深度；`0` 仅本层；`N` 最多 N 层 | `this max` / `this 0` / `this N` |
+| `merge_scope_include` / `exclude` | 相对当前合并根目录的路径细则 | `this` 模式下 `this a` / `this s` |
+| `use_gitignore` | 是否按仓库 `.gitignore` 排除 | `exc gitignore on` / `off` |
+| `c_limit` | `c ll` 候选过多时的上限 | `c limit <N>` |
+
+**常用场景：改哪几项**
+
+| 场景 | `current_type_group` | `current_exclude_group` | `merge_max_depth` | `merge_scope_*` | `use_gitignore` |
+|------|----------------------|---------------------------|-------------------|-----------------|-----------------|
+| .NET 全项目合并 | `csharp` | `dotnet-dev` | `null` | 空 | `true`（需安装 pathspec） |
+| 只合并 `src` 下、跳过测试目录 | `csharp` | `dotnet-dev` | `null` | `include`: `["src"]`，`exclude`: `["Tests"]` | 按需 |
+| 仅当前文件夹一层 `.cs` | `default` | `dotnet-dev` | `0` | 空 | `false` |
+| 向下最多 2 层 | `csharp` | `dotnet-dev` | `2` | 空 | `false` |
+| React/Vue 前端 | `web` | `web-node` | `null` | 空 | `true` |
+| Unity 脚本（少扫资源） | `default` | `unity` | `null` | 空 | `false` |
+| Python 项目 | `python` | `python-venv` | `null` | 空 | `true` |
+| Java / Kotlin（含 Android） | `java` | `java-android` | `null` | 空 | `true` |
+| 文档与说明 | `docs` | `minimal` 或 `null` | `0` 或 `null` | 空 | `false` |
+| 尽量全收、少过滤 | 任选 | `minimal` 或 `null` | `null` | 空 | `false` |
+
+**带目录细则的片段示例**（合并根为 `D:/Work/MyApp` 时，只关心 `src` 且排除 `src/Legacy`）：
+
+```json
+"merge_max_depth": null,
+"merge_scope_include": ["src"],
+"merge_scope_exclude": ["src/Legacy"]
+```
+
+路径一律用 **`/`** 分隔、不带首尾斜杠，与 `this ll` 里显示的一致。修改 JSON 后**重新启动** merge，或在 REPL 里用对应 `mod` / `exc` / `this` 命令覆盖当前会话。
 
 ## 代码结构（便于二次开发）
 
