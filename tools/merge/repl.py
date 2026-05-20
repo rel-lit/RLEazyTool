@@ -180,7 +180,7 @@ class MergeRepl:
             self.config.last_success_type_group = self.config.current_type_group
             self.config.last_success_exclude_group = self.config.current_exclude_group
             save_config(self.config)
-            print(f"✅ 合并完成: {output_path}\n")
+            print(f"\n✅ 合并完成，文件已生成: {output_path}\n")
             return not self.continuous_mode
         except Exception as e:
             print(f"❌ 发生错误: {e}")

@@ -170,4 +170,3 @@ def write_merged_output(output_path: str, result: MergeRunResult) -> None:
         outfile.write(stat_str)
         for chunk in result.merged_chunks:
             outfile.write(chunk)
-    print(f"\n🎉 合并完成，文件已生成：{output_path}")
