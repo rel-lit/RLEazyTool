@@ -6,6 +6,7 @@ import os
 from typing import TYPE_CHECKING
 
 from merge_engine import collect_candidate_paths
+from session import filter_settings_from_config, scope_settings_from_config
 from storage import save_config
 
 if TYPE_CHECKING:
@@ -17,34 +18,23 @@ def invalidate_choose_state(repl: "MergeRepl") -> None:
     repl.choose_selected.clear()
 
 
-def merge_options_from_repl(repl: "MergeRepl") -> tuple[list[str], bool, list[str]]:
-    file_types = list(
-        repl.config.type_groups.get(repl.config.current_type_group, [".cs"])
-    )
-    exclude_words: list[str] = []
-    case_sensitive = True
-    exc_group = repl.config.current_exclude_group
-    if exc_group and exc_group in repl.config.exclude_groups:
-        g = repl.config.exclude_groups[exc_group]
-        exclude_words = list(g["words"])
-        case_sensitive = g.get("case_sensitive", True)
-    return file_types, case_sensitive, exclude_words
-
-
 def scan_choose_list(repl: "MergeRepl") -> bool:
     """扫描候选；成功则写入 repl.choose_list 并返回 True。"""
     if not os.path.isdir(repl.current_path):
         print(f"❌ 当前路径无效: {repl.current_path}")
         return False
-    file_types, case_sensitive, exclude_words = merge_options_from_repl(repl)
+    file_types, exclude_words, case_sensitive = filter_settings_from_config(
+        repl.config
+    )
+    scope = scope_settings_from_config(repl.config)
     paths, scan_error = collect_candidate_paths(
         repl.current_path,
-        tuple(file_types),
-        tuple(exclude_words),
+        file_types,
+        exclude_words,
         case_sensitive,
-        repl.config.merge_max_depth,
-        tuple(repl.config.merge_scope_exclude),
-        tuple(repl.config.merge_scope_include),
+        scope.max_depth,
+        scope.exclude,
+        scope.include,
     )
     if scan_error:
         print(f"❌ 扫描失败: {scan_error}")

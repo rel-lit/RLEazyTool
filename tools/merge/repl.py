@@ -9,12 +9,11 @@ from actions import Action
 from choose_handlers import (
     handle_choose,
     invalidate_choose_state,
-    merge_options_from_repl,
     print_choose_selected_line,
 )
 from command_handlers import handle_exc, handle_mod
 from input_parser import parse_input
-from merge_engine import MergeRunOptions, run_merge
+from merge_engine import run_merge
 from merge_report import (
     print_merge_summary,
     print_scan_banner,
@@ -24,6 +23,7 @@ from path_switch import switch_absolute, switch_relative
 from path_tools import get_desktop_path, list_directories
 from scope_handlers import handle_this, invalidate_scope_on_path_change
 from scope_rules import format_scope_for_header
+from session import build_run_options
 from storage import add_to_history, load_config, print_help, print_history, save_config
 
 
@@ -134,17 +134,8 @@ class MergeRepl:
         folder_name = os.path.basename(self.current_path) or "Unknown"
         output_filename = f"{folder_name}_MergedFiles_{timestamp}.txt"
         output_path = os.path.join(desktop_dir, output_filename)
-        file_types, case_sensitive, exclude_words = merge_options_from_repl(self)
-        options = MergeRunOptions(
-            source_dir=self.current_path,
-            output_path=output_path,
-            file_types=tuple(file_types),
-            exclude_words=tuple(exclude_words),
-            case_sensitive=case_sensitive,
-            merge_max_depth=self.config.merge_max_depth,
-            merge_scope_exclude=tuple(self.config.merge_scope_exclude),
-            merge_scope_include=tuple(self.config.merge_scope_include),
-            only_relative_paths=only_paths,
+        options = build_run_options(
+            self, output_path, only_relative_paths=only_paths
         )
         try:
             print_scan_banner(self.current_path, self._scope_text())

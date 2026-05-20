@@ -80,14 +80,17 @@
 |------|------|
 | `main.py` | 入口，转调 `repl` |
 | `repl.py` | 交互主循环、会话状态 |
+| `session.py` | 从配置/REPL 构建 `MergeRunOptions` 与过滤器 |
 | `input_parser.py` / `actions.py` | 解析输入、指令枚举 |
 | `command_handlers.py` | `mod` / `exc` 命令 |
+| `choose_handlers.py` / `scope_handlers.py` | `c` / `this` 模式 |
+| `scope_rules.py` | 深度与目录细则（`ScopeContext`） |
 | `path_switch.py` / `path_tools.py` | 路径切换与桌面、模糊匹配 |
-| `models.py` / `storage.py` | 配置模型与 JSON 读写 |
+| `models.py` / `storage.py` | 配置、选项、结果模型与 JSON |
 | `merge_engine.py` | 扫描与合并（无控制台输出） |
 | `file_analysis.py` | 单文件/目录/后缀统计（写入输出头部） |
 | `cs_analyzer.py` | C# 内容粗统计 |
-| `merge_report.py` | 终端摘要与合并文件写盘 |
+| `merge_report.py` | 报告行生成、终端摘要与写盘 |
 | `constants.py` | 递归遍历时跳过的目录名 |
 
 ## 测试

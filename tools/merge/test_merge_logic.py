@@ -2,7 +2,7 @@
 from input_parser import parse_input
 from merge_engine import MergeRunOptions, collect_candidate_paths, run_merge
 from merge_report import write_merged_output
-from scope_rules import file_in_merge_scope
+from scope_rules import ScopeContext, file_in_merge_scope
 
 
 def test_merge_files_by_types(tmp_path):
@@ -140,13 +140,17 @@ def test_file_in_merge_scope_rules(tmp_path):
     root.mkdir()
     (root / "Sub").mkdir()
     src = str(root)
-    assert file_in_merge_scope("a.cs", src, None, (), ()) is True
-    assert file_in_merge_scope("Sub/a.cs", src, None, ("Sub",), ()) is False
-    assert file_in_merge_scope("Sub/a.cs", src, None, ("Sub",), ("Sub",)) is True
-    assert file_in_merge_scope("only.cs", src, 0, (), ()) is True
-    assert file_in_merge_scope("Sub/x.cs", src, 0, (), ()) is False
-    assert file_in_merge_scope("Sub/x.cs", src, 1, (), ()) is True
-    assert file_in_merge_scope("A/B/x.cs", src, 1, (), ()) is False
+
+    def ctx(depth, exc=(), inc=()):
+        return ScopeContext.create(src, depth, exc, inc)
+
+    assert file_in_merge_scope("a.cs", ctx(None)) is True
+    assert file_in_merge_scope("Sub/a.cs", ctx(None, ("Sub",), ())) is False
+    assert file_in_merge_scope("Sub/a.cs", ctx(None, ("Sub",), ("Sub",))) is True
+    assert file_in_merge_scope("only.cs", ctx(0)) is True
+    assert file_in_merge_scope("Sub/x.cs", ctx(0)) is False
+    assert file_in_merge_scope("Sub/x.cs", ctx(1)) is True
+    assert file_in_merge_scope("A/B/x.cs", ctx(1)) is False
 
 
 def test_parse_this_commands():

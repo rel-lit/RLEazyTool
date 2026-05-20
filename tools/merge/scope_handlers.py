@@ -25,7 +25,7 @@ def invalidate_scope_on_path_change(config) -> None:
 
 def _apply_merge_max_depth(repl: "MergeRepl", depth: int | None) -> None:
     repl.config.merge_max_depth = depth
-    repl.config.merge_layer_only = depth == 0
+    repl.config.merge_layer_only = depth == 0  # 内存同步，便于旧逻辑；不再写入 JSON
     if depth == 0:
         repl.config.merge_scope_exclude = []
         repl.config.merge_scope_include = []

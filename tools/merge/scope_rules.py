@@ -4,7 +4,34 @@ from __future__ import annotations
 
 import os
 
+from dataclasses import dataclass
+
 from constants import EXCLUDE_DIR_NAMES
+
+
+@dataclass(frozen=True)
+class ScopeContext:
+    source_dir: str
+    max_depth: int | None
+    scope_exclude: tuple[str, ...]
+    scope_include: tuple[str, ...]
+    top_level_dirs: frozenset[str]
+
+    @classmethod
+    def create(
+        cls,
+        source_dir: str,
+        max_depth: int | None,
+        scope_exclude: tuple[str, ...] = (),
+        scope_include: tuple[str, ...] = (),
+    ) -> ScopeContext:
+        return cls(
+            source_dir=source_dir,
+            max_depth=max_depth,
+            scope_exclude=scope_exclude,
+            scope_include=scope_include,
+            top_level_dirs=frozenset(list_top_level_dir_names(source_dir)),
+        )
 
 
 def norm_rel_path(path: str) -> str:
@@ -95,34 +122,28 @@ def _path_under_prefix(rel_path: str, prefix: str) -> bool:
     return rel == p or rel.startswith(p + "/")
 
 
-def file_in_merge_scope(
-    relative_path: str,
-    source_dir: str,
-    max_depth: int | None,
-    scope_exclude: tuple[str, ...],
-    scope_include: tuple[str, ...],
-) -> bool:
+def file_in_merge_scope(relative_path: str, ctx: ScopeContext) -> bool:
     rel = norm_rel_path(relative_path)
     depth = file_depth(rel)
 
-    if max_depth is not None and depth > max_depth:
+    if ctx.max_depth is not None and depth > ctx.max_depth:
         return False
 
     if depth == 0:
         return True
 
     top = rel.split("/")[0]
-    if top not in list_top_level_dir_names(source_dir):
+    if top not in ctx.top_level_dirs:
         return False
 
-    for exc in scope_exclude:
+    for exc in ctx.scope_exclude:
         if _path_under_prefix(rel, exc):
-            for inc in scope_include:
+            for inc in ctx.scope_include:
                 if _path_under_prefix(rel, inc):
                     return True
             return False
 
-    for inc in scope_include:
+    for inc in ctx.scope_include:
         if _path_under_prefix(rel, inc):
             return True
 

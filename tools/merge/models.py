@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
+from cs_analyzer import RunningCsStats
+from file_analysis import FileEntry
+
 
 @dataclass
 class MergeConfig:
@@ -33,8 +36,6 @@ class MergeConfig:
             "exclude_groups": self.exclude_groups,
             "current_exclude_group": self.current_exclude_group,
             "last_success_exclude_group": self.last_success_exclude_group,
-            "merge_subfolders": self.merge_subfolders,
-            "merge_layer_only": self.merge_layer_only,
             "merge_max_depth": self.merge_max_depth,
             "merge_scope_exclude": self.merge_scope_exclude,
             "merge_scope_include": self.merge_scope_include,
@@ -89,14 +90,34 @@ class MergeConfig:
 
 
 @dataclass(frozen=True)
+class ScopeSettings:
+    max_depth: int | None
+    exclude: tuple[str, ...] = ()
+    include: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class MergeRunOptions:
     source_dir: str
     output_path: str
     file_types: tuple[str, ...]
     exclude_words: tuple[str, ...] = ()
     case_sensitive: bool = True
-    recursive: bool = True  # 已废弃
     merge_max_depth: int | None = None
     merge_scope_exclude: tuple[str, ...] = ()
     merge_scope_include: tuple[str, ...] = ()
     only_relative_paths: tuple[str, ...] | None = None
+
+
+@dataclass
+class MergeRunResult:
+    file_count: int = 0
+    error_count: int = 0
+    total_lines: int = 0
+    type_file_count: dict[str, int] = field(default_factory=dict)
+    merged_chunks: list[str] = field(default_factory=list)
+    stat_header_lines: list[str] = field(default_factory=list)
+    console_detail_lines: list[str] = field(default_factory=list)
+    cs_stats: RunningCsStats | None = None
+    scan_error: str | None = None
+    file_entries: list[FileEntry] = field(default_factory=list)
