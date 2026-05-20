@@ -4,9 +4,9 @@
 
 ## 📢 最新更新
 
-- 🔧 **Merge 工具**: 重构为分层架构（解析 / 引擎 / 报表 / REPL），详见 [tools/merge/README.md](tools/merge/README.md)
-- 🔧 **优化**: 添加虚拟环境支持 (.venv)
-- 📝 **文档**: 完善使用指南和快速开始文档
+- 🔧 **Merge**: `this` 范围（深度 N / 目录细则）、`exc` 全局排除模板（`dir` + `f` 规则）、可选 `.gitignore`
+- 🔧 **架构**: 分层模块（`session`、`scope_rules`、`exc_handlers` 等），详见 [tools/merge/README.md](tools/merge/README.md)
+- 📝 **环境**: 虚拟环境支持（`.venv`）；merge 的 `.gitignore` 需可选依赖 `pathspec`
 
 ## 依赖与环境说明
 
@@ -33,7 +33,7 @@ source .venv/bin/activate
 详细虚拟环境设置指南请查看：[VENV_GUIDE.md](VENV_GUIDE.md)
 
 ### 核心库
-- **merge 工具**: 无需第三方库，全部标准库实现
+- **merge 工具**: 核心功能仅标准库；**`.gitignore` 兼容**需 `pip install -r tools/merge/requirements.txt`（`pathspec`）
 
 ## 目录结构
 
@@ -46,17 +46,18 @@ RLEazyTool/
 │   │   ├── main.py             # 入口
 │   │   ├── repl.py             # 交互主循环
 │   │   ├── input_parser.py     # 指令解析
-│   │   ├── command_handlers.py # mod / exc
-│   │   ├── merge_engine.py     # 扫描与合并（无控制台输出）
-│   │   ├── cs_analyzer.py      # C# 粗统计
-│   │   ├── merge_report.py     # 终端汇总与写盘
-│   │   ├── storage.py          # merge_config.json 读写
-│   │   ├── models.py           # 配置与选项模型
-│   │   ├── path_tools.py       # 路径、桌面、模糊匹配
+│   │   ├── session.py          # 构建合并选项
+│   │   ├── command_handlers.py # mod
+│   │   ├── exc_handlers.py     # exc 排除模板
+│   │   ├── exclude_rules.py    # 目录/文件名规则
+│   │   ├── gitignore_support.py
+│   │   ├── scope_handlers.py   # this 范围
+│   │   ├── choose_handlers.py  # c 点名
+│   │   ├── merge_engine.py     # 扫描与合并
+│   │   ├── merge_report.py     # 报表与写盘
+│   │   ├── requirements.txt    # 可选 pathspec
 │   │   ├── merge.bat
-│   │   ├── merge_config.json   # 用户配置（通常被 .gitignore）
-│   │   ├── test_merge_logic.py
-│   │   └── test_path_utils.py
+│   │   └── test_*.py
 ├── .gitignore
 ├── README.md
 └── VENV_GUIDE.md               # 虚拟环境设置指南
@@ -84,31 +85,36 @@ RLEazyTool/
 
 #### 指令摘要
 
-| 类别 | 指令 |
+| 类别 | 说明 |
 |------|------|
 | 基础 | `help`、`q`、`m`、`1`–`9`、`ll`、`r`、回车合并 |
-| 范围 | `this` — 切换「仅当前目录」/「含子文件夹」 |
-| 路径 | 绝对路径；`\\` 或 `/` 开头的相对路径（支持末级文件夹模糊匹配） |
-| 类型组 | `mod a` / `mod u` / `mod ll` / `mod ll now` / `mod d` |
-| 排除 | `exc a` / `exc u` / `exc q` / `exc ll` / `exc d` / `exc case` / 单独 `exc`（恢复上次成功合并时的排除组） |
+| 范围 **this** | 当前目录：深度 `this 0` / `this N` / `this max`，目录细则 `this a` / `this s`，`this ll` |
+| 路径 | 绝对路径；`\\` 或 `/` 相对路径（末级可模糊） |
+| 类型 **mod** | `mod a` / `mod u` / `mod ll` / `mod d` |
+| 排除 **exc** | 全局模板：`exc dir` 跳目录名，`exc f` 文件名规则，`exc gitignore`，`exc u` / `exc off` |
+| 点名 **c** | `c` / `c ll` / `c 3 5` / `c all` / `c limit` |
+
+完整指令表见 📖 **[tools/merge/README.md](tools/merge/README.md)**（含 `exc` / `this` / `c` 全表）。
 
 #### 配置文件 `merge_config.json`
 
-记录历史路径（最多 9 条）、类型组、当前 mod、排除组、是否包含子目录、上次成功合并时的 mod/排除组等；通常已被 `.gitignore` 忽略。结构示例：
+记录历史路径、类型组、排除组、`merge_max_depth`、`merge_scope_exclude` / `include`、`use_gitignore`、`c_limit` 等。示例：
 
 ```json
 {
   "history": ["D:/project/src"],
-  "type_groups": {
-    "default": [".cs"],
-    "web": [".cs", ".tsx"]
-  },
+  "type_groups": { "default": [".cs"] },
   "current_type_group": "default",
-  "last_success_type_group": "default",
-  "exclude_groups": {},
-  "current_exclude_group": null,
-  "last_success_exclude_group": null,
-  "merge_subfolders": true
+  "exclude_groups": {
+    "dev": {
+      "skip_dirs": ["bin", "obj"],
+      "file_rules": [{ "kind": "contains", "pattern": "Generated" }]
+    }
+  },
+  "current_exclude_group": "dev",
+  "merge_max_depth": null,
+  "use_gitignore": false,
+  "c_limit": 50
 }
 ```
 
@@ -118,7 +124,7 @@ RLEazyTool/
 
 #### 性能说明
 
-当前为整体读入后再写出，体量极大时内存占用会升高，可分批目录或使用「仅本层」模式（`this`）控制范围。
+当前为整体读入后再写出，体量极大时内存占用会升高；可用 `this 0` / `this N` 控制深度，或用 `exc` / `.gitignore` 缩小范围。
 
 单元测试：`tools/merge/test_merge_logic.py`、`test_path_utils.py`。
 

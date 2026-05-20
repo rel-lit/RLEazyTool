@@ -44,17 +44,43 @@
 | `mod ll now` | 查看当前组的后缀列表 |
 | `mod d <组名>` | 删除类型组（`default` 不可删） |
 
-### 排除组（exc）
+### 排除模板（exc，全局）
+
+与 **mod** 类似：持久化模板，`exc u` 启用一组。作用于**任意当前路径**（全局），与 **this**（当前目录范围）独立。
 
 | 指令 | 说明 |
 |------|------|
-| `exc a <组名> <关键词...>` | 文件名包含任一关键词则跳过 |
-| `exc u <组名>` | 启用该排除组 |
-| `exc q` | 关闭当前排除组 |
-| `exc`（单独一行） | 启用**上次合并成功时**使用的排除组 |
-| `exc ll` | 列出排除组 |
-| `exc d <组名>` | 删除排除组 |
-| `exc case <组名> on\|off` | 关键词匹配是否区分大小写 |
+| `exc` | 启用**上次合并成功时**的排除组 |
+| `exc u <组名>` / `exc off` | 启用 / 关闭排除组 |
+| `exc a <组名>` / `exc d <组名>` | 新建空组 / 删除组 |
+| `exc ll` / `exc ll now` | 列出所有组 / 当前启用组详情 |
+
+**跳过目录名**（树上任意层级，文件夹名匹配，不是路径）：
+
+| 指令 | 说明 |
+|------|------|
+| `exc dir a <组名> <名...>` | 追加，如 `bin`、`obj` |
+| `exc dir d <组名> <名...>` | 移除 |
+| `exc dir clr <组名>` | 清空组内目录名（程序内置 bin/obj 等仍生效） |
+| `exc dir ll <组名>` | 列出 |
+
+**文件名规则**（仅文件名，不含路径；不区分大小写）：
+
+| 指令 | 说明 |
+|------|------|
+| `exc f a <组名> <kind> <pattern>` | 添加规则 |
+| `exc f d <组名> <序号...>` | 按序号删除（见 `exc f ll`） |
+| `exc f d <组名> <kind> <pattern>` | 按类型+pattern 删除 |
+| `exc f clr <组名>` / `exc f ll <组名>` | 清空 / 列出 |
+
+`kind`：`contains` | `prefix` | `suffix` | `glob` | `regex`
+
+**`.gitignore`（可选，需 pathspec）**：
+
+| 指令 | 说明 |
+|------|------|
+| `exc gitignore on` / `exc gitignore off` | 按仓库 `.gitignore` 排除 |
+| `exc gitignore` | 查看状态 |
 
 ### 点名合并（c）
 
@@ -68,11 +94,36 @@
 | `c limit <N>` | 候选超过 N 个时不列出（仅 c 模式下，持久化，默认 50） |
 | 回车 | c 模式下仅合并已选文件；非 c 模式与原先相同 |
 
+## 合并时过滤顺序
+
+```text
+内置跳过目录 + exc.dir（全局）
+  → walk 扫描
+  → this（深度 + 目录路径细则）
+  → mod（后缀）
+  → exc.f（文件名规则）
+  →（可选）.gitignore
+  →（可选）c 点名
+```
+
 ## 配置
 
 - 配置文件：同目录下的 **`merge_config.json`**
-- 会保存：历史路径、类型组、当前 mod、排除组、`merge_max_depth`、`merge_scope_exclude` / `merge_scope_include`、`c_limit` 等
+- 会保存：历史路径、类型组、当前 mod、排除组（`skip_dirs` + `file_rules`）、`merge_max_depth`、`merge_scope_*`、`use_gitignore`、`c_limit`、上次成功时的 mod/排除组等
+- 旧版排除组里的 `words[]` 会在加载时自动迁成 `contains` 规则
 - 首次运行或配置损坏时会使用默认值重建
+
+排除组结构示例：
+
+```json
+"csharp-dev": {
+  "skip_dirs": ["bin", "obj", ".vs"],
+  "file_rules": [
+    { "kind": "contains", "pattern": "Generated" },
+    { "kind": "suffix", "pattern": ".Designer.cs" }
+  ]
+}
+```
 
 ## 代码结构（便于二次开发）
 
@@ -82,7 +133,10 @@
 | `repl.py` | 交互主循环、会话状态 |
 | `session.py` | 从配置/REPL 构建 `MergeRunOptions` 与过滤器 |
 | `input_parser.py` / `actions.py` | 解析输入、指令枚举 |
-| `command_handlers.py` | `mod` / `exc` 命令 |
+| `command_handlers.py` | `mod` 命令 |
+| `exc_handlers.py` | `exc` 排除模板 |
+| `exclude_rules.py` | 目录跳过与文件名规则匹配 |
+| `gitignore_support.py` | `.gitignore` 解析（依赖 pathspec） |
 | `choose_handlers.py` / `scope_handlers.py` | `c` / `this` 模式 |
 | `scope_rules.py` | 深度与目录细则（`ScopeContext`） |
 | `path_switch.py` / `path_tools.py` | 路径切换与桌面、模糊匹配 |

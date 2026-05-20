@@ -16,7 +16,13 @@
    .venv\Scripts\activate
    ```
 
-2. **merge 工具无需额外依赖**（仅标准库）。若日后为其它子项目安装包：
+2. **merge 工具**：日常使用仅需标准库；若需 **`.gitignore` 兼容**，请安装可选依赖：
+
+   ```bash
+   pip install -r tools/merge/requirements.txt
+   ```
+
+   若日后为其它子项目安装包：
    ```bash
    .venv\Scripts\activate
    pip install <包名>
@@ -78,7 +84,7 @@ which pip       # Linux/Mac
 
 ### 5. （可选）为子项目安装第三方依赖
 
-当前仓库中的 **merge** 仅使用 Python 标准库，通常**不必**执行 `pip install`。若你新增依赖型子工具，再在已激活的 `.venv` 中安装即可。
+当前仓库中的 **merge** 核心功能仅使用标准库；启用 `exc gitignore on` 前需 `pip install -r tools/merge/requirements.txt`（`pathspec`）。其它子工具若需第三方库，在已激活的 `.venv` 中安装即可。
 
 ## 📦 依赖管理
 
@@ -160,7 +166,7 @@ where python
 D:\WorkTool\RLEazyTool\.venv\
 ```
 
-当前子工具 **merge** 为纯标准库实现；其它脚本如需第三方库，请在本目录激活 `.venv` 后自行 `pip install`。
+当前子工具 **merge** 默认可纯标准库运行；`.gitignore` 为可选能力。其它脚本如需第三方库，请在本目录激活 `.venv` 后自行 `pip install`。
 
 ## 🔍 验证安装（可选）
 
