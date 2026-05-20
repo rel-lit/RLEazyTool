@@ -58,9 +58,6 @@ def _parse_this_command(user_input: str) -> tuple[Action, Any]:
     return Action.THIS_INVALID, None
 
 
-_EXC_RESERVED = frozenset({"a", "d", "ll", "dir", "f", "gitignore"})
-
-
 def _parse_exc_command(user_input: str) -> tuple[Action, Any]:
     try:
         parts = shlex.split(user_input.strip(), posix=False)
@@ -73,8 +70,8 @@ def _parse_exc_command(user_input: str) -> tuple[Action, Any]:
         return Action.EXC_INVALID, None
     if len(parts) == 1:
         return Action.EXC, ("toggle", None)
-    if len(parts) == 2 and low[1] not in _EXC_RESERVED:
-        return Action.EXC, ("use", parts[1])
+    if len(parts) == 3 and low[1] == "u":
+        return Action.EXC, ("use", parts[2])
     if len(parts) == 3 and low[1] == "a":
         return Action.EXC, ("group_add", parts[2])
     if len(parts) == 3 and low[1] == "d":

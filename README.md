@@ -91,7 +91,7 @@ RLEazyTool/
 | 范围 **this** | 当前目录：深度 `this 0` / `this N` / `this max`，目录细则 `this a` / `this s`，`this ll` |
 | 路径 | 绝对路径；`\\` 或 `/` 相对路径（末级可模糊） |
 | 类型 **mod** | `mod a` / `mod u` / `mod ll` / `mod d` |
-| 排除 **exc** | 全局模板：`exc` 开关 / `exc <组名>`，`exc dir` / `exc f` / `exc gitignore` |
+| 排除 **exc** | 全局模板：`exc` 开关 / `exc u <组名>`，`exc dir` / `exc f` / `exc gitignore` |
 | 点名 **c** | `c` / `c ll` / `c 3 5` / `c all` / `c limit` |
 
 完整指令表见 📖 **[tools/merge/README.md](tools/merge/README.md)**（含 `exc` / `this` / `c` 全表）。

@@ -80,7 +80,7 @@ def print_help() -> None:
     print("")
     print("【排除模板 exc】（全局，任意当前路径；设置持久保存）")
     print("  exc           : 开关排除（关闭后再开恢复上次使用的组）")
-    print("  exc <组名>    : 启用指定排除组")
+    print("  exc u <组名>  : 启用指定排除组")
     print("  exc a <组名> | exc d <组名>  : 新建空组 / 删除组")
     print("  exc ll | exc ll now         : 列出所有组 / 当前组详情")
     print("  exc dir a|d|clr|ll <组名>   : 跳过目录名（全局，任意层级）")

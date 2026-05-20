@@ -236,7 +236,7 @@ def test_gitignore_excludes_files(tmp_path):
 
 def test_parse_exc_commands():
     assert parse_input("exc", 0) == (Action.EXC, ("toggle", None))
-    assert parse_input("exc dev", 0) == (Action.EXC, ("use", "dev"))
+    assert parse_input("exc u dev", 0) == (Action.EXC, ("use", "dev"))
     assert parse_input("exc a dev", 0) == (Action.EXC, ("group_add", "dev"))
     assert parse_input("exc dir a dev bin obj", 0) == (
         Action.EXC,

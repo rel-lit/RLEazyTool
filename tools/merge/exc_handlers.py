@@ -118,7 +118,7 @@ def handle_exc(repl, payload: tuple[str, object]) -> None:
             if not name:
                 print(
                     "❌ 没有可启用的排除组。请先 exc a <组名> 新建，"
-                    "或 exc <组名> 指定组。"
+                    "或 exc u <组名> 指定组。"
                 )
                 return
             _activate_exclude_group(config, name)
@@ -182,7 +182,7 @@ def handle_exc(repl, payload: tuple[str, object]) -> None:
     if cmd == "list_now":
         cur = config.current_exclude_group
         if not cur or cur not in config.exclude_groups:
-            print("ℹ️ 当前未启用排除组。请 exc <组名> 或输入 exc 开关。")
+            print("ℹ️ 当前未启用排除组。请 exc u <组名> 或输入 exc 开关。")
             return
         g = _get_group(config, cur)
         assert g is not None
