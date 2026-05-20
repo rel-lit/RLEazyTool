@@ -93,11 +93,24 @@
 | `merge_report.py` | 报告行生成、终端摘要与写盘 |
 | `constants.py` | 递归遍历时跳过的目录名 |
 
+## .gitignore 兼容（可选）
+
+安装依赖后，可按仓库内 `.gitignore` 排除文件（全局开关，写入配置）：
+
+```text
+pip install -r tools/merge/requirements.txt
+exc gitignore on
+exc gitignore
+```
+
+合并与 `c ll` 扫描均会跳过被 ignore 的路径。需在 Git 仓库内（当前路径向上能找到 `.git`）。与 **this**（当前目录范围）独立。
+
 ## 测试
 
 在 `tools/merge` 下：
 
 ```text
+pip install -r requirements.txt
 py test_merge_logic.py
 py test_path_utils.py
 ```

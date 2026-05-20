@@ -78,6 +78,13 @@ def _parse_exc_command(user_input: str) -> tuple[Action, Any]:
         return Action.EXC, ("group_add", parts[2])
     if len(parts) == 3 and low[1] == "d":
         return Action.EXC, ("group_del", parts[2])
+    if low[1] == "gitignore":
+        if len(parts) == 2:
+            return Action.EXC, ("gitignore_show", None)
+        if len(parts) == 3 and low[2] == "on":
+            return Action.EXC, ("gitignore_on", None)
+        if len(parts) == 3 and low[2] == "off":
+            return Action.EXC, ("gitignore_off", None)
     if low[1] == "ll":
         if len(parts) == 2:
             return Action.EXC, ("list", None)

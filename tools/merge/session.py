@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from exc_handlers import exc_filter_from_config
+from gitignore_support import GitIgnoreMatcher, find_git_root
 from models import MergeConfig, MergeRunOptions, ScopeSettings
 
 if TYPE_CHECKING:
@@ -39,6 +40,9 @@ def build_run_options(
         repl.config
     )
     scope = scope_settings_from_config(repl.config)
+    git_root: str | None = None
+    if repl.config.use_gitignore:
+        git_root = find_git_root(repl.current_path)
     return MergeRunOptions(
         source_dir=repl.current_path,
         output_path=output_path,
@@ -49,4 +53,12 @@ def build_run_options(
         merge_scope_exclude=scope.exclude,
         merge_scope_include=scope.include,
         only_relative_paths=only_relative_paths,
+        use_gitignore=repl.config.use_gitignore,
+        git_repo_root=git_root,
     )
+
+
+def load_gitignore_matcher(config: MergeConfig, source_dir: str) -> GitIgnoreMatcher | None:
+    if not config.use_gitignore:
+        return None
+    return GitIgnoreMatcher.load(source_dir)

@@ -8,6 +8,7 @@ from typing import Iterator
 from exclude_rules import FileExcludeRule, filename_excluded, walk_skip_dir_names
 from cs_analyzer import RunningCsStats, analyze_cs_content
 from file_analysis import FileEntry
+from gitignore_support import GitIgnoreMatcher
 from merge_report import build_report_lines
 from models import MergeRunOptions, MergeRunResult
 from scope_rules import ScopeContext, file_in_merge_scope
@@ -26,6 +27,25 @@ def _file_passes_filters(
     return None
 
 
+def _prune_dirs(
+    root: str,
+    source_dir: str,
+    dirs: list[str],
+    skip_dirs: frozenset[str],
+    gitignore: GitIgnoreMatcher | None,
+) -> None:
+    kept: list[str] = []
+    for d in dirs:
+        if d in skip_dirs:
+            continue
+        if gitignore is not None:
+            abs_d = os.path.join(root, d)
+            if gitignore.ignores_dir(abs_d):
+                continue
+        kept.append(d)
+    dirs[:] = kept
+
+
 def collect_candidate_paths(
     source_dir: str,
     file_types: tuple[str, ...],
@@ -34,6 +54,8 @@ def collect_candidate_paths(
     merge_max_depth: int | None,
     scope_exclude: tuple[str, ...] = (),
     scope_include: tuple[str, ...] = (),
+    *,
+    gitignore: GitIgnoreMatcher | None = None,
 ) -> tuple[list[str] | None, str | None]:
     """返回 (相对路径列表, 扫描错误)。路径按字典序排序。"""
     scope = ScopeContext.create(
@@ -41,13 +63,17 @@ def collect_candidate_paths(
     )
     skip_dirs = walk_skip_dir_names(exc_skip_dirs)
     rel_paths: list[str] = []
-    for item in _iter_scoped_file_pairs(source_dir, merge_max_depth, skip_dirs):
+    for item in _iter_scoped_file_pairs(
+        source_dir, merge_max_depth, skip_dirs, gitignore
+    ):
         if item[0] is None:
             return None, item[1]
         root, file = item[0], item[1]
         if _file_passes_filters(file, file_types, exc_file_rules) is None:
             continue
         file_path = os.path.join(root, file)
+        if gitignore is not None and gitignore.ignores_file(file_path):
+            continue
         rel = os.path.relpath(file_path, source_dir)
         if not file_in_merge_scope(rel, scope):
             continue
@@ -60,19 +86,22 @@ def _iter_scoped_file_pairs(
     source_dir: str,
     max_depth: int | None,
     skip_dirs: frozenset[str],
+    gitignore: GitIgnoreMatcher | None,
 ) -> Iterator[tuple[str, str] | tuple[None, str]]:
     if max_depth == 0:
         try:
             for name in sorted(os.listdir(source_dir)):
                 path = os.path.join(source_dir, name)
                 if os.path.isfile(path):
+                    if gitignore is not None and gitignore.ignores_file(path):
+                        continue
                     yield source_dir, name
         except OSError as e:
             yield None, str(e)
         return
     try:
         for root, dirs, files in os.walk(source_dir):
-            dirs[:] = [d for d in dirs if d not in skip_dirs]
+            _prune_dirs(root, source_dir, dirs, skip_dirs, gitignore)
             if max_depth is not None:
                 rel_root = os.path.relpath(root, source_dir)
                 if rel_root == ".":
@@ -133,6 +162,11 @@ def run_merge(options: MergeRunOptions) -> MergeRunResult:
     merged: list[str] = []
     skip_dirs = walk_skip_dir_names(options.exc_skip_dirs)
     exc_rules = options.exc_file_rules
+    gitignore: GitIgnoreMatcher | None = None
+    if options.use_gitignore:
+        from gitignore_support import GitIgnoreMatcher as _G
+
+        gitignore = _G.load(options.source_dir)
 
     if options.only_relative_paths is not None:
         for relative_path in sorted(options.only_relative_paths):
@@ -143,6 +177,8 @@ def run_merge(options: MergeRunOptions) -> MergeRunResult:
                 )
                 merged.append("// [错误] 文件不存在或不可读\n")
                 result.error_count += 1
+                continue
+            if gitignore is not None and gitignore.ignores_file(file_path):
                 continue
             file_name = os.path.basename(file_path)
             matched_ext = _file_passes_filters(
@@ -161,7 +197,7 @@ def run_merge(options: MergeRunOptions) -> MergeRunResult:
             options.merge_scope_include,
         )
         for item in _iter_scoped_file_pairs(
-            options.source_dir, scope.max_depth, skip_dirs
+            options.source_dir, scope.max_depth, skip_dirs, gitignore
         ):
             if item[0] is None:
                 result.scan_error = item[1]
@@ -173,6 +209,8 @@ def run_merge(options: MergeRunOptions) -> MergeRunResult:
             if matched_ext is None:
                 continue
             file_path = os.path.join(root, file)
+            if gitignore is not None and gitignore.ignores_file(file_path):
+                continue
             relative_path = os.path.relpath(file_path, options.source_dir)
             if not file_in_merge_scope(relative_path, scope):
                 continue

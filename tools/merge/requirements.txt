@@ -1,0 +1,2 @@
+# merge 工具可选依赖（.gitignore 兼容）
+pathspec>=0.11.0

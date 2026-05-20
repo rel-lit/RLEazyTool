@@ -90,6 +90,8 @@ class MergeRepl:
         parts = [f"当前mod: {mod_str}", f"范围: {self._scope_text()}"]
         if exc_str:
             parts.append(f"exc: {exc_str}")
+        if self.config.use_gitignore:
+            parts.append("gitignore: 开")
         if self.this_mode:
             parts.insert(0, "this: 配置中")
         if self.choose_mode:
@@ -139,6 +141,26 @@ class MergeRepl:
             self, output_path, only_relative_paths=only_paths
         )
         try:
+            if self.config.use_gitignore:
+                from gitignore_support import (
+                    GitIgnoreMatcher,
+                    find_git_root,
+                    pathspec_available,
+                )
+
+                if not pathspec_available():
+                    print(
+                        "❌ .gitignore 需要 pathspec 库。请执行: "
+                        "pip install -r tools/merge/requirements.txt"
+                    )
+                    return False
+                if find_git_root(self.current_path) is None:
+                    print(
+                        "⚠️ 已开启 gitignore，但当前路径不在 Git 仓库内，"
+                        "将忽略 .gitignore 规则。"
+                    )
+                elif GitIgnoreMatcher.load(self.current_path) is None:
+                    print("⚠️ 未能加载 .gitignore 规则。")
             print_scan_banner(self.current_path, self._scope_text())
             result = run_merge(options)
             print_merge_summary(result, options.file_types)

@@ -193,6 +193,45 @@ def test_merge_exc_skip_dir(tmp_path):
     assert "skip.cs" not in text
 
 
+def test_gitignore_excludes_files(tmp_path):
+    import subprocess
+
+    init = subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.email=test@test",
+            "-c",
+            "user.name=test",
+            "init",
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        check=False,
+    )
+    if init.returncode != 0:
+        return
+    (tmp_path / ".gitignore").write_text("*.log\nignored_dir/\n", encoding="utf-8")
+    (tmp_path / "keep.cs").write_text("// k", encoding="utf-8")
+    (tmp_path / "skip.log").write_text("// log", encoding="utf-8")
+    ign = tmp_path / "ignored_dir"
+    ign.mkdir()
+    (ign / "inner.cs").write_text("// inner", encoding="utf-8")
+    output = tmp_path / "out.txt"
+    opts = MergeRunOptions(
+        source_dir=str(tmp_path),
+        output_path=str(output),
+        file_types=(".cs", ".log"),
+        use_gitignore=True,
+    )
+    result = run_merge(opts)
+    write_merged_output(str(output), result)
+    text = output.read_text(encoding="utf-8")
+    assert "keep.cs" in text
+    assert "skip.log" not in text
+    assert "inner.cs" not in text
+
+
 def test_parse_exc_commands():
     assert parse_input("exc", 0) == (Action.EXC, ("last", None))
     assert parse_input("exc off", 0) == (Action.EXC, ("off", None))
@@ -206,6 +245,8 @@ def test_parse_exc_commands():
         Action.EXC,
         ("f_add", ("dev", "suffix", ".Designer.cs")),
     )
+    assert parse_input("exc gitignore on", 0) == (Action.EXC, ("gitignore_on", None))
+    assert parse_input("exc gitignore off", 0) == (Action.EXC, ("gitignore_off", None))
 
 
 def test_parse_this_commands():
@@ -246,6 +287,13 @@ def run():
         test_scope_exclude_subfolder(Path(tmp))
     with tempfile.TemporaryDirectory() as tmp:
         test_file_in_merge_scope_rules(Path(tmp))
+    try:
+        import pathspec  # noqa: F401
+    except ImportError:
+        print("跳过 gitignore 测试（未安装 pathspec）")
+    else:
+        with tempfile.TemporaryDirectory() as tmp:
+            test_gitignore_excludes_files(Path(tmp))
     test_exc_filename_rules()
     test_exc_skip_dirs_merge_builtin()
     with tempfile.TemporaryDirectory() as tmp:

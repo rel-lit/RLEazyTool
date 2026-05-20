@@ -28,6 +28,11 @@ def build_report_lines(
             options.merge_scope_include,
         ),
     ]
+    if options.use_gitignore:
+        if options.git_repo_root:
+            stat_lines.append(f"// .gitignore: 已启用 (仓库根: {options.git_repo_root})")
+        else:
+            stat_lines.append("// .gitignore: 已启用 (未检测到 Git 仓库)")
     if options.only_relative_paths is not None:
         stat_lines.append(
             f"// 合并模式: c 点名 ({len(options.only_relative_paths)} 个文件)"

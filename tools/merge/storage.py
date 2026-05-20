@@ -83,6 +83,8 @@ def print_help() -> None:
     print("  exc f a <组名> <kind> <pattern> : 文件名规则")
     print("       kind: contains prefix suffix glob regex")
     print("  exc f d|clr|ll <组名> ...   : 删规则(序号或kind+pattern) / 清空 / 列出")
+    print("  exc gitignore on|off      : 按仓库 .gitignore 排除（需 pip install pathspec）")
+    print("  exc gitignore             : 查看 gitignore 状态")
     print("")
     print("  c                           : 开关 c 模式（点名合并；关闭时清空选择）")
     print("  c ll                        : 列出 mod+exc 候选（带序号，需已开启 c 模式）")

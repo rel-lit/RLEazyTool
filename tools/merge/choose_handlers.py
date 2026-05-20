@@ -6,7 +6,11 @@ import os
 from typing import TYPE_CHECKING
 
 from merge_engine import collect_candidate_paths
-from session import filter_settings_from_config, scope_settings_from_config
+from session import (
+    filter_settings_from_config,
+    load_gitignore_matcher,
+    scope_settings_from_config,
+)
 from storage import save_config
 
 if TYPE_CHECKING:
@@ -27,6 +31,7 @@ def scan_choose_list(repl: "MergeRepl") -> bool:
         repl.config
     )
     scope = scope_settings_from_config(repl.config)
+    gitignore = load_gitignore_matcher(repl.config, repl.current_path)
     paths, scan_error = collect_candidate_paths(
         repl.current_path,
         file_types,
@@ -35,6 +40,7 @@ def scan_choose_list(repl: "MergeRepl") -> bool:
         scope.max_depth,
         scope.exclude,
         scope.include,
+        gitignore=gitignore,
     )
     if scan_error:
         print(f"❌ 扫描失败: {scan_error}")

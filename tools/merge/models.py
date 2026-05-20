@@ -27,6 +27,7 @@ class MergeConfig:
     merge_scope_exclude: list[str] = field(default_factory=list)
     merge_scope_include: list[str] = field(default_factory=list)
     c_limit: int = 50
+    use_gitignore: bool = False
 
     def to_json_dict(self) -> dict[str, Any]:
         return {
@@ -44,6 +45,7 @@ class MergeConfig:
             "merge_scope_exclude": self.merge_scope_exclude,
             "merge_scope_include": self.merge_scope_include,
             "c_limit": self.c_limit,
+            "use_gitignore": self.use_gitignore,
         }
 
     @classmethod
@@ -74,6 +76,7 @@ class MergeConfig:
             merge_scope_exclude=list(d.get("merge_scope_exclude") or []),
             merge_scope_include=list(d.get("merge_scope_include") or []),
             c_limit=int(d.get("c_limit", 50)),
+            use_gitignore=bool(d.get("use_gitignore", False)),
         )
 
     @staticmethod
@@ -114,6 +117,8 @@ class MergeRunOptions:
     merge_scope_exclude: tuple[str, ...] = ()
     merge_scope_include: tuple[str, ...] = ()
     only_relative_paths: tuple[str, ...] | None = None
+    use_gitignore: bool = False
+    git_repo_root: str | None = None
 
 
 @dataclass
