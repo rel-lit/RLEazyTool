@@ -5,9 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from cs_analyzer import RunningCsStats
 from exclude_rules import FileExcludeRule, normalize_exclude_group
 from file_analysis import FileEntry
+
+from analysis.types import FileAnalysisResult, ProjectAnalysis
 
 
 @dataclass
@@ -30,6 +31,7 @@ class MergeConfig:
     scope_enabled: bool = False  # False 时合并不应用 this 范围；细则仍保存在配置中
     c_limit: int = 50
     use_gitignore: bool = False
+    detail_analysis: bool = False  # ana：tree-sitter 详细语法分析（默认关）
 
     def to_json_dict(self) -> dict[str, Any]:
         return {
@@ -50,6 +52,7 @@ class MergeConfig:
             "scope_enabled": self.scope_enabled,
             "c_limit": self.c_limit,
             "use_gitignore": self.use_gitignore,
+            "detail_analysis": self.detail_analysis,
         }
 
     @classmethod
@@ -88,6 +91,7 @@ class MergeConfig:
             ),
             c_limit=int(d.get("c_limit", 50)),
             use_gitignore=bool(d.get("use_gitignore", False)),
+            detail_analysis=bool(d.get("detail_analysis", False)),
         )
 
     @staticmethod
@@ -151,6 +155,7 @@ class MergeRunOptions:
     only_relative_paths: tuple[str, ...] | None = None
     use_gitignore: bool = False
     git_repo_root: str | None = None
+    detail_analysis: bool = False
 
 
 @dataclass
@@ -162,6 +167,7 @@ class MergeRunResult:
     merged_chunks: list[str] = field(default_factory=list)
     stat_header_lines: list[str] = field(default_factory=list)
     console_detail_lines: list[str] = field(default_factory=list)
-    cs_stats: RunningCsStats | None = None
     scan_error: str | None = None
     file_entries: list[FileEntry] = field(default_factory=list)
+    file_analyses: list[FileAnalysisResult] = field(default_factory=list)
+    project_analysis: ProjectAnalysis | None = None

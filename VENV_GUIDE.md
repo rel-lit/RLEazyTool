@@ -16,7 +16,7 @@
    .venv\Scripts\activate
    ```
 
-2. **merge 工具**：日常使用仅需标准库；若需 **`.gitignore` 兼容**，请安装可选依赖：
+2. **merge 工具**：日常使用仅需标准库；**`.gitignore`** 与 **`ana` 详细语法分析** 会在首次使用时尝试在 `.venv` 自动安装依赖。也可手动安装：
 
    ```bash
    pip install -r tools/merge/requirements.txt

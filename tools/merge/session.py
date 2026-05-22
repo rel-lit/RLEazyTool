@@ -57,6 +57,7 @@ def build_run_options(
         only_relative_paths=only_relative_paths,
         use_gitignore=repl.config.use_gitignore,
         git_repo_root=git_root,
+        detail_analysis=repl.config.detail_analysis,
     )
 
 

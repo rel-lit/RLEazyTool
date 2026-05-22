@@ -9,6 +9,21 @@ from actions import Action
 from exclude_rules import FILE_RULE_KINDS
 
 
+def _is_ana_command(user_input: str) -> bool:
+    s = user_input.strip().lower()
+    return s == "ana" or s.startswith("ana ")
+
+
+def _parse_ana_command(user_input: str) -> tuple[Action, Any]:
+    parts = user_input.strip().split()
+    low = [p.lower() for p in parts]
+    if len(parts) == 1:
+        return Action.ANA, ("toggle", None)
+    if len(parts) == 2 and low[1] == "show":
+        return Action.ANA, ("show", None)
+    return Action.INVALID, None
+
+
 def _is_exc_command(user_input: str) -> bool:
     s = user_input.strip().lower()
     return s == "exc" or s.startswith("exc ")
@@ -190,6 +205,9 @@ def parse_input(user_input: str, history_length: int) -> tuple[Action, Any]:
         return Action.SWITCH_ABS, user_input
     if user_input.startswith("\\") or user_input.startswith("/"):
         return Action.SWITCH_REL, user_input
+    if _is_ana_command(user_input):
+        return _parse_ana_command(user_input)
+
     if _is_exc_command(user_input):
         action, payload = _parse_exc_command(user_input)
         return action, payload

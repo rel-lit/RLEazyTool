@@ -94,6 +94,15 @@
 | `c limit <N>` | 候选超过 N 个时不列出（仅 c 模式下，持久化，默认 50） |
 | 回车 | c 模式下仅合并已选文件；非 c 模式与原先相同 |
 
+### 语法分析（ana）
+
+| 指令 | 说明 |
+|------|------|
+| `ana` | 开关**详细语法分析**（默认关，仅粗略行数/体量/目录统计） |
+| `ana show` | 查看当前模式与 tree-sitter 是否就绪 |
+
+开启后合并头会增加 **tree-sitter 符号级统计**（类/方法/函数等，按 mod 后缀对应语言）。解析失败的文件**仍会合并正文**，仅跳过该文件的详细分析。依赖由 `.venv` 自动安装（见 `requirements.txt`）。
+
 ## 合并时过滤顺序
 
 ```text
@@ -109,7 +118,7 @@
 ## 配置
 
 - 配置文件：同目录下的 **`merge_config.json`**
-- 会保存：历史路径、类型组、当前 mod、排除组（`skip_dirs` + `file_rules`）、`merge_max_depth`、`merge_scope_*`、`use_gitignore`、`c_limit`、上次成功时的 mod/排除组等
+- 会保存：历史路径、类型组、当前 mod、排除组、`merge_max_depth`、`merge_scope_*`、`use_gitignore`、`detail_analysis`、`c_limit` 等
 - 旧版排除组里的 `words[]` 会在加载时自动迁成 `contains` 规则
 - 首次运行或配置损坏时会使用默认值重建
 
@@ -187,7 +196,8 @@
   "merge_scope_include": [],
   "scope_enabled": true,
   "c_limit": 50,
-  "use_gitignore": false
+  "use_gitignore": false,
+  "detail_analysis": false
 }
 ```
 
@@ -202,6 +212,7 @@
 | `merge_scope_include` / `exclude` | 相对当前合并根目录的路径细则 | `this` 模式下 `this a` / `this s` |
 | `scope_enabled` | 合并时是否应用上述范围；退出 `this` 时为 `false` | 输入 `this` 进入配置模式为 `true` |
 | `use_gitignore` | 是否按仓库 `.gitignore` 排除 | `exc gitignore on` / `off` |
+| `detail_analysis` | 是否启用 tree-sitter 详细分析 | `ana` 开关 |
 | `c_limit` | `c ll` 候选过多时的上限 | `c limit <N>` |
 
 **常用场景：改哪几项**
@@ -246,8 +257,9 @@
 | `path_switch.py` / `path_tools.py` | 路径切换与桌面、模糊匹配 |
 | `models.py` / `storage.py` | 配置、选项、结果模型与 JSON |
 | `merge_engine.py` | 扫描与合并（无控制台输出） |
-| `file_analysis.py` | 单文件/目录/后缀统计（写入输出头部） |
-| `cs_analyzer.py` | C# 内容粗统计 |
+| `file_analysis.py` | 粗略统计（行数、目录、清单） |
+| `analysis/` | tree-sitter 详细语法分析（`ana` 开时） |
+| `analyze_handlers.py` | `ana` 开关 |
 | `merge_report.py` | 报告行生成、终端摘要与写盘 |
 | `constants.py` | 递归遍历时跳过的目录名 |
 

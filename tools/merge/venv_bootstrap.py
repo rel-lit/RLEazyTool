@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -35,15 +34,6 @@ def project_venv_site_packages() -> Path | None:
     return candidate if candidate and candidate.is_dir() else None
 
 
-def _running_in_project_venv() -> bool:
-    try:
-        exe = Path(sys.executable).resolve()
-        venv = project_venv_python()
-        return venv is not None and exe == venv.resolve()
-    except OSError:
-        return False
-
-
 def _inject_venv_site_packages() -> bool:
     site = project_venv_site_packages()
     if site is None:
@@ -54,9 +44,18 @@ def _inject_venv_site_packages() -> bool:
     return True
 
 
-def _try_import_pathspec():
+def _try_import_pathspec() -> bool:
     try:
         import pathspec  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+def _try_import_tree_sitter() -> bool:
+    try:
+        import tree_sitter  # noqa: F401
 
         return True
     except ImportError:
@@ -78,17 +77,7 @@ def ensure_project_venv() -> bool:
     return project_venv_python() is not None
 
 
-def ensure_pathspec(*, quiet: bool = True) -> tuple[bool, str]:
-    """
-    确保 pathspec 可用：优先当前解释器，否则用项目 .venv 安装并注入 site-packages。
-
-    返回 (是否成功, 给用户的状态说明；成功且刚安装时非空)。
-    """
-    if _try_import_pathspec():
-        if _running_in_project_venv():
-            return True, ""
-        return True, ""
-
+def _pip_install_requirements(*, quiet: bool) -> tuple[bool, str]:
     if not ensure_project_venv():
         return False, "无法创建项目 .venv，请检查 Python 安装。"
 
@@ -96,14 +85,7 @@ def ensure_pathspec(*, quiet: bool = True) -> tuple[bool, str]:
     if vpy is None:
         return False, "未找到项目 .venv 中的 Python。"
 
-    pip_args = [
-        str(vpy),
-        "-m",
-        "pip",
-        "install",
-        "-r",
-        str(REQUIREMENTS),
-    ]
+    pip_args = [str(vpy), "-m", "pip", "install", "-r", str(REQUIREMENTS)]
     if quiet:
         pip_args.insert(4, "-q")
     try:
@@ -117,11 +99,31 @@ def ensure_pathspec(*, quiet: bool = True) -> tuple[bool, str]:
         detail = ""
         if isinstance(e, subprocess.CalledProcessError) and e.stderr:
             detail = e.stderr.strip()[:200]
-        msg = "在 .venv 中安装 pathspec 失败。"
-        return False, f"{msg} {detail}".strip()
+        return False, f"在 .venv 中安装依赖失败。{detail}".strip()
 
     _inject_venv_site_packages()
-    if _try_import_pathspec():
-        return True, "已自动在项目 .venv 中准备 pathspec（仅影响本工具）。"
+    return True, "已自动在项目 .venv 中安装 merge 可选依赖。"
 
-    return False, "pathspec 安装后仍无法导入，请检查 .venv。"
+
+def ensure_merge_deps(*, quiet: bool = True) -> tuple[bool, str]:
+    """pathspec + tree-sitter 等（见 requirements.txt）。"""
+    if _try_import_pathspec() and _try_import_tree_sitter():
+        return True, ""
+    ok, note = _pip_install_requirements(quiet=quiet)
+    if not ok:
+        return False, note
+    if _try_import_pathspec() and _try_import_tree_sitter():
+        return True, note
+    return False, note + " 部分依赖仍无法导入。" if note else "部分依赖仍无法导入。"
+
+
+def ensure_pathspec(*, quiet: bool = True) -> tuple[bool, str]:
+    """gitignore 仅需 pathspec；不足时安装整份 requirements。"""
+    if _try_import_pathspec():
+        return True, ""
+    ok, note = _pip_install_requirements(quiet=quiet)
+    if not ok:
+        return False, note
+    if _try_import_pathspec():
+        return True, note
+    return False, "pathspec 安装后仍无法导入。"

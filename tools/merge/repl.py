@@ -11,6 +11,7 @@ from choose_handlers import (
     invalidate_choose_state,
     print_choose_selected_line,
 )
+from analyze_handlers import handle_ana
 from command_handlers import handle_mod
 from exc_handlers import handle_exc
 from input_parser import parse_input
@@ -103,6 +104,8 @@ class MergeRepl:
             parts.append(f"exc: {exc_str}")
         if self.config.use_gitignore:
             parts.append("gitignore: 开")
+        if self.config.detail_analysis:
+            parts.append("ana: 详细")
         if self.choose_mode:
             c_part = (
                 f"c: 已选 {len(self.choose_selected)} 个 | limit: {self.config.c_limit}"
@@ -229,6 +232,9 @@ class MergeRepl:
                 if action == Action.MOD:
                     handle_mod(payload, self.config)
                     self._invalidate_choose("已修改类型组")
+                    continue
+                if action == Action.ANA:
+                    handle_ana(self, payload)
                     continue
                 if action == Action.EXC:
                     handle_exc(self, payload)

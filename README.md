@@ -4,7 +4,7 @@
 
 ## 📢 最新更新
 
-- 🔧 **Merge**: `this` 范围（深度 N / 目录细则）、`exc` 全局排除模板（`dir` + `f` 规则）、可选 `.gitignore`
+- 🔧 **Merge**: `this` / `exc` / `c` / `ana`（tree-sitter 详细语法分析，默认关）、`.gitignore`
 - 🔧 **架构**: 分层模块（`session`、`scope_rules`、`exc_handlers` 等），详见 [tools/merge/README.md](tools/merge/README.md)
 - 📝 **环境**: 虚拟环境支持（`.venv`）；merge 的 `.gitignore` 需可选依赖 `pathspec`
 
@@ -33,7 +33,7 @@ source .venv/bin/activate
 详细虚拟环境设置指南请查看：[VENV_GUIDE.md](VENV_GUIDE.md)
 
 ### 核心库
-- **merge 工具**: 核心功能仅标准库；**`.gitignore` 兼容**需 `pip install -r tools/merge/requirements.txt`（`pathspec`）
+- **merge 工具**: 核心合并仅标准库；**`.gitignore` / `ana` 详细分析** 由 `merge.bat` 或 `.venv` + `tools/merge/requirements.txt` 自动准备（pathspec、tree-sitter）
 
 ## 目录结构
 
@@ -92,6 +92,7 @@ RLEazyTool/
 | 路径 | 绝对路径；`\\` 或 `/` 相对路径（末级可模糊） |
 | 类型 **mod** | `mod a` / `mod u` / `mod ll` / `mod d` |
 | 排除 **exc** | 全局模板：`exc` 开关 / `exc u <组名>`，`exc dir` / `exc f` / `exc gitignore` |
+| 分析 **ana** | `ana` 开关详细 tree-sitter 符号分析（默认仅粗略统计） |
 | 点名 **c** | `c` / `c ll` / `c 3 5` / `c all` / `c limit` |
 
 完整指令表见 📖 **[tools/merge/README.md](tools/merge/README.md)**（含 `exc` / `this` / `c` 全表）。

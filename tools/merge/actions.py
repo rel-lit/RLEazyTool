@@ -20,4 +20,5 @@ class Action(StrEnum):
     EXC_INVALID = "exc_invalid"
     CHOOSE = "choose"
     CHOOSE_INVALID = "choose_invalid"
+    ANA = "ana"
     INVALID = "invalid"

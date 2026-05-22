@@ -253,6 +253,39 @@ def test_gitignore_excludes_files(tmp_path):
     assert "inner.cs" not in text
 
 
+def test_parse_ana_commands():
+    assert parse_input("ana", 0) == (Action.ANA, ("toggle", None))
+    assert parse_input("ana show", 0) == (Action.ANA, ("show", None))
+
+
+def test_detail_analysis_python(tmp_path):
+    try:
+        import tree_sitter  # noqa: F401
+        import tree_sitter_python  # noqa: F401
+    except ImportError:
+        return
+    d = tmp_path / "src"
+    d.mkdir()
+    (d / "m.py").write_text(
+        "import os\n\nclass Foo:\n    def bar(self):\n        pass\n",
+        encoding="utf-8",
+    )
+    output = tmp_path / "out.txt"
+    opts = MergeRunOptions(
+        source_dir=str(d),
+        output_path=str(output),
+        file_types=(".py",),
+        detail_analysis=True,
+    )
+    result = run_merge(opts)
+    write_merged_output(str(output), result)
+    assert result.project_analysis is not None
+    assert result.project_analysis.total_symbols >= 2
+    text = output.read_text(encoding="utf-8")
+    assert "详细语法分析" in text
+    assert "Foo" in text or "function" in text
+
+
 def test_parse_exc_commands():
     assert parse_input("exc", 0) == (Action.EXC, ("toggle", None))
     assert parse_input("exc u dev", 0) == (Action.EXC, ("use", "dev"))
@@ -321,6 +354,8 @@ def run():
         test_scope_exclude_subfolder(Path(tmp))
     with tempfile.TemporaryDirectory() as tmp:
         test_file_in_merge_scope_rules(Path(tmp))
+    with tempfile.TemporaryDirectory() as tmp:
+        test_detail_analysis_python(Path(tmp))
     try:
         import pathspec  # noqa: F401
     except ImportError:
@@ -333,6 +368,7 @@ def run():
     test_exc_skip_dirs_merge_builtin()
     with tempfile.TemporaryDirectory() as tmp:
         test_merge_exc_skip_dir(Path(tmp))
+    test_parse_ana_commands()
     test_parse_exc_commands()
     test_scope_disabled_ignores_saved_depth()
     test_scope_enabled_loads_saved_depth()

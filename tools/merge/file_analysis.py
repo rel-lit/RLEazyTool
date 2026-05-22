@@ -48,7 +48,7 @@ def _line_stats(entries: list[FileEntry]) -> tuple[float, int, int, float]:
 def build_file_analysis_header_lines(
     entries: list[FileEntry],
     file_types: tuple[str, ...],
-    cs_class_infos: list[tuple] | None,
+    project_analysis=None,
 ) -> list[str]:
     """详细分析块，仅写入合并 txt 头部。"""
     if not entries:
@@ -93,16 +93,10 @@ def build_file_analysis_header_lines(
             f"//   {e.lines:5d} 行  {format_size(e.size_bytes):>10}  {e.relative_path}"
         )
 
-    if cs_class_infos:
-        by_len = sorted(
-            [(c[2], c[3]) for c in cs_class_infos if c[2]],
-            key=lambda x: x[1],
-            reverse=True,
-        )
-        if by_len:
-            lines.append("// C# 体量大类型 (Top 5, 正则粗算):")
-            for name, body_lines in by_len[:5]:
-                lines.append(f"//   {body_lines:5d} 行  {name}")
+    if project_analysis and project_analysis.top_symbols_by_span:
+        lines.append("// 符号体量 Top 5 (详细分析):")
+        for path, name, span, kind in project_analysis.top_symbols_by_span[:5]:
+            lines.append(f"//   {span:5d} 行  [{kind}] {name}  @ {path}")
 
     lines.append("// 文件清单:")
     if len(entries) <= FULL_FILE_LIST_MAX:
@@ -155,13 +149,11 @@ def build_neutral_notices(result) -> list[str]:
         notes.append(
             f"ℹ️ 总行数 {result.total_lines}，建议分段查看或使用支持大文件的编辑器。"
         )
-    cs = result.cs_stats
-    if cs is not None and cs.cs_class_infos:
-        real = [c for c in cs.cs_class_infos if not c[0] and not c[1]]
-        if real:
-            avg_real = sum(c[3] for c in real) / len(real)
-            if avg_real > 200:
-                notes.append(
-                    f"ℹ️ C# 实际类平均约 {avg_real:.0f} 行，可考虑拆分过大类型（统计为粗算）。"
-                )
+    pa = result.project_analysis
+    if pa and pa.top_symbols_by_span:
+        top_span = pa.top_symbols_by_span[0][2]
+        if top_span > 200:
+            notes.append(
+                f"ℹ️ 最大符号跨度约 {top_span} 行，可考虑拆分过大类型/函数。"
+            )
     return notes

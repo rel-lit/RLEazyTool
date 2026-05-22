@@ -5,8 +5,8 @@ from __future__ import annotations
 import os
 from typing import Iterator
 
+from analysis.pipeline import aggregate_project, analyze_file_detailed
 from exclude_rules import FileExcludeRule, filename_excluded, walk_skip_dir_names
-from cs_analyzer import RunningCsStats, analyze_cs_content
 from file_analysis import FileEntry
 from gitignore_support import GitIgnoreMatcher
 from merge_report import build_report_lines
@@ -125,8 +125,9 @@ def _merge_one_file(
     matched_ext: str,
     merged: list[str],
     result: MergeRunResult,
+    *,
+    detail_analysis: bool,
 ) -> None:
-    cs = result.cs_stats
     merged.append(
         f"\n\n// ==================== 文件: {relative_path} ====================\n\n"
     )
@@ -137,8 +138,10 @@ def _merge_one_file(
         line_count = len(content.splitlines())
         result.total_lines += line_count
         result.type_file_count[matched_ext] += 1
-        if matched_ext == ".cs" and cs is not None:
-            analyze_cs_content(cs, content)
+        if detail_analysis:
+            result.file_analyses.append(
+                analyze_file_detailed(relative_path, matched_ext, content)
+            )
         merged.append(content)
         result.file_count += 1
         result.file_entries.append(
@@ -157,7 +160,6 @@ def _merge_one_file(
 def run_merge(options: MergeRunOptions) -> MergeRunResult:
     result = MergeRunResult(
         type_file_count={ext: 0 for ext in options.file_types},
-        cs_stats=RunningCsStats() if ".cs" in options.file_types else None,
     )
     merged: list[str] = []
     skip_dirs = walk_skip_dir_names(options.exc_skip_dirs)
@@ -167,6 +169,16 @@ def run_merge(options: MergeRunOptions) -> MergeRunResult:
         from gitignore_support import GitIgnoreMatcher as _G
 
         gitignore = _G.load(options.source_dir)
+
+    detail = options.detail_analysis
+    if detail:
+        from venv_bootstrap import ensure_merge_deps
+
+        ensure_merge_deps(quiet=True)
+        from analysis.tree_loader import get_parser, tree_sitter_available
+
+        if tree_sitter_available():
+            get_parser.cache_clear()  # type: ignore[attr-defined]
 
     if options.only_relative_paths is not None:
         for relative_path in sorted(options.only_relative_paths):
@@ -187,7 +199,12 @@ def run_merge(options: MergeRunOptions) -> MergeRunResult:
             if matched_ext is None:
                 continue
             _merge_one_file(
-                file_path, relative_path, matched_ext, merged, result
+                file_path,
+                relative_path,
+                matched_ext,
+                merged,
+                result,
+                detail_analysis=detail,
             )
     else:
         scope = ScopeContext.create(
@@ -215,8 +232,16 @@ def run_merge(options: MergeRunOptions) -> MergeRunResult:
             if not file_in_merge_scope(relative_path, scope):
                 continue
             _merge_one_file(
-                file_path, relative_path, matched_ext, merged, result
+                file_path,
+                relative_path,
+                matched_ext,
+                merged,
+                result,
+                detail_analysis=detail,
             )
+
+    if detail and result.file_analyses:
+        result.project_analysis = aggregate_project(result.file_analyses)
 
     result.merged_chunks = merged
     result.stat_header_lines, result.console_detail_lines = build_report_lines(
