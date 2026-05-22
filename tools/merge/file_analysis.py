@@ -48,13 +48,19 @@ def _line_stats(entries: list[FileEntry]) -> tuple[float, int, int, float]:
 def build_file_analysis_header_lines(
     entries: list[FileEntry],
     file_types: tuple[str, ...],
-    project_analysis=None,
+    *,
+    for_detail_mode: bool = False,
 ) -> list[str]:
-    """详细分析块，仅写入合并 txt 头部。"""
+    """写入合并 txt 头部：行数/目录/清单（粗略统计，与 tree-sitter 符号块分开）。"""
     if not entries:
         return []
 
-    lines: list[str] = ["// --- 文件分析 ---"]
+    title = (
+        "// --- 文件体量与清单 ---"
+        if for_detail_mode
+        else "// --- 文件分析 ---"
+    )
+    lines: list[str] = [title]
     total_bytes = sum(e.size_bytes for e in entries)
     avg_l, min_l, max_l, med_l = _line_stats(entries)
     lines.append(
@@ -93,11 +99,6 @@ def build_file_analysis_header_lines(
             f"//   {e.lines:5d} 行  {format_size(e.size_bytes):>10}  {e.relative_path}"
         )
 
-    if project_analysis and project_analysis.top_symbols_by_span:
-        lines.append("// 符号体量 Top 5 (详细分析):")
-        for path, name, span, kind in project_analysis.top_symbols_by_span[:5]:
-            lines.append(f"//   {span:5d} 行  [{kind}] {name}  @ {path}")
-
     lines.append("// 文件清单:")
     if len(entries) <= FULL_FILE_LIST_MAX:
         for e in sorted(entries, key=lambda x: x.relative_path):
@@ -113,8 +114,31 @@ def build_file_analysis_header_lines(
                 f"//   {e.lines:5d} 行  {format_size(e.size_bytes):>10}  {e.relative_path}"
             )
 
-    lines.append("// --- 文件分析结束 ---")
+    end = "// --- 文件体量与清单结束 ---" if for_detail_mode else "// --- 文件分析结束 ---"
+    lines.append(end)
     return lines
+
+
+def build_console_detail_hints(project_analysis) -> list[str]:
+    """终端用：详细分析摘要（纯文本，不含 // 注释行）。"""
+    if project_analysis is None:
+        return []
+    pa = project_analysis
+    out: list[str] = [f"📊 详细分析: {pa.total_symbols} 个符号"]
+    for summary in pa.language_summaries[:4]:
+        kinds = ", ".join(f"{k}{v}" for k, v in sorted(summary.kind_counts.items())[:4])
+        extra = f" ({kinds})" if kinds else ""
+        out.append(
+            f"   [{summary.language}] {summary.file_count} 文件, "
+            f"{summary.symbol_count} 符号{extra}"
+        )
+    if pa.skipped_files:
+        out.append(f"   语法分析跳过 {len(pa.skipped_files)} 个（正文已合并）")
+    if pa.top_symbols_by_span:
+        out.append("   符号跨度 Top3:")
+        for path, name, span, kind in pa.top_symbols_by_span[:3]:
+            out.append(f"     {span:4d} 行 [{kind}] {name}  @ {path}")
+    return out
 
 
 def build_console_file_hints(entries: list[FileEntry]) -> list[str]:

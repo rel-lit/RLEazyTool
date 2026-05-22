@@ -298,6 +298,8 @@ def test_detail_analysis_python(tmp_path):
     assert result.project_analysis.total_symbols >= 2
     text = output.read_text(encoding="utf-8")
     assert "详细语法分析" in text
+    assert "文件体量与清单" in text
+    assert "符号体量 Top 5" not in text
     assert "[分析]" in text
     assert "Foo" in text or "function" in text
 
