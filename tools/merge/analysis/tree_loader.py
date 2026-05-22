@@ -49,10 +49,18 @@ def _import_language_module(lang_key: str):
 @lru_cache(maxsize=32)
 def get_parser(lang_key: str) -> Any | None:
     if not tree_sitter_available():
-        return None
+        from venv_bootstrap import ensure_merge_deps
+
+        ensure_merge_deps(quiet=True)
     if lang_key in _PARSER_CACHE:
         return _PARSER_CACHE[lang_key]
     mod = _import_language_module(lang_key)
+    if mod is None:
+        from venv_bootstrap import ensure_analysis_extra
+
+        ensure_analysis_extra(quiet=True)
+        get_parser.cache_clear()  # type: ignore[attr-defined]
+        mod = _import_language_module(lang_key)
     if mod is None:
         return None
     from tree_sitter import Language, Parser

@@ -1,0 +1,12 @@
+# merge 扩展语言 grammar（按需安装，见 venv_bootstrap.ensure_analysis_extra）
+tree-sitter-go>=0.23.0
+tree-sitter-java>=0.23.0
+tree-sitter-rust>=0.23.0
+tree-sitter-cpp>=0.23.0
+tree-sitter-php>=0.23.0
+tree-sitter-ruby>=0.23.0
+tree-sitter-html>=0.23.0
+tree-sitter-css>=0.23.0
+tree-sitter-json>=0.23.0
+tree-sitter-yaml>=0.7.0
+tree-sitter-markdown>=0.3.0

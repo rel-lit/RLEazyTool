@@ -3,7 +3,7 @@
 
 分层说明:
   - ``models`` / ``storage``: 配置模型与 JSON 持久化
-  - ``input_parser`` / ``actions``: 输入解析与指令枚举
+  - ``input_parser`` / ``repl_command_parser`` / ``actions``: parsy 组合子解析指令
   - ``command_handlers``: mod 子命令
   - ``exc_handlers`` / ``exclude_rules`` / ``gitignore_support``: 全局排除模板
   - ``analyze_handlers`` / ``analysis``: 粗略统计 + ana 详细 tree-sitter 分析

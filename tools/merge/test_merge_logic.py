@@ -258,6 +258,21 @@ def test_parse_ana_commands():
     assert parse_input("ana show", 0) == (Action.ANA, ("show", None))
 
 
+def test_decorated_python_class():
+    try:
+        import tree_sitter  # noqa: F401
+    except ImportError:
+        return
+    from analysis.pipeline import analyze_file_detailed
+
+    content = "@dataclass\nclass Box:\n    def size(self):\n        return 1\n"
+    fr = analyze_file_detailed("m.py", ".py", content)
+    assert fr.ok
+    kinds = {s.kind for s in fr.symbols}
+    assert "class" in kinds
+    assert "function" in kinds
+
+
 def test_detail_analysis_python(tmp_path):
     try:
         import tree_sitter  # noqa: F401
@@ -283,6 +298,7 @@ def test_detail_analysis_python(tmp_path):
     assert result.project_analysis.total_symbols >= 2
     text = output.read_text(encoding="utf-8")
     assert "详细语法分析" in text
+    assert "[分析]" in text
     assert "Foo" in text or "function" in text
 
 
@@ -355,6 +371,7 @@ def run():
     with tempfile.TemporaryDirectory() as tmp:
         test_file_in_merge_scope_rules(Path(tmp))
     with tempfile.TemporaryDirectory() as tmp:
+        test_decorated_python_class()
         test_detail_analysis_python(Path(tmp))
     try:
         import pathspec  # noqa: F401

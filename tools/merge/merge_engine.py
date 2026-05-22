@@ -6,6 +6,7 @@ import os
 from typing import Iterator
 
 from analysis.pipeline import aggregate_project, analyze_file_detailed
+from analysis.report import build_per_file_detail_block
 from exclude_rules import FileExcludeRule, filename_excluded, walk_skip_dir_names
 from file_analysis import FileEntry
 from gitignore_support import GitIgnoreMatcher
@@ -139,9 +140,10 @@ def _merge_one_file(
         result.total_lines += line_count
         result.type_file_count[matched_ext] += 1
         if detail_analysis:
-            result.file_analyses.append(
-                analyze_file_detailed(relative_path, matched_ext, content)
-            )
+            fr = analyze_file_detailed(relative_path, matched_ext, content)
+            result.file_analyses.append(fr)
+            for line in build_per_file_detail_block(fr):
+                merged.append(line + "\n")
         merged.append(content)
         result.file_count += 1
         result.file_entries.append(

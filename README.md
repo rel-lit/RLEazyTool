@@ -33,7 +33,7 @@ source .venv/bin/activate
 详细虚拟环境设置指南请查看：[VENV_GUIDE.md](VENV_GUIDE.md)
 
 ### 核心库
-- **merge 工具**: 核心合并仅标准库；**`.gitignore` / `ana` 详细分析** 由 `merge.bat` 或 `.venv` + `tools/merge/requirements.txt` 自动准备（pathspec、tree-sitter）
+- **merge 工具**: 合并扫描以标准库为主；**`.gitignore` / REPL 解析 / `ana` 详细分析** 由 `merge.bat` 或 `.venv` 自动准备（`requirements-core.txt`：pathspec、parsy、常用 grammar；`requirements-extra.txt` 按需）
 
 ## 目录结构
 
@@ -67,7 +67,7 @@ RLEazyTool/
 
 ### 1. merge —— 多类型代码合并工具
 
-将指定目录下选定后缀的文件合并为一个文本文件，默认输出到桌面，并附带统计（含 `.cs` 时粗粒度 C# 结构统计）。
+将指定目录下选定后缀的文件合并为一个文本文件，默认输出到桌面，并附带统计（默认粗略；`ana` 开时为 tree-sitter 符号分析）。
 
 **典型使用场景：**
 - 将大量源码合并为单文件，便于交给大模型分析或生成文档。
@@ -88,8 +88,8 @@ RLEazyTool/
 | 类别 | 说明 |
 |------|------|
 | 基础 | `help`、`q`、`m`、`1`–`9`、`ll`、`r`、回车合并 |
-| 范围 **this** | 当前目录：深度 `this 0` / `this N` / `this max`，目录细则 `this a` / `this s`，`this ll` |
 | 路径 | 绝对路径；`\\` 或 `/` 相对路径（末级可模糊） |
+| 范围 **this** | 当前合并根：`this` 开关；`this 0` / `this N` / `this max`；`this ll` / `this a` / `this s` |
 | 类型 **mod** | `mod a` / `mod u` / `mod ll` / `mod d` |
 | 排除 **exc** | 全局模板：`exc` 开关 / `exc u <组名>`，`exc dir` / `exc f` / `exc gitignore` |
 | 分析 **ana** | `ana` 开关详细 tree-sitter 符号分析（默认仅粗略统计） |
@@ -115,6 +115,7 @@ RLEazyTool/
   "current_exclude_group": "dev",
   "merge_max_depth": null,
   "use_gitignore": false,
+  "detail_analysis": false,
   "c_limit": 50
 }
 ```

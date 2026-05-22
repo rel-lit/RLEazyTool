@@ -29,7 +29,6 @@ NODE_KIND_MAP: dict[str, dict[str, str]] = {
         "function_definition": "function",
         "import_statement": "import",
         "import_from_statement": "import",
-        "decorated_definition": "decorated",
     },
     "javascript": {
         "class_declaration": "class",
@@ -169,6 +168,19 @@ def _walk(
     kind = kind_map.get(node.type)
     name = _node_name(node, source) if kind else None
     current_parent = parent_name
+
+    if node.type == "decorated_definition":
+        for child in node.children:
+            _walk(
+                child,
+                source,
+                lang_key,
+                kind_map,
+                symbols,
+                imports,
+                parent_name,
+            )
+        return
 
     if node.type in IMPORT_NODE_TYPES:
         snippet = source[node.start_byte : node.end_byte].decode(

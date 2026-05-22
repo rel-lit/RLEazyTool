@@ -10,6 +10,8 @@ _MERGE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = _MERGE_DIR.parent.parent
 VENV_DIR = PROJECT_ROOT / ".venv"
 REQUIREMENTS = _MERGE_DIR / "requirements.txt"
+REQUIREMENTS_CORE = _MERGE_DIR / "requirements-core.txt"
+REQUIREMENTS_EXTRA = _MERGE_DIR / "requirements-extra.txt"
 
 
 def project_venv_python() -> Path | None:
@@ -31,7 +33,7 @@ def project_venv_site_packages() -> Path | None:
             return None
         subs = sorted(lib.glob("python*"))
         candidate = subs[0] / "site-packages" if subs else None
-    return candidate if candidate and candidate.is_dir() else None
+    return candidate if candidate.is_dir() else None
 
 
 def _inject_venv_site_packages() -> bool:
@@ -62,6 +64,15 @@ def _try_import_tree_sitter() -> bool:
         return False
 
 
+def _try_import_parsy() -> bool:
+    try:
+        import parsy  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 def ensure_project_venv() -> bool:
     if project_venv_python() is not None:
         return True
@@ -77,7 +88,9 @@ def ensure_project_venv() -> bool:
     return project_venv_python() is not None
 
 
-def _pip_install_requirements(*, quiet: bool) -> tuple[bool, str]:
+def _pip_install_files(
+    req_files: list[Path], *, quiet: bool
+) -> tuple[bool, str]:
     if not ensure_project_venv():
         return False, "无法创建项目 .venv，请检查 Python 安装。"
 
@@ -85,9 +98,11 @@ def _pip_install_requirements(*, quiet: bool) -> tuple[bool, str]:
     if vpy is None:
         return False, "未找到项目 .venv 中的 Python。"
 
-    pip_args = [str(vpy), "-m", "pip", "install", "-r", str(REQUIREMENTS)]
+    pip_args = [str(vpy), "-m", "pip", "install"]
     if quiet:
-        pip_args.insert(4, "-q")
+        pip_args.append("-q")
+    for rf in req_files:
+        pip_args.extend(["-r", str(rf)])
     try:
         subprocess.run(
             pip_args,
@@ -105,25 +120,43 @@ def _pip_install_requirements(*, quiet: bool) -> tuple[bool, str]:
     return True, "已自动在项目 .venv 中安装 merge 可选依赖。"
 
 
+def ensure_analysis_extra(*, quiet: bool = True) -> tuple[bool, str]:
+    """仅安装扩展语言 grammar（requirements-extra.txt）。"""
+    ok, note = _pip_install_files([REQUIREMENTS_EXTRA], quiet=quiet)
+    if ok:
+        from analysis.tree_loader import get_parser
+
+        get_parser.cache_clear()  # type: ignore[attr-defined]
+    return ok, note
+
+
 def ensure_merge_deps(*, quiet: bool = True) -> tuple[bool, str]:
-    """pathspec + tree-sitter 等（见 requirements.txt）。"""
-    if _try_import_pathspec() and _try_import_tree_sitter():
+    """pathspec + parsy + tree-sitter 核心 + 扩展 grammar。"""
+    if (
+        _try_import_pathspec()
+        and _try_import_tree_sitter()
+        and _try_import_parsy()
+    ):
         return True, ""
-    ok, note = _pip_install_requirements(quiet=quiet)
+    ok, note = _pip_install_files(
+        [REQUIREMENTS_CORE, REQUIREMENTS_EXTRA], quiet=quiet
+    )
     if not ok:
         return False, note
-    if _try_import_pathspec() and _try_import_tree_sitter():
+    if _try_import_pathspec() and _try_import_tree_sitter() and _try_import_parsy():
         return True, note
     return False, note + " 部分依赖仍无法导入。" if note else "部分依赖仍无法导入。"
 
 
 def ensure_pathspec(*, quiet: bool = True) -> tuple[bool, str]:
-    """gitignore 仅需 pathspec；不足时安装整份 requirements。"""
-    if _try_import_pathspec():
+    """gitignore / 基础：仅安装 requirements-core（体积较小）。"""
+    if _try_import_pathspec() and _try_import_parsy():
         return True, ""
-    ok, note = _pip_install_requirements(quiet=quiet)
+    ok, note = _pip_install_files([REQUIREMENTS_CORE], quiet=quiet)
     if not ok:
         return False, note
-    if _try_import_pathspec():
+    if _try_import_pathspec() and _try_import_parsy():
         return True, note
-    return False, "pathspec 安装后仍无法导入。"
+    if not _try_import_pathspec():
+        return False, "pathspec 安装后仍无法导入。"
+    return False, "parsy 安装后仍无法导入（REPL 指令解析需要）。"
