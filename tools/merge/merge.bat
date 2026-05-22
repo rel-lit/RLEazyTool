@@ -15,7 +15,7 @@ if exist "%VENV_PY%" (
     echo   .venv\Scripts\activate
     echo   pip install -r tools\merge\requirements.txt
     echo.
-    echo 将使用系统 Python 启动（若无 pathspec 则无法使用 exc gitignore）...
+    echo 将使用系统 Python 启动（首次会自动装 requirements-core：pathspec、parsy 等）...
     py main.py
 )
 pause
