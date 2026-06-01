@@ -334,6 +334,34 @@ def test_scope_enabled_loads_saved_depth():
     assert scope.max_depth == 2
 
 
+def test_legacy_config_without_scope_enabled_defaults_off():
+    cfg = MergeConfig.from_json_data(
+        {"merge_max_depth": 2, "merge_scope_exclude": [], "merge_scope_include": []}
+    )
+    assert cfg.scope_enabled is False
+    assert scope_settings_from_config(cfg).max_depth is None
+
+
+def test_merge_depth_zero_ignored_when_scope_disabled(tmp_path):
+    root = tmp_path / "proj"
+    (root / "sub").mkdir(parents=True)
+    (root / "a.cs").write_text("// root", encoding="utf-8")
+    (root / "sub" / "b.cs").write_text("// sub", encoding="utf-8")
+    cfg = MergeConfig(merge_max_depth=0, scope_enabled=False)
+    scope = scope_settings_from_config(cfg)
+    opts = MergeRunOptions(
+        source_dir=str(root),
+        output_path=str(tmp_path / "out.txt"),
+        file_types=(".cs",),
+        merge_max_depth=scope.max_depth,
+        merge_scope_exclude=scope.exclude,
+        merge_scope_include=scope.include,
+    )
+    result = run_merge(opts)
+    merged = "".join(result.merged_chunks).replace("\\", "/")
+    assert "sub/b.cs" in merged
+
+
 def test_parse_this_commands():
     assert parse_input("this", 0) == (Action.THIS, ("toggle", None))
     assert parse_input("this 0", 0) == (Action.THIS, ("set_depth", 0))
@@ -391,6 +419,9 @@ def run():
     test_parse_exc_commands()
     test_scope_disabled_ignores_saved_depth()
     test_scope_enabled_loads_saved_depth()
+    test_legacy_config_without_scope_enabled_defaults_off()
+    with tempfile.TemporaryDirectory() as tmp:
+        test_merge_depth_zero_ignored_when_scope_disabled(Path(tmp))
     test_parse_this_commands()
     test_parse_c_commands()
     print("merge_engine 单元测试通过")

@@ -24,26 +24,14 @@ def invalidate_scope_on_path_change(config) -> None:
     config.merge_scope_include = []
 
 
-def _sync_scope_enabled(repl: "MergeRepl") -> None:
-    cfg = repl.config
-    if (
-        cfg.merge_max_depth is None
-        and not cfg.merge_scope_exclude
-        and not cfg.merge_scope_include
-    ):
-        cfg.scope_enabled = False
-    else:
-        cfg.scope_enabled = True
-
-
 def _apply_merge_max_depth(repl: "MergeRepl", depth: int | None) -> None:
+    """仅保存深度；是否作用于合并由 this 开关（scope_enabled）决定。"""
     repl.config.merge_max_depth = depth
     repl.config.merge_layer_only = depth == 0  # 内存同步，便于旧逻辑；不再写入 JSON
     if depth == 0:
         repl.config.merge_scope_exclude = []
         repl.config.merge_scope_include = []
     repl._depth_include_warned = False
-    _sync_scope_enabled(repl)
 
 
 def _bind_source(repl: "MergeRepl") -> str:
@@ -166,12 +154,16 @@ def handle_this(repl: "MergeRepl", payload: tuple[str, object]) -> None:
         _apply_merge_max_depth(repl, depth)
         save_config(repl.config)
         repl._invalidate_choose("已修改合并深度")
-        if depth is None:
-            print("✅ 合并范围: 不限深度（顶层文件夹默认纳入）。")
-        elif depth == 0:
-            print("✅ 合并范围: 仅本层文件（深度 0）。")
+        if repl.this_mode:
+            apply_hint = "合并将按此深度生效。"
         else:
-            print(f"✅ 合并范围: 最大深度 {depth}。")
+            apply_hint = "已保存；合并不受限（输入 this 进入配置模式后生效）。"
+        if depth is None:
+            print(f"✅ 已保存: 不限深度。{apply_hint}")
+        elif depth == 0:
+            print(f"✅ 已保存: 仅本层文件（深度 0）。{apply_hint}")
+        else:
+            print(f"✅ 已保存: 最大深度 {depth}。{apply_hint}")
         return
 
     if cmd == "list":
@@ -215,7 +207,6 @@ def handle_this(repl: "MergeRepl", payload: tuple[str, object]) -> None:
                     for x in repl.config.merge_scope_include
                     if not _path_prefix_match(x, p)
                 ]
-            _sync_scope_enabled(repl)
             save_config(repl.config)
             repl._invalidate_choose("已修改范围")
             return
@@ -224,7 +215,6 @@ def handle_this(repl: "MergeRepl", payload: tuple[str, object]) -> None:
             if p not in repl.config.merge_scope_include:
                 repl.config.merge_scope_include.append(p)
                 print(f"✅ 已添加细则包含: {p}")
-        _sync_scope_enabled(repl)
         save_config(repl.config)
         repl._invalidate_choose("已修改范围")
         return

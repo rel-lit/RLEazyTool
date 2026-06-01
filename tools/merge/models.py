@@ -109,11 +109,8 @@ class MergeConfig:
     ) -> bool:
         if "scope_enabled" in d:
             return bool(d["scope_enabled"])
-        return (
-            merge_max_depth is not None
-            or bool(merge_scope_exclude)
-            or bool(merge_scope_include)
-        )
+        # 旧版无 scope_enabled：默认不启用，避免未进 this 模式仍被深度限制
+        return False
 
     @staticmethod
     def _load_merge_max_depth(d: dict[str, Any]) -> int | None:

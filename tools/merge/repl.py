@@ -41,7 +41,7 @@ class MergeRepl:
         self.first_run = True
         self.continuous_mode = False
         self.choose_mode = False
-        self.this_mode = False
+        self.this_mode = self.config.scope_enabled
         self.choose_list: list[str] | None = None
         self.choose_selected: set[int] = set()
         self._depth_include_warned = False
