@@ -328,6 +328,12 @@ def test_scope_disabled_ignores_saved_depth():
     assert scope.include == ()
 
 
+def test_apply_scope_false_ignores_saved_depth_even_if_scope_enabled():
+    cfg = MergeConfig(merge_max_depth=0, scope_enabled=True)
+    scope = scope_settings_from_config(cfg, apply_scope=False)
+    assert scope.max_depth is None
+
+
 def test_scope_enabled_loads_saved_depth():
     cfg = MergeConfig(merge_max_depth=2, scope_enabled=True)
     scope = scope_settings_from_config(cfg)
@@ -418,6 +424,7 @@ def run():
     test_parse_ana_commands()
     test_parse_exc_commands()
     test_scope_disabled_ignores_saved_depth()
+    test_apply_scope_false_ignores_saved_depth_even_if_scope_enabled()
     test_scope_enabled_loads_saved_depth()
     test_legacy_config_without_scope_enabled_defaults_off()
     with tempfile.TemporaryDirectory() as tmp:

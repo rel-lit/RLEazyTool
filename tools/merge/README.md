@@ -218,7 +218,7 @@
   "merge_max_depth": null,
   "merge_scope_exclude": [],
   "merge_scope_include": [],
-  "scope_enabled": true,
+  "scope_enabled": false,
   "c_limit": 50,
   "use_gitignore": false,
   "detail_analysis": false
@@ -234,7 +234,7 @@
 | `last_exclude_group` | 上次启用或合并成功的组，供 `exc` 开关恢复 | 启用组或合并成功时写入 |
 | `merge_max_depth` | `null` 不限深度；`0` 仅本层；`N` 最多 N 层 | `this max` / `this 0` / `this N` |
 | `merge_scope_include` / `exclude` | 相对当前合并根目录的路径细则 | `this` 模式下 `this a` / `this s` |
-| `scope_enabled` | 合并时是否应用上述范围；退出 `this` 时为 `false` | 输入 `this` 进入配置模式为 `true` |
+| `scope_enabled` | 与 `this` 开关联动；**每次启动默认不应用范围**，须在本会话输入 `this` 启用 | 输入 `this` 进入为 `true`，再输入 `this` 退出为 `false` |
 | `use_gitignore` | 是否按仓库 `.gitignore` 排除 | `exc gitignore on` / `off` |
 | `detail_analysis` | 是否启用 tree-sitter 详细分析 | `ana` 开关 |
 | `c_limit` | `c ll` 候选过多时的上限 | `c limit <N>` |

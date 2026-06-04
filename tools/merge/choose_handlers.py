@@ -30,7 +30,7 @@ def scan_choose_list(repl: "MergeRepl") -> bool:
     file_types, exc_skip_dirs, exc_file_rules = filter_settings_from_config(
         repl.config
     )
-    scope = scope_settings_from_config(repl.config)
+    scope = scope_settings_from_config(repl.config, apply_scope=repl.this_mode)
     gitignore = load_gitignore_matcher(repl.config, repl.current_path)
     paths, scan_error = collect_candidate_paths(
         repl.current_path,

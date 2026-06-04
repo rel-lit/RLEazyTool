@@ -22,8 +22,12 @@ def filter_settings_from_config(
     return file_types, exc_skip_dirs, exc_file_rules
 
 
-def scope_settings_from_config(config: MergeConfig) -> ScopeSettings:
-    if not config.scope_enabled:
+def scope_settings_from_config(
+    config: MergeConfig, *, apply_scope: bool | None = None
+) -> ScopeSettings:
+    """apply_scope：是否应用 this 范围；默认读 config.scope_enabled。"""
+    active = config.scope_enabled if apply_scope is None else apply_scope
+    if not active:
         return ScopeSettings(max_depth=None, exclude=(), include=())
     return ScopeSettings(
         max_depth=config.merge_max_depth,
@@ -41,7 +45,7 @@ def build_run_options(
     file_types, exc_skip_dirs, exc_file_rules = filter_settings_from_config(
         repl.config
     )
-    scope = scope_settings_from_config(repl.config)
+    scope = scope_settings_from_config(repl.config, apply_scope=repl.this_mode)
     git_root: str | None = None
     if repl.config.use_gitignore:
         git_root = find_git_root(repl.current_path)

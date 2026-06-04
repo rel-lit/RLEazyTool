@@ -41,7 +41,9 @@ class MergeRepl:
         self.first_run = True
         self.continuous_mode = False
         self.choose_mode = False
-        self.this_mode = self.config.scope_enabled
+        # 启动默认不应用/不展示 this 范围；须在本会话输入 this 启用
+        self.this_mode = False
+        self.config.scope_enabled = False
         self.choose_list: list[str] | None = None
         self.choose_selected: set[int] = set()
         self._depth_include_warned = False
@@ -49,7 +51,7 @@ class MergeRepl:
     def _scope_text(self) -> str:
         exc = tuple(self.config.merge_scope_exclude)
         inc = tuple(self.config.merge_scope_include)
-        if not self.config.scope_enabled:
+        if not self.this_mode:
             saved = format_saved_scope_hint(
                 self.config.merge_max_depth, exc, inc
             )
