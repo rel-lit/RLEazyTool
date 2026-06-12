@@ -89,6 +89,7 @@ class LayoutComputeResponse(BaseModel):
     warnings: list[str]
     analysis: dict[str, Any] = Field(default_factory=dict)
     layout_direction: str = "left-to-right"
+    history_id: int | None = None
     extensions: dict[str, Any] = Field(
         default_factory=lambda: {
             "blueprint": {"enabled": False, "placeholder": "Phase3 蓝图导出"},
@@ -96,6 +97,25 @@ class LayoutComputeResponse(BaseModel):
             "ratio_robust": {"enabled": False, "placeholder": "不实现随机比例"},
         }
     )
+
+
+class LayoutHistoryEntry(BaseModel):
+    id: int
+    save_key: str | None = None
+    env_key: str | None = None
+    catalog_mode: str
+    supply_mode: str
+    target_summary: str
+    target_count: int
+    node_count: int
+    edge_count: int
+    tap_count: int
+    created_at: str
+
+
+class LayoutHistoryDetail(LayoutHistoryEntry):
+    request: dict[str, Any]
+    response: dict[str, Any]
 
 
 class ItemInfo(BaseModel):

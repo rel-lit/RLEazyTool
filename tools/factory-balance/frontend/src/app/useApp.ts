@@ -4,6 +4,7 @@ import { bootstrapApp, loadCatalogFromApi, wireAppModules } from "./wireModules"
 import { useCatalog } from "../domains/catalog/useCatalog";
 import { useImportController } from "../domains/import/useImportController";
 import { useLayout } from "../domains/layout/useLayout";
+import { useLayoutHistory } from "../domains/layout/useLayoutHistory";
 import { usePurgeController } from "../domains/purge/usePurgeController";
 import { useSavePicker } from "../domains/save-picker/useSavePicker";
 import { useSelection } from "../domains/selection/useSelection";
@@ -18,6 +19,7 @@ export function useApp() {
   const catalog = useCatalog(bus);
   const selection = useSelection(bus);
   const layout = useLayout(bus, selection, catalog.mode);
+  const layoutHistory = useLayoutHistory(bus);
   const status = useStatusPanel(bus);
   const importCtrl = useImportController(bus, savePicker);
   const purgeCtrl = usePurgeController(bus, session, catalog);
@@ -44,6 +46,7 @@ export function useApp() {
     catalog,
     selection,
     layout,
+    layoutHistory,
     status,
     importCtrl,
     purgeCtrl,

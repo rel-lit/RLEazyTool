@@ -1,4 +1,4 @@
-"""自平衡取用顺序 (SBTO) 计算。"""
+"""自平衡取用顺序 (SBTO) — 与层内整数 rank 一致。"""
 
 from __future__ import annotations
 
@@ -21,22 +21,26 @@ def compute_all_tap_orders(
     graph: ProductionGraph,
     sink_items: list[str],
     item_labels: dict[str, str],
+    layers: dict[str, int] | None = None,
+    intra_layer_rank: dict[str, int] | None = None,
 ) -> list[TapOrderResult]:
     shared_items = _find_shared_items(graph)
     results: list[TapOrderResult] = []
+    grade = layers or {}
+    ranks = intra_layer_rank or {}
 
     for item in sorted(shared_items):
         consumers = graph.consumers_of(item)
         if len(consumers) < 2:
             continue
 
-        order, rule = _compute_sbto(item, consumers, graph, sink_items)
+        order, rule = _compute_sbto(item, consumers, graph, grade, ranks)
         results.append(
             TapOrderResult(
                 item=item,
                 order=order,
                 rule=rule,
-                explanation=_explain(item, order, rule, consumers, graph, item_labels),
+                explanation=_explain(item, order, consumers, graph, item_labels),
             )
         )
 
@@ -55,116 +59,85 @@ def _compute_sbto(
     shared_item: str,
     consumers: list[ProductionNode],
     graph: ProductionGraph,
-    sink_items: list[str],
+    layers: dict[str, int],
+    intra_layer_rank: dict[str, int],
 ) -> tuple[list[str], str]:
-    gate_order = _rule_b_gate_order(shared_item, consumers, graph)
-    if gate_order is not None:
-        return gate_order, "rule_b_gate"
+    return (
+        _intra_rank_tap_order(shared_item, consumers, layers, intra_layer_rank),
+        "intra_layer_rank",
+    )
 
-    return _rule_a_downstream_order(consumers, graph, sink_items), "rule_a_downstream"
+
+def _intra_rank_sort(
+    node_ids: list[str],
+    layers: dict[str, int],
+    intra_layer_rank: dict[str, int],
+) -> list[str]:
+    """等级越高、层内 rank 越小（越靠上）越优先 tap。"""
+    return sorted(
+        node_ids,
+        key=lambda nid: (
+            -layers.get(nid, 0),
+            intra_layer_rank.get(nid, 999),
+            nid,
+        ),
+    )
 
 
-def _rule_b_gate_order(
+def _consumer_tap_dag(
     shared_item: str,
     consumers: list[ProductionNode],
-    graph: ProductionGraph,
-) -> list[str] | None:
-    """规则 B：若存在“下游产物门控”，被门控者优先 tap。"""
-    dag = nx.DiGraph()
+) -> nx.DiGraph:
+    dag: nx.DiGraph = nx.DiGraph()
     for node in consumers:
         dag.add_node(node.id)
 
-    has_gate_edge = False
     for a in consumers:
+        deps = {x for x in a.inputs if x != shared_item}
+        if not deps:
+            continue
         for b in consumers:
             if a.id == b.id:
                 continue
+            if b.product in deps:
+                dag.add_edge(a.id, b.id)
             for out in b.outputs:
-                if out in a.inputs and out != shared_item:
+                if out in deps and out != b.product:
                     dag.add_edge(a.id, b.id)
-                    has_gate_edge = True
 
-    if not has_gate_edge:
-        return None
+    return dag
+
+
+def _intra_rank_tap_order(
+    shared_item: str,
+    consumers: list[ProductionNode],
+    layers: dict[str, int],
+    intra_layer_rank: dict[str, int],
+) -> list[str]:
+    ids = [n.id for n in consumers]
+    dag = _consumer_tap_dag(shared_item, consumers)
+
+    if dag.number_of_edges() == 0:
+        return _intra_rank_sort(ids, layers, intra_layer_rank)
 
     try:
         ordered = list(nx.topological_sort(dag))
     except nx.NetworkCycleError:
-        ordered = [n.id for n in consumers]
+        ordered = _intra_rank_sort(ids, layers, intra_layer_rank)
 
-    consumer_ids = {n.id for n in consumers}
-    return [nid for nid in ordered if nid in consumer_ids]
-
-
-def _rule_a_downstream_order(
-    consumers: list[ProductionNode],
-    graph: ProductionGraph,
-    sink_items: list[str],
-) -> list[str]:
-    """规则 A：中间品共享带 —— 越接近最终产出越优先 tap。"""
-    dag = nx.DiGraph()
-    for node in consumers:
-        dag.add_node(node.id)
-
-    consumer_by_product = {n.product: n for n in consumers}
-    for a in consumers:
-        for b in consumers:
-            if a.id == b.id:
-                continue
-            if b.product in a.inputs:
-                dag.add_edge(b.id, a.id)
-
-    for node in consumers:
-        if node.product in sink_items:
-            dag.add_node(node.id)
-
-    if dag.number_of_edges() == 0:
-        return sorted([n.id for n in consumers], key=lambda nid: _node_depth(nid, graph, sink_items), reverse=True)
-
-    try:
-        ordered = list(reversed(list(nx.topological_sort(dag))))
-    except nx.NetworkCycleError:
-        ordered = sorted([n.id for n in consumers], key=lambda nid: _node_depth(nid, graph, sink_items), reverse=True)
-
-    consumer_ids = {n.id for n in consumers}
     seen: list[str] = []
     for nid in ordered:
-        if nid in consumer_ids and nid not in seen:
+        if nid not in seen:
             seen.append(nid)
-    for n in consumers:
-        if n.id not in seen:
-            seen.append(n.id)
+    for nid in _intra_rank_sort(ids, layers, intra_layer_rank):
+        if nid not in seen:
+            seen.append(nid)
     return seen
-
-
-def _node_depth(
-    node_id: str,
-    graph: ProductionGraph,
-    sink_items: list[str],
-    visiting: set[str] | None = None,
-) -> int:
-    if visiting is None:
-        visiting = set()
-    if node_id in visiting:
-        return 0
-    visiting.add(node_id)
-    node = graph.producers[node_id]
-    if node.product in sink_items:
-        visiting.discard(node_id)
-        return 100
-    depth = 0
-    for out in node.outputs:
-        for other in graph.producers.values():
-            if out in other.inputs:
-                depth = max(depth, 1 + _node_depth(other.id, graph, sink_items, visiting))
-    visiting.discard(node_id)
-    return depth
 
 
 def _explain(
     item: str,
     order: list[str],
-    rule: str,
     consumers: list[ProductionNode],
     graph: ProductionGraph,
     labels: dict[str, str],
@@ -174,6 +147,6 @@ def _explain(
 
     return (
         f"共享物「{item_label}」上，{ ' → '.join(names) }。"
-        f"越接近有效终端产出的工厂越优先取用；"
-        f"下游因中间品不足而减产时，会释放{item_label}给其它消费者。"
+        f"与合并图 layer + 层内 rank 一致：等级越高、层内 rank 越小者优先取用；"
+        f"门控约束仍优先于同级排序。"
     )

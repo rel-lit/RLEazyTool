@@ -21,10 +21,16 @@ export function paintFocusVisual(
     if (!(el instanceof HTMLElement)) return;
     const id = el.getAttribute("data-id") ?? "";
     const isHiddenOverlay = id.startsWith("hidden-");
+
     if (isHiddenOverlay) {
-      const lit = focus?.hiddenEdgeIds.has(id) ?? false;
-      el.style.display = lit ? "" : "none";
-      el.classList.toggle("vf-dim", !lit);
+      const show =
+        focus?.mode === "node-subtree" && focus.hiddenEdgeIds.has(id);
+      if (!show) {
+        el.style.display = "none";
+        el.classList.remove("vf-dim", "vf-lit");
+      } else {
+        el.style.display = "";
+      }
       return;
     }
 

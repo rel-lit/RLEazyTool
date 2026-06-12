@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, type Ref } from "vue";
-import { Handle, Position } from "@vue-flow/core";
+import { Handle } from "@vue-flow/core";
 import type { LayoutNode } from "../api/client";
 import type { FocusHighlight } from "./focusGraph";
 import { isNodeHighlighted } from "./focusGraph";
@@ -10,6 +10,7 @@ import {
 } from "./layoutTypes";
 import { factoryNodeClass, factoryNodeLabel } from "./flowGraph";
 import { focusTick } from "./canvasFocus";
+import { handlePosition } from "./sbtoPorts";
 
 const props = defineProps<{ data: LayoutNode }>();
 
@@ -24,16 +25,14 @@ const enterFocusFromNode = inject<
 >("enterFocusFromNode");
 const scheduleClearFocus = inject<() => void>("scheduleClearFocus");
 
-const isLr = computed(
-  () => (layoutDirection.value ?? DEFAULT_LAYOUT_DIRECTION) === "left-to-right"
+const dir = computed(
+  () => layoutDirection.value ?? DEFAULT_LAYOUT_DIRECTION
 );
 
-const sourcePosition = computed(() =>
-  isLr.value ? Position.Right : Position.Bottom
-);
-const targetPosition = computed(() =>
-  isLr.value ? Position.Left : Position.Top
-);
+const tL = computed(() => handlePosition("t-l", dir.value));
+const tR = computed(() => handlePosition("t-r", dir.value));
+const sL = computed(() => handlePosition("s-l", dir.value));
+const sR = computed(() => handlePosition("s-r", dir.value));
 
 const dimmed = computed(() => {
   focusTick.value;
@@ -63,9 +62,11 @@ function onNodeMouseLeave() {
     @mouseenter="onNodeMouseEnter"
     @mouseleave="onNodeMouseLeave"
   >
-    <Handle type="target" :position="targetPosition" />
+    <Handle id="t-l" type="target" :position="tL" />
+    <Handle id="t-r" type="target" :position="tR" />
     {{ label }}
-    <Handle type="source" :position="sourcePosition" />
+    <Handle id="s-l" type="source" :position="sL" />
+    <Handle id="s-r" type="source" :position="sR" />
   </div>
 </template>
 

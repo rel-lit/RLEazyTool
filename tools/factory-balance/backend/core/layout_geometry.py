@@ -12,13 +12,13 @@ from collections import defaultdict
 from models.schemas import Position, PrimaryDirection
 
 # 沿主流向（LR 时为 X，TB 时为 Y）
-FLOW_STEP = 168
+FLOW_STEP = 192
 # 垂直于主流向（LR 时为 Y，TB 时为 X）
-CROSS_STEP = 72
-# 相邻 layer 错半格（紧凑砖墙式，仅视觉交错不额外拉距）
+CROSS_STEP = 96
+# 相邻 layer 错半格（砖墙式交错）
 CROSS_STAGGER = CROSS_STEP / 2
-# 仅 spread_cross_positions 测试/遗留用；正式布局不再调用
-BACKTRACK_CROSS_EXTRA = 48
+# SBTO 回绕链额外拉开间距
+BACKTRACK_CROSS_EXTRA = 56
 
 
 def staggered_base_cross(layer_idx: int, row_idx: int) -> float:

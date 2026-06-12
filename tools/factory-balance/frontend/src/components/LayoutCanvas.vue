@@ -101,11 +101,16 @@ function hiddenOverlay(): LayoutEdge[] {
   return props.hiddenEdges.filter((e) => f.hiddenEdgeIds.has(e.id));
 }
 
+function nodeByIdMap(): Map<string, LayoutNode> {
+  return new Map(props.nodes.map((n) => [n.id, n]));
+}
+
 function buildDisplayEdges() {
   return buildFlowEdges(
     props.edges,
     props.selectedEdgeId,
-    hiddenOverlay()
+    hiddenOverlay(),
+    nodeByIdMap()
   );
 }
 
@@ -118,6 +123,12 @@ function cancelClearFocus() {
   }
 }
 
+function syncFocusVisual() {
+  flowEdges.value = buildDisplayEdges();
+  bumpFocusTick();
+  repaintFocus();
+}
+
 function scheduleClearFocus() {
   cancelClearFocus();
   focusClearTimer = setTimeout(() => {
@@ -125,6 +136,7 @@ function scheduleClearFocus() {
     debugFocusSummary.value = focusDebugSummary(null);
     focusDebugLog({ kind: "focus", focus: null });
     focusClearTimer = null;
+    syncFocusVisual();
   }, 120);
 }
 
@@ -133,6 +145,7 @@ provide("scheduleClearFocus", scheduleClearFocus);
 function clearFocus() {
   cancelClearFocus();
   focus.value = null;
+  syncFocusVisual();
 }
 
 const nodeTypes = { factory: FactoryFlowNode };
@@ -161,11 +174,9 @@ watch(
 );
 
 /** focus 变化：临时 overlay hidden 边 + 绘制虚化 */
-watch(focus, (f) => {
+watch(focus, () => {
   if (isDragging.value) return;
-  flowEdges.value = buildDisplayEdges();
-  bumpFocusTick();
-  repaintFocus();
+  syncFocusVisual();
 });
 
 function layoutEdge(id: string): LayoutEdge | undefined {
@@ -206,8 +217,7 @@ function onNodeDragStart() {
   isDragging.value = true;
   cancelClearFocus();
   focus.value = null;
-  bumpFocusTick();
-  repaintFocus();
+  syncFocusVisual();
 }
 
 function onNodeDragStop() {
@@ -224,7 +234,7 @@ function onNodeDragStop() {
     </div>
     <VueFlow
       v-model:nodes="flowNodes"
-      v-model:edges="flowEdges"
+      :edges="flowEdges"
       :node-types="nodeTypes"
       :edge-types="edgeTypes"
       :nodes-connectable="false"

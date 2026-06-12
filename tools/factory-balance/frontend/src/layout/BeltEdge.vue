@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, type Ref } from "vue";
-import {
-  BaseEdge,
-  getBezierPath,
-  type EdgeProps,
-} from "@vue-flow/core";
+import { BaseEdge, type EdgeProps } from "@vue-flow/core";
+import { bezierPathWithGap } from "./bezierPathWithGap";
 import type { LayoutEdge } from "../api/client";
 import type { FocusHighlight } from "./focusGraph";
 import { isEdgeHighlighted } from "./focusGraph";
@@ -13,22 +10,27 @@ import { focusTick } from "./canvasFocus";
 export interface BeltEdgeData {
   layoutEdge: LayoutEdge;
   isHiddenOverlay?: boolean;
+  pathGapPx?: number;
 }
 
 const props = defineProps<EdgeProps<BeltEdgeData>>();
 
 const canvasFocus = inject<Ref<FocusHighlight | null>>("canvasFocus");
 
-const bezier = computed(() =>
-  getBezierPath({
+const bezier = computed(() => {
+  const gap = props.data?.pathGapPx ?? 0;
+  const [path, lx, ly] = bezierPathWithGap({
     sourceX: props.sourceX,
     sourceY: props.sourceY,
     sourcePosition: props.sourcePosition,
     targetX: props.targetX,
     targetY: props.targetY,
     targetPosition: props.targetPosition,
-  })
-);
+    curvature: 0.25,
+    gapPx: gap,
+  });
+  return [path, lx, ly] as const;
+});
 
 const pathD = computed(() => bezier.value[0]);
 

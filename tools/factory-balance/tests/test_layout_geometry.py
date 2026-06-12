@@ -24,14 +24,14 @@ class LayoutGeometryTest(unittest.TestCase):
     def test_lr_places_layer_on_x(self) -> None:
         pos = node_position(0, 2, PrimaryDirection.LEFT_TO_RIGHT)
         self.assertGreater(pos.x, 0)
-        self.assertEqual(pos.y, 144.0)
+        self.assertEqual(pos.y, 192.0)
         pos_odd = node_position(1, 2, PrimaryDirection.LEFT_TO_RIGHT)
-        self.assertEqual(pos_odd.y, 144.0 + CROSS_STAGGER)
+        self.assertEqual(pos_odd.y, 192.0 + CROSS_STAGGER)
 
     def test_tb_places_layer_on_y(self) -> None:
         pos = node_position(1, 3, PrimaryDirection.TOP_TO_BOTTOM)
         self.assertEqual(pos.x, staggered_base_cross(1, 3))
-        self.assertEqual(pos.y, 336.0)
+        self.assertEqual(pos.y, 384.0)
 
     def test_rows_are_per_layer(self) -> None:
         layers = {"supply:a": 0, "supply:b": 0, "prod:c": 1, "prod:d": 1}

@@ -2,12 +2,37 @@
 import { ref } from "vue";
 import { useApp } from "./app/useApp";
 import ItemTabsPanel from "./components/panels/ItemTabsPanel.vue";
+import HistoryPanel from "./components/panels/HistoryPanel.vue";
 import LayoutWorkspace from "./components/panels/LayoutWorkspace.vue";
 import ModeToolbar from "./components/panels/ModeToolbar.vue";
 import ProgressPanel from "./components/panels/ProgressPanel.vue";
 
 const app = useApp();
-const showSavePanel = ref(true);
+
+type LeftSidebar = "save" | "history";
+const leftSidebar = ref<LeftSidebar>("save");
+
+function showSave(): void {
+  leftSidebar.value = "save";
+}
+
+function showHistory(): void {
+  leftSidebar.value = "history";
+  void app.layoutHistory.refresh();
+}
+
+async function restoreHistory(id: number): Promise<void> {
+  await app.layoutHistory.loadRecord(id);
+}
+
+async function removeHistory(id: number): Promise<void> {
+  await app.layoutHistory.remove(id);
+}
+
+async function clearHistory(): Promise<void> {
+  if (!confirm("确定清空全部布局历史？")) return;
+  await app.layoutHistory.clearAll();
+}
 </script>
 
 <template>
@@ -19,8 +44,9 @@ const showSavePanel = ref(true);
 
     <div class="main">
       <div class="sidebar-group">
-        <aside v-if="showSavePanel" class="panel save-panel">
+        <aside class="panel save-panel">
           <ProgressPanel
+            v-if="leftSidebar === 'save'"
             :factorio-status="app.session.status"
             :saves="app.session.saves"
             :selected-save="app.savePicker.selectedSave"
@@ -34,13 +60,39 @@ const showSavePanel = ref(true);
             @import="app.importCtrl.importFromSave()"
             @purge="app.purgeCtrl.purge(true)"
           />
+          <HistoryPanel
+            v-else
+            :entries="app.layoutHistory.entries"
+            :loading="app.layoutHistory.loading"
+            :error="app.layoutHistory.error"
+            :active-save-key="app.session.activeSaveKey"
+            @refresh="app.layoutHistory.refresh()"
+            @restore="restoreHistory($event)"
+            @remove="removeHistory($event)"
+            @clear-all="clearHistory()"
+          />
         </aside>
 
         <aside class="panel item-panel">
           <div class="item-panel-head">
-            <button type="button" class="toggle-save" @click="showSavePanel = !showSavePanel">
-              {{ showSavePanel ? "◀ 隐藏存档" : "▶ 存档" }}
-            </button>
+            <div class="sidebar-switch">
+              <button
+                type="button"
+                class="toggle-save"
+                :class="{ active: leftSidebar === 'save' }"
+                @click="showSave"
+              >
+                存档
+              </button>
+              <button
+                type="button"
+                class="toggle-save"
+                :class="{ active: leftSidebar === 'history' }"
+                @click="showHistory"
+              >
+                历史
+              </button>
+            </div>
 
             <ModeToolbar
               :catalog-mode="app.catalog.mode"
@@ -130,6 +182,8 @@ const showSavePanel = ref(true);
 
 .save-panel {
   width: 260px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .item-panel {
@@ -160,8 +214,13 @@ const showSavePanel = ref(true);
   overflow-y: auto;
 }
 
+.sidebar-switch {
+  display: flex;
+  gap: 6px;
+}
+
 .toggle-save {
-  align-self: flex-start;
+  flex: 1;
   background: #21262d;
   border: 1px solid #30363d;
   color: #8b949e;
@@ -174,5 +233,11 @@ const showSavePanel = ref(true);
 .toggle-save:hover {
   border-color: #388bfd;
   color: #58a6ff;
+}
+
+.toggle-save.active {
+  border-color: #388bfd;
+  color: #58a6ff;
+  background: #1c2128;
 }
 </style>

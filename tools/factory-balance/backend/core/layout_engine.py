@@ -20,10 +20,9 @@ from db.data_source import get_data_source_context
 
 
 from core.layout_geometry import (
-    assign_cross_positions,
-    assign_rows_within_layers,
     node_position_at_cross,
 )
+from core.layout_ordering import assign_merged_layer_ordering
 
 
 def _resolve_layout_context():
@@ -88,24 +87,36 @@ def compute_layout(request: LayoutComputeRequest) -> LayoutComputeResponse:
     graph = analysis.graph
     effective_sinks = analysis.effective_terminals or declared
 
-    tap_results = compute_all_tap_orders(graph, effective_sinks, item_labels)
-    layers, layer_warnings = _assign_layers(graph, effective_sinks)
+    product_edges = _build_product_edges(graph, item_labels)
+    layers, layer_warnings = _assign_merged_grades(graph, effective_sinks)
     warnings.extend(layer_warnings)
-    rows = assign_rows_within_layers(layers)
+
+    terminal_node_ids = [
+        n.id for n in graph.producers.values() if n.product in effective_sinks
+    ]
+    product_pairs = [(e.from_node, e.to_node) for e in product_edges]
+    layer_order = assign_merged_layer_ordering(
+        layers, product_pairs, terminal_node_ids
+    )
+    cross = layer_order.cross
+    intra_layer_rank = layer_order.intra_layer_rank
+    tap_results = compute_all_tap_orders(
+        graph, effective_sinks, item_labels, layers, intra_layer_rank
+    )
     tap_chain_data = _build_tap_chains(graph, tap_results, layers)
-    cross = assign_cross_positions(layers, rows)
     nodes = _build_nodes(
         graph,
         effective_sinks,
         layers,
         cross,
         item_labels,
+        intra_layer_rank=layer_order.intra_layer_rank,
+        intra_layer_frac=layer_order.intra_layer_frac,
         true_pure=set(analysis.summary.true_pure_sources),
         db=db,
         direction=request.layout_options.primary_direction,
     )
     edges = _build_edges(graph, tap_results, layers, item_labels, request, tap_chain_data)
-    product_edges = _build_product_edges(graph, item_labels)
     hidden_edges = _build_hidden_edges(graph, product_edges, edges, item_labels)
     tap_orders = _format_tap_orders(tap_results, graph, item_labels)
 
@@ -121,8 +132,21 @@ def compute_layout(request: LayoutComputeRequest) -> LayoutComputeResponse:
     )
 
 
+def _assign_merged_grades(graph, sinks: list[str]) -> tuple[dict[str, int], list[str]]:
+    """合并产物图上的等级（layer）：
+
+    - 纯粹原料 supply：等级 0（叶）
+    - 其余节点：在合并 DAG 上取所有上游路径的 **max(上游等级)+1**
+      （多棵原始树合并后，重复节点取各路径中的 **更高** 等级）
+    - 有效终端产物：钉在最高列 max+1（除非已被分析降格为非终端）
+
+    与「从纯粹原料向终端递增、合并取较高等级」一致。
+    """
+    return _assign_layers(graph, sinks)
+
+
 def _assign_layers(graph, sinks: list[str]) -> tuple[dict[str, int], list[str]]:
-    """按物料依赖严格分层：任意边 from→to 必有 layer(from) < layer(to)。"""
+    """按产物边 from→to 严格递增分层。"""
     warnings: list[str] = []
     layer: dict[str, int] = {}
 
@@ -200,13 +224,22 @@ def _build_nodes(
     cross: dict[str, float],
     labels: dict[str, str],
     *,
+    intra_layer_rank: dict[str, int] | None = None,
+    intra_layer_frac: dict[str, float] | None = None,
     true_pure: set[str],
     db,
     direction: PrimaryDirection = PrimaryDirection.LEFT_TO_RIGHT,
 ) -> list[LayoutNode]:
+    ranks = intra_layer_rank or {}
+    fracs = intra_layer_frac or {}
     nodes: list[LayoutNode] = []
     for nid, layer_idx in layers.items():
         pos = node_position_at_cross(layer_idx, cross.get(nid, 0.0), direction)
+        rank_meta = {
+            "grade": layer_idx,
+            "intra_layer_rank": ranks.get(nid, 0),
+            "intra_layer_frac": fracs.get(nid),
+        }
         if nid.startswith("supply:"):
             item = nid.removeprefix("supply:")
             supply = graph.supplies.get(item) or next(
@@ -229,6 +262,7 @@ def _build_nodes(
                         "role": "pure_source",
                         "supply_kind": "world_baseline" if is_world else "implicit",
                         "is_pure_source": True,
+                        **rank_meta,
                     },
                 )
             )
@@ -236,7 +270,7 @@ def _build_nodes(
             prod = graph.producers[nid]
             node_type = "sink" if prod.product in sinks else "producer"
             is_extract = prod.recipe_name.startswith("fb-extract:")
-            meta: dict = {"placeholder": "assembler_block"}
+            meta: dict = {"placeholder": "assembler_block", **rank_meta}
             if is_extract:
                 meta["role"] = "world_extract"
             nodes.append(

@@ -1,7 +1,9 @@
 import type { Edge, Node } from "@vue-flow/core";
 import type { LayoutEdge, LayoutNode } from "../api/client";
+import { assignEdgeGaps } from "./edgePathGap";
 import { isSbtoEdge } from "./focusGraph";
 import { itemEdgeColor } from "./itemColors";
+import { beltHandleIds, sbtoHandleIds } from "./sbtoPorts";
 
 export const SBTO_STROKE = "#b1bac4";
 export const BELT_STROKE = "#9aa4af";
@@ -51,25 +53,43 @@ export function mergeLayoutNodes(
 export function buildFlowEdges(
   layoutEdges: LayoutEdge[],
   selectedEdgeId: string | null,
-  overlayHidden: LayoutEdge[] = []
+  overlayHidden: LayoutEdge[] = [],
+  nodeById: Map<string, LayoutNode> = new Map()
 ): Edge[] {
-  const visible = layoutEdges.map((e) => edgeToFlow(e, selectedEdgeId));
-  const hidden = overlayHidden.map((e) => hiddenEdgeToFlow(e));
-  return [...visible, ...hidden];
+  const visible = layoutEdges.map((e) =>
+    edgeToFlow(e, selectedEdgeId, nodeById)
+  );
+  const hidden = overlayHidden.map((e) => hiddenEdgeToFlow(e, nodeById));
+  return assignEdgeGaps([...visible, ...hidden]);
 }
 
-function edgeToFlow(e: LayoutEdge, selectedEdgeId: string | null): Edge {
+function nodeGrade(nodeById: Map<string, LayoutNode>, id: string): number {
+  return nodeById.get(id)?.layer ?? 0;
+}
+
+function edgeToFlow(
+  e: LayoutEdge,
+  selectedEdgeId: string | null,
+  nodeById: Map<string, LayoutNode>
+): Edge {
   const selected = selectedEdgeId === e.id;
   if (isSbtoEdge(e)) {
+    const fromG = nodeGrade(nodeById, e.from);
+    const toG = nodeGrade(nodeById, e.to);
+    const ports = sbtoHandleIds(fromG, toG);
     return {
       id: e.id,
       type: "sbto",
       source: e.from,
       target: e.to,
+      sourceHandle: ports.sourceHandle,
+      targetHandle: ports.targetHandle,
       data: {
         layoutEdge: e,
         badgeColor: itemEdgeColor(e.item),
         tapLabel: edgeTapLabel(e),
+        fromGrade: fromG,
+        toGrade: toG,
       },
       style: {
         stroke: SBTO_STROKE,
@@ -79,11 +99,14 @@ function edgeToFlow(e: LayoutEdge, selectedEdgeId: string | null): Edge {
       },
     };
   }
+  const belt = beltHandleIds();
   return {
     id: e.id,
     type: "belt",
     source: e.from,
     target: e.to,
+    sourceHandle: belt.sourceHandle,
+    targetHandle: belt.targetHandle,
     data: { layoutEdge: e },
     style: {
       stroke: BELT_STROKE,
@@ -93,12 +116,18 @@ function edgeToFlow(e: LayoutEdge, selectedEdgeId: string | null): Edge {
   };
 }
 
-function hiddenEdgeToFlow(e: LayoutEdge): Edge {
+function hiddenEdgeToFlow(
+  e: LayoutEdge,
+  nodeById: Map<string, LayoutNode>
+): Edge {
+  const belt = beltHandleIds();
   return {
     id: e.id,
     type: "belt",
     source: e.from,
     target: e.to,
+    sourceHandle: belt.sourceHandle,
+    targetHandle: belt.targetHandle,
     selectable: false,
     focusable: false,
     data: { layoutEdge: e, isHiddenOverlay: true },

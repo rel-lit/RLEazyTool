@@ -78,7 +78,27 @@ export interface LayoutResponse {
   warnings: string[];
   analysis: AnalysisSummary;
   layout_direction?: "left-to-right" | "top-to-bottom";
+  history_id?: number | null;
   extensions: Record<string, unknown>;
+}
+
+export interface LayoutHistoryEntry {
+  id: number;
+  save_key: string | null;
+  env_key: string | null;
+  catalog_mode: string;
+  supply_mode: string;
+  target_summary: string;
+  target_count: number;
+  node_count: number;
+  edge_count: number;
+  tap_count: number;
+  created_at: string;
+}
+
+export interface LayoutHistoryDetail extends LayoutHistoryEntry {
+  request: LayoutRequest;
+  response: LayoutResponse;
 }
 
 export interface ItemInfo {
@@ -160,6 +180,25 @@ export async function searchItems(q = "", craftableOnly = false): Promise<ItemIn
 export async function computeLayout(body: LayoutRequest): Promise<LayoutResponse> {
   const { data } = await client.post("/layout/compute", body, { timeout: 120_000 });
   return data;
+}
+
+export async function listLayoutHistory(limit = 50): Promise<LayoutHistoryEntry[]> {
+  const { data } = await client.get("/layout/history", { params: { limit } });
+  return data;
+}
+
+export async function getLayoutHistory(id: number): Promise<LayoutHistoryDetail> {
+  const { data } = await client.get(`/layout/history/${id}`);
+  return data;
+}
+
+export async function deleteLayoutHistory(id: number): Promise<void> {
+  await client.delete(`/layout/history/${id}`);
+}
+
+export async function clearLayoutHistory(): Promise<number> {
+  const { data } = await client.delete("/layout/history");
+  return data.deleted as number;
 }
 
 export async function getFactorioStatus(): Promise<FactorioStatus> {

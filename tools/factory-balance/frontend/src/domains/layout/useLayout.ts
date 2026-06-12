@@ -86,9 +86,22 @@ export function useLayout(bus: AppEventBus, selection: SelectionModule, catalogM
     }
   }
 
+  function applyLayout(data: LayoutResponse): void {
+    layout.value = data;
+    selectedEdgeId.value = null;
+    error.value = "";
+    stale.value = false;
+    if (data.analysis?.impossible) {
+      error.value = "当前约束下无法实现所选产出";
+    }
+  }
+
   bus.on("ProgressChanged", () => reset());
   bus.on("ProgressCleared", () => reset());
   bus.on("SelectionChanged", () => invalidate("selection-changed"));
+  bus.on("LayoutRestoredFromHistory", (e) => {
+    if (e.type === "LayoutRestoredFromHistory") applyLayout(e.layout);
+  });
 
   return {
     layout,
@@ -103,6 +116,7 @@ export function useLayout(bus: AppEventBus, selection: SelectionModule, catalogM
     invalidate,
     selectEdge,
     compute,
+    applyLayout,
   };
 }
 
