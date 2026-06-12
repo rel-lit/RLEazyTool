@@ -13,6 +13,9 @@ from core.layout_geometry import (  # noqa: E402
     assign_rows_within_layers,
     flow_ports,
     node_position,
+    spread_cross_positions,
+    staggered_base_cross,
+    CROSS_STAGGER,
 )
 from models.schemas import PrimaryDirection  # noqa: E402
 
@@ -21,12 +24,14 @@ class LayoutGeometryTest(unittest.TestCase):
     def test_lr_places_layer_on_x(self) -> None:
         pos = node_position(0, 2, PrimaryDirection.LEFT_TO_RIGHT)
         self.assertGreater(pos.x, 0)
-        self.assertEqual(pos.y, 200)
+        self.assertEqual(pos.y, 144.0)
+        pos_odd = node_position(1, 2, PrimaryDirection.LEFT_TO_RIGHT)
+        self.assertEqual(pos_odd.y, 144.0 + CROSS_STAGGER)
 
     def test_tb_places_layer_on_y(self) -> None:
         pos = node_position(1, 3, PrimaryDirection.TOP_TO_BOTTOM)
-        self.assertEqual(pos.x, 660)
-        self.assertEqual(pos.y, 440)
+        self.assertEqual(pos.x, staggered_base_cross(1, 3))
+        self.assertEqual(pos.y, 336.0)
 
     def test_rows_are_per_layer(self) -> None:
         layers = {"supply:a": 0, "supply:b": 0, "prod:c": 1, "prod:d": 1}
@@ -35,6 +40,18 @@ class LayoutGeometryTest(unittest.TestCase):
         self.assertEqual(rows["supply:b"], 1)
         self.assertEqual(rows["prod:c"], 0)
         self.assertEqual(rows["prod:d"], 1)
+
+    def test_stagger_offsets_adjacent_layers(self) -> None:
+        self.assertEqual(staggered_base_cross(0, 0), 0.0)
+        self.assertEqual(staggered_base_cross(1, 0), CROSS_STAGGER)
+        self.assertEqual(staggered_base_cross(2, 0), 0.0)
+
+    def test_spread_adds_gap_on_backtrack(self) -> None:
+        layers = {"a": 3, "b": 1, "c": 1}
+        base_rows = {"a": 0, "b": 0, "c": 1}
+        cross = spread_cross_positions(layers, base_rows, [["a", "b", "c"]])
+        self.assertGreater(cross["b"], cross["a"])
+        self.assertGreater(cross["c"], cross["b"])
 
     def test_flow_ports_lr(self) -> None:
         self.assertEqual(flow_ports(PrimaryDirection.LEFT_TO_RIGHT), ("right", "left"))

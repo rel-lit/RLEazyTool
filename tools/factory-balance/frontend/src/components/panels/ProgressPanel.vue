@@ -51,7 +51,7 @@ defineEmits<{
     <button class="secondary" :disabled="purgeLoading || progressLoading" @click="$emit('purge')">
       {{ purgeLoading ? "清理中…" : "清理过时缓存" }}
     </button>
-    <p class="hint">重新导入会启动游戏导出最新进度，并清空当前选中项与布局。</p>
+    <p class="hint">重新导入会启动游戏读取进度（使用临时副本，不修改原存档），并清空当前选中项与布局。</p>
     <p v-if="progressMsg" class="progress-msg">{{ progressMsg }}</p>
     <ul v-if="progressWarnings.length" class="warn-list">
       <li v-for="(w, i) in progressWarnings" :key="i">{{ w }}</li>

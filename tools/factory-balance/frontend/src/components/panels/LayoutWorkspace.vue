@@ -45,6 +45,8 @@ function edgeTypeLabel(type: string): string {
         v-if="layout"
         :nodes="layout.nodes"
         :edges="layout.edges"
+        :product-edges="layout.product_edges ?? []"
+        :hidden-edges="layout.hidden_edges ?? []"
         :layout-direction="layout.layout_direction ?? 'left-to-right'"
         :selected-edge-id="selectedEdgeId"
         @select-edge="$emit('selectEdge', $event)"

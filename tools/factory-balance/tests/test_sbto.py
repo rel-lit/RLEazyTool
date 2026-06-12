@@ -99,6 +99,28 @@ class SbtoCircuitChainTest(unittest.TestCase):
         ]
         self.assertEqual(fan_out, [])
 
+    def test_copper_cable_hidden_fanout(self) -> None:
+        graph = self._graph_for("processing-unit")
+        labels = {k: v.label for k, v in self.db.items.items()}
+        taps = compute_all_tap_orders(graph, ["processing-unit"], labels)
+        req = LayoutComputeRequest(
+            targets=[LayoutTarget(item="processing-unit")],
+            supply_mode=SupplyMode.RAW,
+            layout_options=LayoutOptions(),
+        )
+        layers = {n.id: 0 for n in graph.producers.values()}
+        for s in graph.supplies.values():
+            layers[s.id] = 0
+        edges = _build_edges(graph, taps, layers, labels, req)
+        from core.layout_engine import _build_product_edges, _build_hidden_edges
+
+        product = _build_product_edges(graph, labels)
+        hidden = _build_hidden_edges(graph, product, edges, labels)
+        self.assertGreater(len(hidden), 0)
+        self.assertTrue(all(e.type == "hidden" for e in hidden))
+        cable_hidden = [e for e in hidden if e.item == "copper-cable"]
+        self.assertGreater(len(cable_hidden), 1)
+
     def test_direct_supply_skips_green_producer(self) -> None:
         req = LayoutComputeRequest(
             targets=[LayoutTarget(item="advanced-circuit")],

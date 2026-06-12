@@ -81,6 +81,10 @@ class TapOrderEntry(BaseModel):
 class LayoutComputeResponse(BaseModel):
     nodes: list[LayoutNode]
     edges: list[LayoutEdge]
+    """无 SBTO 路由的常规产物边，仅用于节点悬停下游子树高亮。"""
+    product_edges: list[LayoutEdge] = Field(default_factory=list)
+    """被 SBTO 替代的反向树实线，默认不绘制。"""
+    hidden_edges: list[LayoutEdge] = Field(default_factory=list)
     tap_orders: list[TapOrderEntry]
     warnings: list[str]
     analysis: dict[str, Any] = Field(default_factory=dict)

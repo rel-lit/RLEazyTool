@@ -72,6 +72,8 @@ export interface AnalysisSummary {
 export interface LayoutResponse {
   nodes: LayoutNode[];
   edges: LayoutEdge[];
+  product_edges: LayoutEdge[];
+  hidden_edges: LayoutEdge[];
   tap_orders: TapOrderEntry[];
   warnings: string[];
   analysis: AnalysisSummary;

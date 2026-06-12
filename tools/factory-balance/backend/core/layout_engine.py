@@ -19,7 +19,11 @@ from core.recipe_loader import merge_analysis_context
 from db.data_source import get_data_source_context
 
 
-from core.layout_geometry import assign_rows_within_layers, node_position
+from core.layout_geometry import (
+    assign_cross_positions,
+    assign_rows_within_layers,
+    node_position_at_cross,
+)
 
 
 def _resolve_layout_context():
@@ -73,6 +77,8 @@ def compute_layout(request: LayoutComputeRequest) -> LayoutComputeResponse:
         return LayoutComputeResponse(
             nodes=[],
             edges=[],
+            product_edges=[],
+            hidden_edges=[],
             tap_orders=[],
             warnings=warnings,
             analysis=analysis_meta,
@@ -86,22 +92,28 @@ def compute_layout(request: LayoutComputeRequest) -> LayoutComputeResponse:
     layers, layer_warnings = _assign_layers(graph, effective_sinks)
     warnings.extend(layer_warnings)
     rows = assign_rows_within_layers(layers)
+    tap_chain_data = _build_tap_chains(graph, tap_results, layers)
+    cross = assign_cross_positions(layers, rows)
     nodes = _build_nodes(
         graph,
         effective_sinks,
         layers,
-        rows,
+        cross,
         item_labels,
         true_pure=set(analysis.summary.true_pure_sources),
         db=db,
         direction=request.layout_options.primary_direction,
     )
-    edges = _build_edges(graph, tap_results, layers, item_labels, request)
+    edges = _build_edges(graph, tap_results, layers, item_labels, request, tap_chain_data)
+    product_edges = _build_product_edges(graph, item_labels)
+    hidden_edges = _build_hidden_edges(graph, product_edges, edges, item_labels)
     tap_orders = _format_tap_orders(tap_results, graph, item_labels)
 
     return LayoutComputeResponse(
         nodes=nodes,
         edges=edges,
+        product_edges=product_edges,
+        hidden_edges=hidden_edges,
         tap_orders=tap_orders,
         warnings=warnings,
         analysis=analysis_meta,
@@ -158,11 +170,34 @@ def _assign_layers(graph, sinks: list[str]) -> tuple[dict[str, int], list[str]]:
     return layer, warnings
 
 
+def _build_tap_chains(graph, tap_results: list[TapOrderResult], layers: dict[str, int]) -> list[tuple[str, list[str]]]:
+    chains: list[tuple[str, list[str]]] = []
+    for tap in tap_results:
+        order = tap.order
+        if len(order) < 2:
+            continue
+        item = tap.item
+        producer = graph.producer_of(item)
+        supply_id = _supply_id(item)
+        if producer:
+            start_id = producer.id
+        elif supply_id in layers:
+            start_id = supply_id
+        else:
+            continue
+        chain: list[str] = [start_id]
+        for nid in order:
+            if nid != chain[-1]:
+                chain.append(nid)
+        chains.append((item, chain))
+    return chains
+
+
 def _build_nodes(
     graph,
     sinks: list[str],
     layers: dict[str, int],
-    rows: dict[str, int],
+    cross: dict[str, float],
     labels: dict[str, str],
     *,
     true_pure: set[str],
@@ -171,8 +206,7 @@ def _build_nodes(
 ) -> list[LayoutNode]:
     nodes: list[LayoutNode] = []
     for nid, layer_idx in layers.items():
-        row_idx = rows.get(nid, 0)
-        pos = node_position(layer_idx, row_idx, direction)
+        pos = node_position_at_cross(layer_idx, cross.get(nid, 0.0), direction)
         if nid.startswith("supply:"):
             item = nid.removeprefix("supply:")
             supply = graph.supplies.get(item) or next(
@@ -221,38 +255,79 @@ def _build_nodes(
     return nodes
 
 
+def _build_product_edges(graph, labels: dict[str, str]) -> list[LayoutEdge]:
+    """常规产物图：每条输入物料对应一条 producer/supply → consumer 边（不含 SBTO 路由）。"""
+    edges: list[LayoutEdge] = []
+    idx = 0
+    for node in graph.producers.values():
+        for inp in node.inputs:
+            idx += 1
+            producer = graph.producer_of(inp)
+            from_id = producer.id if producer else _supply_id(inp)
+            edges.append(
+                LayoutEdge(
+                    id=f"product-{idx}",
+                    type="product",
+                    item=inp,
+                    label=labels.get(inp, inp),
+                    **{"from": from_id, "to": node.id},
+                )
+            )
+    return edges
+
+
+def _build_hidden_edges(
+    graph,
+    product_edges: list[LayoutEdge],
+    layout_edges: list[LayoutEdge],
+    labels: dict[str, str],
+) -> list[LayoutEdge]:
+    """被 SBTO 虚线替代的反向树实线：默认不显示，节点悬停时临时露出。"""
+    belt_keys = {
+        (e.from_node, e.to_node, e.item)
+        for e in layout_edges
+        if e.type == "belt"
+    }
+    hidden: list[LayoutEdge] = []
+    idx = 0
+    for pe in product_edges:
+        key = (pe.from_node, pe.to_node, pe.item)
+        if key in belt_keys:
+            continue
+        idx += 1
+        hidden.append(
+            LayoutEdge(
+                id=f"hidden-{idx}",
+                type="hidden",
+                item=pe.item,
+                label=labels.get(pe.item, pe.item),
+                **{"from": key[0], "to": key[1]},
+            )
+        )
+    return hidden
+
+
 def _build_edges(
     graph,
     tap_results: list[TapOrderResult],
     layers: dict[str, int],
     labels: dict[str, str],
     request: LayoutComputeRequest,
+    tap_chain_data: list[tuple[str, list[str]]] | None = None,
 ) -> list[LayoutEdge]:
     edges: list[LayoutEdge] = []
     tap_map = {t.item: t for t in tap_results}
     edge_idx = 0
     covered: set[tuple[str, str]] = set()
+    chain_data = tap_chain_data if tap_chain_data is not None else _build_tap_chains(graph, tap_results, layers)
 
-    for item, tap in tap_map.items():
+    for item, chain in chain_data:
+        tap = tap_map.get(item)
+        if not tap:
+            continue
         order = tap.order
-        if len(order) < 2:
-            continue
-
-        producer = graph.producer_of(item)
-        supply_id = _supply_id(item)
-        if producer:
-            start_id = producer.id
-        elif supply_id in layers:
-            start_id = supply_id
-        else:
-            continue
-
-        chain: list[str] = [start_id]
-        for nid in order:
-            if nid != chain[-1]:
-                chain.append(nid)
-
         belt_order = order
+        producer = graph.producer_of(item)
         for i in range(1, len(chain)):
             edge_idx += 1
             from_id = chain[i - 1]

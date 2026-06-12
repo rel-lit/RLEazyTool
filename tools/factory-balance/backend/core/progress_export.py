@@ -6,6 +6,7 @@ import json
 import re
 import shutil
 import subprocess
+import tempfile
 import time
 from pathlib import Path
 
@@ -167,44 +168,68 @@ def export_progress_from_save(
         if p.is_file():
             p.unlink()
 
+    warnings.append("在临时副本上导出进度，不会修改您的原存档文件。")
+
     try:
-        current_tick = read_current_map_tick(paths.executable, save_path)
-        target_tick = current_tick + TICK_ADVANCE
-        warnings.append(f"存档 tick={current_tick}，推进至 {target_tick} 触发导出")
+        with tempfile.TemporaryDirectory(prefix="fb-export-") as tmp_dir:
+            temp_save = Path(tmp_dir) / save_path.name
+            shutil.copy2(save_path, temp_save)
+            original_mtime = save_path.stat().st_mtime
+
+            current_tick = read_current_map_tick(paths.executable, temp_save)
+            target_tick = current_tick + TICK_ADVANCE
+            warnings.append(
+                f"存档 tick={current_tick}，在副本上推进至 {target_tick} 触发导出"
+            )
+
+            try:
+                proc = _run_factorio(
+                    _build_export_command(paths.executable, temp_save, target_tick)
+                )
+            except subprocess.TimeoutExpired:
+                return None, [f"导出超时（>{EXPORT_TIMEOUT_SEC}s）"]
+            except OSError as e:
+                return None, [f"启动 Factorio 失败: {e}"]
+
+            deadline = time.time() + 15
+            payload = None
+            while time.time() < deadline:
+                payload = _read_export_payload(paths)
+                if payload:
+                    break
+                time.sleep(0.2)
+
+            if not payload:
+                return None, _parse_failure_hints(proc)
+
+            snapshot_id = get_snapshot_id_for_env(env_key)
+            upsert_save_progress(
+                save_key=save_key,
+                save_path=save_path,
+                env_key=env_key,
+                enabled_recipe_names=list(payload.get("enabled_recipes") or []),
+                researched_tech_names=list(payload.get("researched_technologies") or []),
+                exported_tick=int(payload["exported_at_tick"])
+                if payload.get("exported_at_tick") is not None
+                else None,
+                snapshot_id=snapshot_id,
+            )
+            # 确认原存档 mtime 未被 Factorio 改动
+            try:
+                if abs(save_path.stat().st_mtime - original_mtime) > 1:
+                    warnings.append(
+                        "警告：原存档文件的修改时间与导入前不一致，请确认未被其他程序改动。"
+                    )
+            except OSError:
+                pass
+
+            if not payload.get("enabled_recipes"):
+                warnings.append("导出成功但未发现已启用配方。")
+            return save_key, warnings
     except (RuntimeError, subprocess.TimeoutExpired, OSError) as e:
         return None, [f"读取存档 tick 失败: {e}"]
 
-    try:
-        proc = _run_factorio(_build_export_command(paths.executable, save_path, target_tick))
-    except subprocess.TimeoutExpired:
-        return None, [f"导出超时（>{EXPORT_TIMEOUT_SEC}s）"]
-    except OSError as e:
-        return None, [f"启动 Factorio 失败: {e}"]
-
-    deadline = time.time() + 15
-    payload = None
-    while time.time() < deadline:
-        payload = _read_export_payload(paths)
-        if payload:
-            break
-        time.sleep(0.2)
-
-    if not payload:
-        return None, _parse_failure_hints(proc)
-
-    snapshot_id = get_snapshot_id_for_env(env_key)
-    upsert_save_progress(
-        save_key=save_key,
-        save_path=save_path,
-        env_key=env_key,
-        enabled_recipe_names=list(payload.get("enabled_recipes") or []),
-        researched_tech_names=list(payload.get("researched_technologies") or []),
-        exported_tick=int(payload["exported_at_tick"]) if payload.get("exported_at_tick") is not None else None,
-        snapshot_id=snapshot_id,
-    )
-    if not payload.get("enabled_recipes"):
-        warnings.append("导出成功但未发现已启用配方。")
-    return save_key, warnings
+    return None, ["导出未完成。"]
 
 
 def derive_craftable_items(enabled_recipes: list[str], recipe_db) -> list[str]:
