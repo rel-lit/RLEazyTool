@@ -28,6 +28,12 @@ export interface LayoutNode {
   layer: number;
   position: { x: number; y: number };
   recipe?: string | null;
+  meta?: {
+    role?: string;
+    supply_kind?: string;
+    is_pure_source?: boolean;
+    placeholder?: string;
+  };
 }
 
 export interface LayoutEdge {
@@ -69,6 +75,7 @@ export interface LayoutResponse {
   tap_orders: TapOrderEntry[];
   warnings: string[];
   analysis: AnalysisSummary;
+  layout_direction?: "left-to-right" | "top-to-bottom";
   extensions: Record<string, unknown>;
 }
 

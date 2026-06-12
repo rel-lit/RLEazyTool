@@ -10,13 +10,6 @@ from core.recipe_loader import RecipeDatabase
 from models.schemas import SupplyMode
 
 
-def _default_recipe_for(product: str, db: RecipeDatabase) -> str:
-    names = db.recipes_by_product.get(product, [])
-    if not names:
-        raise KeyError(product)
-    return names[0]
-
-
 @dataclass
 class AnalysisSummary:
     effective_terminals: list[str] = field(default_factory=list)
@@ -37,19 +30,28 @@ class AnalysisResult:
     warnings: list[str] = field(default_factory=list)
 
 
-def is_manufacturable(name: str, db: RecipeDatabase, craftable_in_d: set[str]) -> bool:
-    return name in craftable_in_d and bool(db.recipes_by_product.get(name))
+def _default_primary_recipe(product: str, db: RecipeDatabase) -> str:
+    names = db.primary_recipe_names_for(product)
+    if not names:
+        raise KeyError(product)
+    return names[0]
 
 
 def _ingredient_names(recipe) -> list[str]:
     return [i.name for i in recipe.ingredients if i.type in ("item", "fluid")]
 
 
+def is_closure_expandable(name: str, db: RecipeDatabase, expandable: set[str]) -> bool:
+    if name in expandable:
+        return True
+    return bool(db.primary_recipe_names_for(name))
+
+
 def _craftable_products_in_closure(
     roots: list[str],
     db: RecipeDatabase,
     data_source: set[str],
-    craftable_in_d: set[str],
+    expandable: set[str],
     recipe_pick: dict[str, str] | None = None,
 ) -> set[str]:
     pick = dict(recipe_pick or {})
@@ -60,15 +62,15 @@ def _craftable_products_in_closure(
         if product in seen or product not in data_source:
             continue
         seen.add(product)
-        if not is_manufacturable(product, db, craftable_in_d):
+        if not is_closure_expandable(product, db, expandable):
             continue
-        rname = pick.get(product) or _default_recipe_for(product, db)
+        rname = pick.get(product) or _default_primary_recipe(product, db)
         if rname not in db.recipes:
             continue
         for ing in _ingredient_names(db.recipes[rname]):
             if ing in data_source:
                 queue.append(ing)
-    return {p for p in seen if is_manufacturable(p, db, craftable_in_d)}
+    return {p for p in seen if is_closure_expandable(p, db, expandable)}
 
 
 def _closure_size(
@@ -76,7 +78,7 @@ def _closure_size(
     recipe_pick: dict[str, str],
     db: RecipeDatabase,
     data_source: set[str],
-    craftable_in_d: set[str],
+    expandable: set[str],
 ) -> int:
     _, state = build_production_graph(
         roots=roots,
@@ -86,7 +88,8 @@ def _closure_size(
         forbidden=set(),
         db=db,
         data_source=data_source,
-        craftable_in_d=craftable_in_d,
+        closure_expandable=expandable,
+        pure_supply=db.pure_supply,
     )
     return 10**9 if state.errors else len(state.analysis_items)
 
@@ -95,14 +98,18 @@ def _pick_recipe_assignments(
     roots: list[str],
     db: RecipeDatabase,
     data_source: set[str],
-    craftable_in_d: set[str],
+    expandable: set[str],
 ) -> dict[str, str]:
-    products = _craftable_products_in_closure(roots, db, data_source, craftable_in_d)
-    base = {p: _default_recipe_for(p, db) for p in products if db.recipes_by_product.get(p)}
+    products = _craftable_products_in_closure(roots, db, data_source, expandable)
+    base = {
+        p: _default_primary_recipe(p, db)
+        for p in products
+        if db.primary_recipe_names_for(p)
+    }
 
     choice_lists: dict[str, list[str]] = {}
     for p in sorted(products):
-        names = db.recipes_by_product.get(p, [])
+        names = db.primary_recipe_names_for(p)
         if len(names) > 1:
             choice_lists[p] = names
 
@@ -116,14 +123,14 @@ def _pick_recipe_assignments(
         total *= len(opts)
 
     best_map = dict(base)
-    best_size = _closure_size(roots, best_map, db, data_source, craftable_in_d)
+    best_size = _closure_size(roots, best_map, db, data_source, expandable)
     max_enum = 512
 
     if total <= max_enum:
         for combo in itertools.product(*option_lists):
             trial = dict(base)
             trial.update(zip(keys, combo))
-            sz = _closure_size(roots, trial, db, data_source, craftable_in_d)
+            sz = _closure_size(roots, trial, db, data_source, expandable)
             if sz < best_size:
                 best_size = sz
                 best_map = trial
@@ -132,7 +139,7 @@ def _pick_recipe_assignments(
             for rname in choice_lists[p]:
                 trial = dict(best_map)
                 trial[p] = rname
-                sz = _closure_size(roots, trial, db, data_source, craftable_in_d)
+                sz = _closure_size(roots, trial, db, data_source, expandable)
                 if sz < best_size:
                     best_size = sz
                     best_map = trial
@@ -193,6 +200,20 @@ class _ClosureState:
     graph: ProductionGraph = field(default_factory=ProductionGraph)
 
 
+def _should_default_supply(
+    name: str,
+    *,
+    db: RecipeDatabase,
+    expandable: set[str],
+    pure_supply: set[str],
+) -> bool:
+    if name in pure_supply or db.is_pure_supply_default(name):
+        return True
+    if db.is_baseline_supply(name) and not is_closure_expandable(name, db, expandable):
+        return True
+    return False
+
+
 def build_production_graph(
     *,
     roots: list[str],
@@ -202,11 +223,13 @@ def build_production_graph(
     forbidden: set[str],
     db: RecipeDatabase,
     data_source: set[str],
-    craftable_in_d: set[str],
+    closure_expandable: set[str],
+    pure_supply: set[str] | None = None,
 ) -> tuple[ProductionGraph, _ClosureState]:
     state = _ClosureState()
     resolved: set[str] = set()
     resolving: set[str] = set()
+    pure_supply = pure_supply if pure_supply is not None else db.pure_supply
 
     def label_for(name: str) -> str:
         return db.items[name].label if name in db.items else name
@@ -246,7 +269,13 @@ def build_production_graph(
         elif mode == SupplyMode.DIRECT and allow_pseudo:
             add_supply(name, pseudo=True)
         elif mode == SupplyMode.RAW:
-            if is_manufacturable(name, db, craftable_in_d):
+            if is_closure_expandable(name, db, closure_expandable):
+                manufacture(name)
+            elif _should_default_supply(
+                name, db=db, expandable=closure_expandable, pure_supply=pure_supply
+            ):
+                add_supply(name, pseudo=False)
+            elif db.primary_recipe_names_for(name):
                 manufacture(name)
             else:
                 add_supply(name, pseudo=False)
@@ -264,11 +293,18 @@ def build_production_graph(
         if product in forbidden:
             fail(f"已禁止外部供给: {product}")
             return
-        if not is_manufacturable(product, db, craftable_in_d):
-            fail(f"当前数据源内不可制造: {product}")
+        if not is_closure_expandable(product, db, closure_expandable):
+            fail(f"当前进度下不可制造: {product}")
             return
 
-        rname = recipe_pick.get(product) or db.recipes_by_product[product][0]
+        primary_names = db.primary_recipe_names_for(product)
+        if not primary_names:
+            fail(f"无可用 primary 配方: {product}")
+            return
+
+        rname = recipe_pick.get(product) or primary_names[0]
+        if rname not in primary_names:
+            rname = primary_names[0]
         recipe = db.recipes[rname]
         state.analysis_items.add(product)
         node = ProductionNode(
@@ -288,10 +324,10 @@ def build_production_graph(
         if root not in data_source:
             fail(f"产出物不在当前数据源内: {root}")
             continue
-        if is_manufacturable(root, db, craftable_in_d):
+        if is_closure_expandable(root, db, closure_expandable):
             manufacture(root)
         else:
-            fail(f"产出物在当前数据源内不可制造: {root}")
+            fail(f"产出物在当前进度下不可制造: {root}")
 
     return state.graph, state
 
@@ -304,7 +340,8 @@ def run_analysis(
     forbidden: list[str],
     db: RecipeDatabase,
     data_source: set[str],
-    craftable_in_d: set[str],
+    closure_expandable: set[str],
+    pure_supply: set[str] | None = None,
 ) -> AnalysisResult:
     warnings: list[str] = []
     summary = AnalysisSummary(declared_outputs=list(declared_outputs))
@@ -312,6 +349,7 @@ def run_analysis(
     u_forbid = set(forbidden)
     u_out = list(dict.fromkeys(declared_outputs))
     labels = {k: v.label for k, v in db.items.items()}
+    pure_supply = pure_supply if pure_supply is not None else db.pure_supply
 
     if not u_out:
         return AnalysisResult(
@@ -328,7 +366,7 @@ def run_analysis(
         if name in user_supplied:
             warnings.append(f"「{labels.get(name, name)}」已禁止供给（覆盖已知供给标记）")
 
-    recipe_pick = _pick_recipe_assignments(u_out, db, data_source, craftable_in_d)
+    recipe_pick = _pick_recipe_assignments(u_out, db, data_source, closure_expandable)
     summary.recipe_assignments = dict(recipe_pick)
 
     effective, demoted = compute_effective_terminals(u_out, recipe_pick, db)
@@ -349,7 +387,8 @@ def run_analysis(
         forbidden=u_forbid,
         db=db,
         data_source=data_source,
-        craftable_in_d=craftable_in_d,
+        closure_expandable=closure_expandable,
+        pure_supply=pure_supply,
     )
 
     summary.analysis_items = sorted(state.analysis_items)

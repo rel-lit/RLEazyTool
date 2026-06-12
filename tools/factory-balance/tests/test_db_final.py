@@ -27,8 +27,28 @@ MINI_DUMP = {
         "electronic-circuit": {"type": "item", "subgroup": "intermediate-product"},
         "advanced-circuit": {"type": "item", "subgroup": "intermediate-product"},
         "copper-cable": {"type": "item", "subgroup": "intermediate-product"},
+        "plastic-bar": {"type": "item", "subgroup": "intermediate-product"},
     },
-    "fluid": {},
+    "fluid": {
+        "water": {"type": "fluid", "subgroup": "fluid"},
+        "crude-oil": {"type": "fluid", "subgroup": "fluid"},
+        "petroleum-gas": {"type": "fluid", "subgroup": "fluid"},
+    },
+    "resource": {
+        "crude-oil": {
+            "type": "resource",
+            "category": "basic-fluid",
+            "minable": {
+                "results": [{"type": "fluid", "name": "crude-oil", "amount": 10}],
+            },
+        },
+    },
+    "mining-drill": {
+        "pumpjack": {"type": "mining-drill", "resource_categories": ["basic-fluid"]},
+    },
+    "offshore-pump": {
+        "offshore-pump": {"type": "offshore-pump"},
+    },
     "recipe": {
         "copper-cable": {
             "type": "recipe",
@@ -48,8 +68,27 @@ MINI_DUMP = {
             "type": "recipe",
             "category": "crafting",
             "energy": 6,
-            "ingredients": [{"type": "item", "name": "electronic-circuit", "amount": 2}],
+            "ingredients": [
+                {"type": "item", "name": "electronic-circuit", "amount": 2},
+                {"type": "item", "name": "plastic-bar", "amount": 2},
+            ],
             "results": [{"type": "item", "name": "advanced-circuit", "amount": 1}],
+        },
+        "plastic-bar": {
+            "type": "recipe",
+            "category": "chemistry",
+            "energy": 1,
+            "ingredients": [
+                {"type": "fluid", "name": "petroleum-gas", "amount": 20},
+            ],
+            "results": [{"type": "item", "name": "plastic-bar", "amount": 2}],
+        },
+        "basic-oil-processing": {
+            "type": "recipe",
+            "category": "oil-processing",
+            "energy": 5,
+            "ingredients": [{"type": "fluid", "name": "crude-oil", "amount": 100}],
+            "results": [{"type": "fluid", "name": "petroleum-gas", "amount": 45}],
         },
     },
 }
@@ -102,7 +141,38 @@ class FinalSchemaTest(unittest.TestCase):
 
         db = load_recipe_database(env_key, save_key="test-save")
         self.assertIn("advanced-circuit", db.recipes)
+        self.assertIn("fb-extract:crude-oil", db.recipes)
         self.assertNotIn("quantum-processor", db.recipes)
+
+        full_db = load_recipe_database(env_key, save_key=None)
+        self.assertIn("basic-oil-processing", full_db.recipes)
+
+    def test_world_extraction_tags(self) -> None:
+        snapshot_id, env_key = self._ingest_mini()
+        conn = conn_mod.get_connection()
+        try:
+            crude = conn.execute(
+                """
+                SELECT rit.tag_code FROM snap_resource_intrinsic_tag rit
+                JOIN snap_resource sr ON sr.id = rit.resource_id
+                WHERE rit.snapshot_id = ? AND sr.name = 'crude-oil'
+                """,
+                (snapshot_id,),
+            ).fetchall()
+            gas = conn.execute(
+                """
+                SELECT rit.tag_code FROM snap_resource_intrinsic_tag rit
+                JOIN snap_resource sr ON sr.id = rit.resource_id
+                WHERE rit.snapshot_id = ? AND sr.name = 'petroleum-gas'
+                """,
+                (snapshot_id,),
+            ).fetchall()
+        finally:
+            conn.close()
+        crude_tags = {r["tag_code"] for r in crude}
+        gas_tags = {r["tag_code"] for r in gas}
+        self.assertIn("ir.extractable", crude_tags)
+        self.assertNotIn("ir.extractable", gas_tags)
 
     def test_purge_keeps_active_save(self) -> None:
         snapshot_id, env_key = self._ingest_mini()

@@ -56,7 +56,7 @@ class LayoutNode(BaseModel):
 
 class LayoutEdge(BaseModel):
     id: str
-    type: str  # belt | detour | supply
+    type: str  # belt | tap_chain | detour | supply
     item: str
     label: str
     from_node: str = Field(alias="from")
@@ -84,6 +84,7 @@ class LayoutComputeResponse(BaseModel):
     tap_orders: list[TapOrderEntry]
     warnings: list[str]
     analysis: dict[str, Any] = Field(default_factory=dict)
+    layout_direction: str = "left-to-right"
     extensions: dict[str, Any] = Field(
         default_factory=lambda: {
             "blueprint": {"enabled": False, "placeholder": "Phase3 蓝图导出"},

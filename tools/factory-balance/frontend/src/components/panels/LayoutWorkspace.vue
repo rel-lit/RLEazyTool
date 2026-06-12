@@ -17,6 +17,12 @@ defineEmits<{
   selectEdge: [id: string | null];
   compute: [];
 }>();
+
+function edgeTypeLabel(type: string): string {
+  if (type === "detour") return "绕路";
+  if (type === "tap_chain") return "SBTO 链";
+  return "传送带";
+}
 </script>
 
 <template>
@@ -39,6 +45,7 @@ defineEmits<{
         v-if="layout"
         :nodes="layout.nodes"
         :edges="layout.edges"
+        :layout-direction="layout.layout_direction ?? 'left-to-right'"
         :selected-edge-id="selectedEdgeId"
         @select-edge="$emit('selectEdge', $event)"
       />
@@ -61,7 +68,7 @@ defineEmits<{
         <template v-if="selectedEdge">
           <p>
             <strong>{{ selectedEdge.label }}</strong>
-            · {{ selectedEdge.type === "detour" ? "绕路" : "传送带" }}
+            · {{ edgeTypeLabel(selectedEdge.type) }}
           </p>
           <p v-if="selectedEdge.tap_index">Tap 序号: {{ selectedEdge.tap_index }}</p>
           <p v-if="selectedEdge.note">{{ selectedEdge.note }}</p>

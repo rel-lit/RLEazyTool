@@ -37,7 +37,7 @@ def _is_layout_recipe(name: str, proto: dict[str, Any]) -> bool:
     if name.startswith("parameter-"):
         return False
     products = _stack_list(proto.get("results") or proto.get("products"))
-    return any(p.type == "item" for p in products)
+    return any(p.type in ("item", "fluid") for p in products)
 
 
 def _stack_list(raw: list[dict[str, Any]] | None) -> list[ItemStack]:

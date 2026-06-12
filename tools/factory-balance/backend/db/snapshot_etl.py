@@ -124,13 +124,24 @@ def ingest_dump_file(
             )
             item_count += 1
 
-        for name in fluids:
+        for name, proto in fluids.items():
+            if name.startswith("parameter-"):
+                continue
+            vis = _visibility(name)
             cur = conn.execute(
                 """
-                INSERT INTO snap_resource (snapshot_id, name, kind, expansion, is_raw, visibility)
-                VALUES (?, ?, 'fluid', ?, 0, 'normal')
+                INSERT INTO snap_resource
+                (snapshot_id, name, kind, proto_type, item_subgroup, expansion, icon, is_raw, visibility)
+                VALUES (?, ?, 'fluid', 'fluid', ?, ?, ?, 0, ?)
                 """,
-                (snapshot_id, name, _guess_expansion(name, raw)),
+                (
+                    snapshot_id,
+                    name,
+                    proto.get("subgroup"),
+                    _guess_expansion(name, raw),
+                    str(proto.get("icon")) if proto.get("icon") else None,
+                    vis,
+                ),
             )
             rid = int(cur.lastrowid)
             resource_id_by_key[("fluid", name)] = rid
@@ -151,7 +162,17 @@ def ingest_dump_file(
             )
             products = _stack_list(proto.get("results") or proto.get("products"))
             item_products = [p for p in products if p.type == "item"]
-            main_product = proto.get("main_product") or (item_products[0].name if item_products else None)
+            fluid_products = [p for p in products if p.type == "fluid"]
+            main_product = proto.get("main_product")
+            if main_product == "":
+                main_product = None
+            if not main_product:
+                if item_products:
+                    main_product = item_products[0].name
+                elif fluid_products:
+                    main_product = fluid_products[0].name
+                elif products:
+                    main_product = products[0].name
             cur = conn.execute(
                 """
                 INSERT INTO snap_recipe
@@ -196,9 +217,28 @@ def ingest_dump_file(
                 )
             recipe_count += 1
 
-        _ensure_recipe_referenced_items(conn, snapshot_id, raw, locale_data, locale, resource_id_by_key)
+        _ensure_recipe_referenced_resources(
+            conn, snapshot_id, raw, locale_data, locale, resource_id_by_key
+        )
+
+        from db.extraction_etl import ingest_world_extraction
+
+        ingest_world_extraction(
+            conn,
+            snapshot_id,
+            raw,
+            locale=locale,
+            resource_id_by_key=resource_id_by_key,
+        )
 
         stats: dict[int, tuple[int, int]] = {}
+        name_to_rid = {
+            (r["kind"], r["name"]): int(r["id"])
+            for r in conn.execute(
+                "SELECT id, kind, name FROM snap_resource WHERE snapshot_id = ?",
+                (snapshot_id,),
+            ).fetchall()
+        }
         for row in conn.execute(
             """
             SELECT rf.recipe_id, rf.direction, rf.resource_kind, rf.resource_name
@@ -209,7 +249,7 @@ def ingest_dump_file(
             (snapshot_id,),
         ).fetchall():
             key = (row["resource_kind"], row["resource_name"])
-            rid = resource_id_by_key.get(key)
+            rid = name_to_rid.get(key)
             if rid is None:
                 continue
             out, inp = stats.get(rid, (0, 0))
@@ -227,6 +267,10 @@ def ingest_dump_file(
                 (snapshot_id, rid, out_c, in_c),
             )
 
+        from db.intrinsic import apply_intrinsic_tags
+
+        apply_intrinsic_tags(conn, snapshot_id, raw)
+
         conn.execute(
             """
             UPDATE game_snapshot SET item_count = ?, recipe_count = ?, fluid_count = ?
@@ -240,7 +284,7 @@ def ingest_dump_file(
         conn.close()
 
 
-def _ensure_recipe_referenced_items(
+def _ensure_recipe_referenced_resources(
     conn,
     snapshot_id: int,
     raw: dict[str, Any],
@@ -254,7 +298,8 @@ def _ensure_recipe_referenced_items(
         SELECT rf.resource_kind, rf.resource_name
         FROM snap_recipe_flow rf
         JOIN snap_recipe r ON r.id = rf.recipe_id
-        WHERE r.snapshot_id = ? AND rf.resource_kind = 'item'
+        WHERE r.snapshot_id = ?
+          AND rf.resource_kind IN ('item', 'fluid')
         """,
         (snapshot_id,),
     ).fetchall():
@@ -265,27 +310,45 @@ def _ensure_recipe_referenced_items(
     for kind, name in needed:
         if name.startswith("parameter-"):
             continue
-        proto = _find_prototype(raw, name) or {}
-        vis = _visibility(name)
-        cur = conn.execute(
-            """
-            INSERT INTO snap_resource
-            (snapshot_id, name, kind, proto_type, item_subgroup, expansion, is_raw, visibility)
-            VALUES (?, ?, 'item', ?, ?, ?, ?, ?)
-            """,
-            (
-                snapshot_id,
-                name,
-                str(proto.get("type") or "item"),
-                proto.get("subgroup"),
-                _guess_expansion(name, raw),
-                1 if _guess_is_raw(name, proto) else 0,
-                vis,
-            ),
-        )
+        if kind == "fluid":
+            proto = (raw.get("fluid") or {}).get(name) or {}
+            vis = _visibility(name)
+            cur = conn.execute(
+                """
+                INSERT INTO snap_resource
+                (snapshot_id, name, kind, proto_type, item_subgroup, expansion, is_raw, visibility)
+                VALUES (?, ?, 'fluid', 'fluid', ?, ?, 0, ?)
+                """,
+                (
+                    snapshot_id,
+                    name,
+                    proto.get("subgroup"),
+                    _guess_expansion(name, raw),
+                    vis,
+                ),
+            )
+        else:
+            proto = _find_prototype(raw, name) or {}
+            vis = _visibility(name)
+            cur = conn.execute(
+                """
+                INSERT INTO snap_resource
+                (snapshot_id, name, kind, proto_type, item_subgroup, expansion, is_raw, visibility)
+                VALUES (?, ?, 'item', ?, ?, ?, ?, ?)
+                """,
+                (
+                    snapshot_id,
+                    name,
+                    str(proto.get("type") or "item"),
+                    proto.get("subgroup"),
+                    _guess_expansion(name, raw),
+                    1 if _guess_is_raw(name, proto) else 0,
+                    vis,
+                ),
+            )
         rid = int(cur.lastrowid)
-        resource_id_by_key[("item", name)] = rid
-        label = _locale_label(locale_data, "item", name, name)
+        resource_id_by_key[(kind, name)] = rid
+        label = _locale_label(locale_data, kind, name, name)
         conn.execute(
             "INSERT INTO snap_resource_text (resource_id, locale, label) VALUES (?, ?, ?)",
             (rid, locale, label),

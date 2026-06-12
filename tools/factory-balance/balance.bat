@@ -47,6 +47,30 @@ if errorlevel 1 (
     exit /b 1
 )
 
+if exist "%TOOL_DIR%frontend\package.json" (
+    where npm >nul 2>&1
+    if not errorlevel 1 (
+        echo [factory-balance] Building frontend...
+        pushd "%TOOL_DIR%frontend"
+        if not exist "node_modules" (
+            call npm install --no-fund --no-audit
+            if errorlevel 1 (
+                echo [WARN] npm install failed; API docs still at /docs
+                popd
+                goto :start_server
+            )
+        )
+        call npm run build
+        if errorlevel 1 (
+            echo [WARN] Frontend build failed; API docs still at /docs
+        )
+        popd
+    ) else (
+        echo [WARN] npm not on PATH; skip frontend build
+    )
+)
+
+:start_server
 cd /d "%BACKEND%"
 
 rem If a previous instance is still listening, stop it so we can bind 8765

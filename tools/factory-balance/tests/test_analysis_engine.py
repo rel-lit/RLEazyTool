@@ -22,12 +22,15 @@ class AnalysisEngineTest(unittest.TestCase):
     def setUp(self) -> None:
         from db.connection import init_db
         from core.game_session import SESSION
+        from core.recipe_loader import load_database
 
+        load_database.cache_clear()
         init_db()
         SESSION.reset()
         self.db = load_database()
         self.d = set(self.db.items.keys())
-        self.craftable = set(self.db.recipes_by_product.keys()) & self.d
+        self.expandable = set(self.db.closure_expandable) & self.d
+        self.pure = set(self.db.pure_supply) & self.d
 
     def test_direct_mode_treats_missing_as_pseudo_pure(self) -> None:
         result = run_analysis(
@@ -37,7 +40,8 @@ class AnalysisEngineTest(unittest.TestCase):
             forbidden=[],
             db=self.db,
             data_source=self.d,
-            craftable_in_d=self.craftable,
+            closure_expandable=self.expandable,
+            pure_supply=self.pure,
         )
         self.assertFalse(result.summary.impossible)
         node_ids = set(result.graph.producers.keys())
@@ -52,7 +56,8 @@ class AnalysisEngineTest(unittest.TestCase):
             forbidden=[],
             db=self.db,
             data_source=self.d,
-            craftable_in_d=self.craftable,
+            closure_expandable=self.expandable,
+            pure_supply=self.pure,
         )
         self.assertFalse(result.summary.impossible)
         # bundled 数据无冶炼配方，铜板/铁板在 D 内不可制造 → 真纯粹源
@@ -61,9 +66,9 @@ class AnalysisEngineTest(unittest.TestCase):
 
     def test_demote_green_when_red_also_selected(self) -> None:
         pick = {
-            p: self.db.recipes_by_product[p][0]
-            for p in self.craftable
-            if self.db.recipes_by_product.get(p)
+            p: self.db.primary_recipe_names_for(p)[0]
+            for p in self.expandable
+            if self.db.primary_recipe_names_for(p)
         }
         effective, demoted = compute_effective_terminals(
             ["advanced-circuit", "electronic-circuit"],
@@ -81,7 +86,8 @@ class AnalysisEngineTest(unittest.TestCase):
             forbidden=["copper-plate"],
             db=self.db,
             data_source=self.d,
-            craftable_in_d=self.craftable,
+            closure_expandable=self.expandable,
+            pure_supply=self.pure,
         )
         self.assertTrue(result.summary.impossible)
         self.assertTrue(any("已禁止" in w for w in result.warnings))

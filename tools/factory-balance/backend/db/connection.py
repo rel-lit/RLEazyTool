@@ -8,7 +8,7 @@ from pathlib import Path
 
 DB_PATH = Path(__file__).resolve().parent.parent / "data" / "factory-balance.db"
 SCHEMA_FILE = Path(__file__).resolve().parent / "schema_final.sql"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 3
 
 
 def get_connection() -> sqlite3.Connection:
