@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from dataclasses import dataclass
 
-from core.layout_geometry import CROSS_STEP
+from core.layout_geometry import assign_brick_cross_positions
 
 
 @dataclass
@@ -129,15 +129,9 @@ def assign_merged_layer_ordering(
             intra_layer_rank[nid] = i
             intra_layer_frac[nid] = merged[nid]
 
-    cross: dict[str, float] = {}
-    for li in sorted(by_layer.keys()):
-        for nid in by_layer[li]:
-            cross[nid] = (intra_layer_rank[nid] - 1) * CROSS_STEP
-
-    if cross:
-        mid = sum(cross.values()) / len(cross)
-        for nid in cross:
-            cross[nid] -= mid
+    cross = assign_brick_cross_positions(
+        layers, intra_layer_rank, product_edges
+    )
 
     return MergedLayerOrdering(
         cross=cross,

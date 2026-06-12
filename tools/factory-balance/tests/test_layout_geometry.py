@@ -10,12 +10,14 @@ BACKEND = Path(__file__).resolve().parent.parent / "backend"
 sys.path.insert(0, str(BACKEND))
 
 from core.layout_geometry import (  # noqa: E402
+    CROSS_STAGGER,
+    CROSS_STEP,
+    assign_brick_cross_positions,
     assign_rows_within_layers,
     flow_ports,
     node_position,
     spread_cross_positions,
     staggered_base_cross,
-    CROSS_STAGGER,
 )
 from models.schemas import PrimaryDirection  # noqa: E402
 
@@ -45,6 +47,12 @@ class LayoutGeometryTest(unittest.TestCase):
         self.assertEqual(staggered_base_cross(0, 0), 0.0)
         self.assertEqual(staggered_base_cross(1, 0), CROSS_STAGGER)
         self.assertEqual(staggered_base_cross(2, 0), 0.0)
+
+    def test_brick_stagger_breaks_layer_alignment(self) -> None:
+        layers = {"a": 0, "b": 1}
+        cross = assign_brick_cross_positions(layers, {"a": 1, "b": 1}, [])
+        self.assertNotAlmostEqual(cross["a"], cross["b"], places=3)
+        self.assertAlmostEqual(abs(cross["a"] - cross["b"]), CROSS_STAGGER, places=3)
 
     def test_spread_adds_gap_on_backtrack(self) -> None:
         layers = {"a": 3, "b": 1, "c": 1}

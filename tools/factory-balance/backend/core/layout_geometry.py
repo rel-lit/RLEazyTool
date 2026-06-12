@@ -26,6 +26,85 @@ def staggered_base_cross(layer_idx: int, row_idx: int) -> float:
     return row_idx * CROSS_STEP + (layer_idx % 2) * CROSS_STAGGER
 
 
+def _brick_slot_free(candidate: float, used: list[float]) -> bool:
+    return all(abs(candidate - u) >= CROSS_STEP - 1e-6 for u in used)
+
+
+def _pick_brick_slot(layer_idx: int, preferred: float, used: list[float]) -> float:
+    """在砖块格子上选最近可用槽，同层保持 CROSS_STEP 间距。"""
+    stagger = (layer_idx % 2) * CROSS_STAGGER
+    center_slot = round((preferred - stagger) / CROSS_STEP)
+
+    candidates: list[int] = [center_slot]
+    for radius in range(1, 64):
+        candidates.extend([center_slot - radius, center_slot + radius])
+
+    for slot in candidates:
+        if slot < -2:
+            continue
+        cross = staggered_base_cross(layer_idx, slot)
+        if _brick_slot_free(cross, used):
+            return cross
+
+    for slot in range(128):
+        cross = staggered_base_cross(layer_idx, slot)
+        if _brick_slot_free(cross, used):
+            return cross
+
+    return staggered_base_cross(layer_idx, len(used))
+
+
+def assign_brick_cross_positions(
+    layers: dict[str, int],
+    intra_layer_rank: dict[str, int],
+    product_edges: list[tuple[str, str]],
+) -> dict[str, float]:
+    """砖块法插空：奇偶层错半格，同层节点按 rank 顺序占最近空槽（贴近上游 cross）。"""
+    if not layers:
+        return {}
+
+    reverse_adj: dict[str, list[str]] = defaultdict(list)
+    for src, dst in product_edges:
+        reverse_adj[dst].append(src)
+
+    by_layer: dict[int, list[str]] = defaultdict(list)
+    for nid, li in layers.items():
+        by_layer[li].append(nid)
+
+    cross: dict[str, float] = {}
+    for li in sorted(by_layer.keys()):
+        nids = sorted(
+            by_layer[li],
+            key=lambda n: (intra_layer_rank.get(n, 0), n),
+        )
+        used: list[float] = []
+
+        for nid in nids:
+            rank = intra_layer_rank.get(nid, 1)
+            fallback = staggered_base_cross(li, rank - 1)
+
+            upstream = [
+                p
+                for p in reverse_adj.get(nid, [])
+                if p in cross and layers.get(p, -1) < li
+            ]
+            if upstream:
+                preferred = sum(cross[p] for p in upstream) / len(upstream)
+            else:
+                preferred = fallback
+
+            slot_cross = _pick_brick_slot(li, preferred, used)
+            cross[nid] = slot_cross
+            used.append(slot_cross)
+
+    if cross:
+        mid = sum(cross.values()) / len(cross)
+        for nid in cross:
+            cross[nid] -= mid
+
+    return cross
+
+
 def assign_rows_within_layers(layers: dict[str, int]) -> dict[str, int]:
     """为每个节点分配层内排位：同 layer 的节点互不重叠。"""
     by_layer: dict[int, list[str]] = defaultdict(list)

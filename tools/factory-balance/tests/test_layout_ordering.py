@@ -9,7 +9,7 @@ from pathlib import Path
 BACKEND = Path(__file__).resolve().parent.parent / "backend"
 sys.path.insert(0, str(BACKEND))
 
-from core.layout_geometry import CROSS_STEP  # noqa: E402
+from core.layout_geometry import CROSS_STEP, CROSS_STAGGER  # noqa: E402
 from core.layout_ordering import (  # noqa: E402
     _sibling_offsets,
     assign_merged_layer_ordering,
@@ -48,6 +48,35 @@ class LayoutOrderingTest(unittest.TestCase):
         vals = sorted(result.cross.values())
         for i in range(1, len(vals)):
             self.assertGreaterEqual(vals[i] - vals[i - 1], CROSS_STEP - 1e-6)
+
+
+    def test_brick_stagger_not_layer_aligned(self) -> None:
+        layers = {
+            "supply:a": 0,
+            "prod:l": 1,
+            "prod:r": 1,
+            "prod:m": 2,
+            "sink:t": 3,
+        }
+        edges = [
+            ("supply:a", "prod:l"),
+            ("supply:a", "prod:r"),
+            ("prod:l", "prod:m"),
+            ("prod:r", "prod:m"),
+            ("prod:m", "sink:t"),
+        ]
+        result = assign_merged_layer_ordering(layers, edges, ["sink:t"])
+        self.assertEqual(result.intra_layer_rank["supply:a"], result.intra_layer_rank["prod:l"])
+        self.assertNotAlmostEqual(
+            result.cross["supply:a"],
+            result.cross["prod:l"],
+            places=3,
+        )
+        self.assertAlmostEqual(
+            abs(result.cross["supply:a"] - result.cross["prod:l"]),
+            CROSS_STAGGER,
+            places=3,
+        )
 
 
 if __name__ == "__main__":
