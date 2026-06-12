@@ -56,6 +56,9 @@ export function bezierPathWithGap(params: {
   targetPosition: FlowPosition;
   curvature?: number;
   gapPx?: number;
+  /** 无向节点对统一法向；与 gapPx 相乘后偏移控制点，避免反向边同侧重叠 */
+  gapNx?: number;
+  gapNy?: number;
 }): [string, number, number] {
   const gap = params.gapPx ?? 0;
   const curvature = params.curvature ?? 0.25;
@@ -93,11 +96,18 @@ export function bezierPathWithGap(params: {
     curvature
   );
 
-  const dx = targetX - sourceX;
-  const dy = targetY - sourceY;
-  const len = Math.hypot(dx, dy) || 1;
-  const ox = (-dy / len) * gap;
-  const oy = (dx / len) * gap;
+  let ox: number;
+  let oy: number;
+  if (params.gapNx != null && params.gapNy != null) {
+    ox = params.gapNx * gap;
+    oy = params.gapNy * gap;
+  } else {
+    const dx = targetX - sourceX;
+    const dy = targetY - sourceY;
+    const len = Math.hypot(dx, dy) || 1;
+    ox = (-dy / len) * gap;
+    oy = (dx / len) * gap;
+  }
 
   const path = `M${sourceX},${sourceY} C${scX + ox},${scY + oy} ${tcX + ox},${tcY + oy} ${targetX},${targetY}`;
   const [lx, ly] = bezierCenter(

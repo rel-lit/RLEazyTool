@@ -1,69 +1,139 @@
 import type { Edge } from "@vue-flow/core";
+import type { LayoutNode } from "../api/client";
 import { EDGE_GAP_PX } from "./sbtoPorts";
 
-function sortEdges(list: Edge[]): Edge[] {
-  return [...list].sort((a, b) => {
-    const ta = a.type === "sbto" ? 0 : 1;
-    const tb = b.type === "sbto" ? 0 : 1;
-    if (ta !== tb) return ta - tb;
-    const sa = a.source ?? "";
-    const sb = b.source ?? "";
-    if (sa !== sb) return sa.localeCompare(sb);
-    return a.id.localeCompare(b.id);
-  });
+function undirectedPair(a: string, b: string): string {
+  return a < b ? `${a}|${b}` : `${b}|${a}`;
 }
 
-function applyGroupGap(
-  gapById: Map<string, number>,
-  list: Edge[],
-  gapPx: number
-): void {
-  if (list.length <= 1) return;
-  const sorted = sortEdges(list);
-  const mid = (sorted.length - 1) / 2;
-  sorted.forEach((e, i) => {
-    const next = (i - mid) * gapPx;
-    const prev = gapById.get(e.id);
-    if (prev == null || Math.abs(next) > Math.abs(prev)) {
-      gapById.set(e.id, next);
-    }
-  });
+function isSbto(e: Edge): boolean {
+  return e.type === "sbto";
 }
+
+function isBelt(e: Edge): boolean {
+  return e.type === "belt";
+}
+
+/** 无向节点对的统一法向（画布左→右），避免 A→B 与 B→A 各自算法向导致同侧重叠。 */
+function canonicalPerp(
+  idA: string,
+  idB: string,
+  nodeById: Map<string, LayoutNode>
+): { nx: number; ny: number } | null {
+  const na = nodeById.get(idA);
+  const nb = nodeById.get(idB);
+  if (!na || !nb) return null;
+
+  let dx = nb.position.x - na.position.x;
+  let dy = nb.position.y - na.position.y;
+  if (
+    na.position.x > nb.position.x ||
+    (na.position.x === nb.position.x && na.position.y > nb.position.y)
+  ) {
+    dx = -dx;
+    dy = -dy;
+  }
+
+  const len = Math.hypot(dx, dy) || 1;
+  return { nx: -dy / len, ny: dx / len };
+}
+
+type GapMeta = {
+  pathGapPx: number;
+  gapNx?: number;
+  gapNy?: number;
+  pathCurvature?: number;
+};
 
 /**
- * 平行边排斥：同 source→target，以及汇入同一 target 的多条边（如内燃机/电路板→集成电路）。
+ * 平行边排斥。
+ *
+ * 典型重叠：铜线 SBTO 链上「电路板 ↔ 集成电路」虚线段，
+ * 与产物实线「电路板 → 集成电路」共用同一对节点（同向或反向）。
  */
-export function assignEdgeGaps(edges: Edge[]): Edge[] {
-  const byEndpoints = new Map<string, Edge[]>();
-  const byTarget = new Map<string, Edge[]>();
+export function assignEdgeGaps(
+  edges: Edge[],
+  nodeById: Map<string, LayoutNode> = new Map()
+): Edge[] {
+  const gapById = new Map<string, GapMeta>();
+  const byUndirected = new Map<string, Edge[]>();
 
   for (const e of edges) {
     if (!e.source || !e.target) continue;
-    const pair = `${e.source}|${e.target}`;
-    const ep = byEndpoints.get(pair) ?? [];
-    ep.push(e);
-    byEndpoints.set(pair, ep);
-
-    const tg = byTarget.get(e.target) ?? [];
-    tg.push(e);
-    byTarget.set(e.target, tg);
+    const key = undirectedPair(e.source, e.target);
+    const list = byUndirected.get(key) ?? [];
+    list.push(e);
+    byUndirected.set(key, list);
   }
 
-  const gapById = new Map<string, number>();
+  for (const [key, list] of byUndirected.entries()) {
+    if (list.length <= 1) continue;
 
-  for (const list of byEndpoints.values()) {
-    applyGroupGap(gapById, list, EDGE_GAP_PX);
-  }
-  for (const list of byTarget.values()) {
-    applyGroupGap(gapById, list, EDGE_GAP_PX * 0.85);
+    const [idA, idB] = key.split("|");
+    const perp = canonicalPerp(idA, idB, nodeById);
+
+    const sbtoEdges = list.filter(isSbto);
+    const beltEdges = list.filter(isBelt);
+
+    if (sbtoEdges.length > 0 && beltEdges.length > 0) {
+      const half = EDGE_GAP_PX / 2;
+      let paired = false;
+
+      for (const s of sbtoEdges) {
+        for (const b of beltEdges) {
+          const sameDir =
+            s.source === b.source && s.target === b.target;
+          const oppDir =
+            s.source === b.target && s.target === b.source;
+          if (!sameDir && !oppDir) continue;
+
+          paired = true;
+          gapById.set(s.id, {
+            pathGapPx: half,
+            gapNx: perp?.nx,
+            gapNy: perp?.ny,
+            pathCurvature: 0.35,
+          });
+          gapById.set(b.id, {
+            pathGapPx: -half,
+            gapNx: perp?.nx,
+            gapNy: perp?.ny,
+            pathCurvature: -0.35,
+          });
+        }
+      }
+
+      if (paired) continue;
+    }
+
+    if (list.length >= 2) {
+      const sorted = [...list].sort((a, b) => a.id.localeCompare(b.id));
+      const mid = (sorted.length - 1) / 2;
+      sorted.forEach((e, i) =>
+        gapById.set(e.id, {
+          pathGapPx: (i - mid) * EDGE_GAP_PX,
+          gapNx: perp?.nx,
+          gapNy: perp?.ny,
+        })
+      );
+    }
   }
 
   return edges.map((e) => {
-    const pathGapPx = gapById.get(e.id);
-    if (pathGapPx == null) return e;
+    const meta = gapById.get(e.id);
+    if (!meta) return e;
     return {
       ...e,
-      data: { ...(e.data as object), pathGapPx },
+      data: {
+        ...(e.data as object),
+        pathGapPx: meta.pathGapPx,
+        ...(meta.gapNx != null && meta.gapNy != null
+          ? { gapNx: meta.gapNx, gapNy: meta.gapNy }
+          : {}),
+        ...(meta.pathCurvature != null
+          ? { pathCurvature: meta.pathCurvature }
+          : {}),
+      },
     };
   });
 }

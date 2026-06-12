@@ -11,6 +11,9 @@ export interface BeltEdgeData {
   layoutEdge: LayoutEdge;
   isHiddenOverlay?: boolean;
   pathGapPx?: number;
+  gapNx?: number;
+  gapNy?: number;
+  pathCurvature?: number;
 }
 
 const props = defineProps<EdgeProps<BeltEdgeData>>();
@@ -26,8 +29,10 @@ const bezier = computed(() => {
     targetX: props.targetX,
     targetY: props.targetY,
     targetPosition: props.targetPosition,
-    curvature: 0.25,
+    curvature: props.data?.pathCurvature ?? 0.25,
     gapPx: gap,
+    gapNx: props.data?.gapNx,
+    gapNy: props.data?.gapNy,
   });
   return [path, lx, ly] as const;
 });

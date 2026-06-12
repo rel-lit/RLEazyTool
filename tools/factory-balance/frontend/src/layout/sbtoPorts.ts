@@ -40,5 +40,5 @@ export function handlePosition(
   }
 }
 
-/** 平行边之间的法向排斥间距（像素） */
-export const EDGE_GAP_PX = 28;
+/** 平行边之间的法向排斥间距（像素）；SBTO+belt 同节点对沿统一法向 ±half 分开 */
+export const EDGE_GAP_PX = 32;

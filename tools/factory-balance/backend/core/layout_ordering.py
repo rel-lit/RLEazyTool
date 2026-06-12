@@ -167,17 +167,6 @@ def assign_cross_merged_tree(
     return result.cross
 
 
-def align_cross_sbto_chains(
-    cross: dict[str, float],
-    layers: dict[str, int],
-    tap_chains: list[tuple[str, list[str]]],
-    *,
-    step: float = CROSS_STEP,
-    backtrack_extra: float = 56.0,
-) -> dict[str, float]:
-    return cross
-
-
 def assign_rows_merged_layout(
     layers: dict[str, int],
     product_edges: list[tuple[str, str]],

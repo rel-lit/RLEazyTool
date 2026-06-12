@@ -14,6 +14,9 @@ export interface SbtoEdgeData {
   fromGrade: number;
   toGrade: number;
   pathGapPx?: number;
+  gapNx?: number;
+  gapNy?: number;
+  pathCurvature?: number;
 }
 
 const props = defineProps<EdgeProps<SbtoEdgeData>>();
@@ -29,8 +32,10 @@ const bezier = computed(() => {
     targetX: props.targetX,
     targetY: props.targetY,
     targetPosition: props.targetPosition,
-    curvature: 0.25,
+    curvature: props.data?.pathCurvature ?? 0.25,
     gapPx: gap,
+    gapNx: props.data?.gapNx,
+    gapNy: props.data?.gapNy,
   });
   return [path, lx, ly] as const;
 });

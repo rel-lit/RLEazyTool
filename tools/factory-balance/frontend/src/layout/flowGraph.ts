@@ -60,7 +60,7 @@ export function buildFlowEdges(
     edgeToFlow(e, selectedEdgeId, nodeById)
   );
   const hidden = overlayHidden.map((e) => hiddenEdgeToFlow(e, nodeById));
-  return assignEdgeGaps([...visible, ...hidden]);
+  return assignEdgeGaps([...visible, ...hidden], nodeById);
 }
 
 function nodeGrade(nodeById: Map<string, LayoutNode>, id: string): number {
