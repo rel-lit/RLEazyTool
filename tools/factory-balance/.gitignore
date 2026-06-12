@@ -1,0 +1,10 @@
+.venv/
+frontend/node_modules/
+frontend/dist/
+backend/data/cache/
+backend/data/snapshots/
+backend/data/*.db
+factorio.local.json
+__pycache__/
+*.pyc
+.pytest_cache/

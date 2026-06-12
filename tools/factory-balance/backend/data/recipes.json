@@ -1,0 +1,150 @@
+{
+  "items": [
+    {"name": "copper-ore", "label": "铜矿", "is_raw": true, "expansion": "base", "group": "raw"},
+    {"name": "iron-ore", "label": "铁矿", "is_raw": true, "expansion": "base", "group": "raw"},
+    {"name": "copper-plate", "label": "铜板", "is_raw": true, "expansion": "base", "group": "plate"},
+    {"name": "iron-plate", "label": "铁板", "is_raw": false, "expansion": "base", "group": "plate"},
+    {"name": "plastic-bar", "label": "塑料", "is_raw": false, "expansion": "base", "group": "intermediate"},
+    {"name": "sulfuric-acid", "label": "硫酸", "is_raw": false, "expansion": "base", "group": "fluid"},
+    {"name": "copper-cable", "label": "铜线", "expansion": "base", "group": "circuit"},
+    {"name": "electronic-circuit", "label": "绿板", "expansion": "base", "group": "circuit"},
+    {"name": "advanced-circuit", "label": "红板", "expansion": "base", "group": "circuit"},
+    {"name": "processing-unit", "label": "蓝板", "expansion": "base", "group": "circuit"},
+    {"name": "holmium-ore", "label": "钬矿", "is_raw": true, "expansion": "space-age", "group": "raw"},
+    {"name": "holmium-plate", "label": "钬板", "is_raw": false, "expansion": "space-age", "group": "plate"},
+    {"name": "lithium-brine", "label": "锂卤", "is_raw": true, "expansion": "space-age", "group": "raw"},
+    {"name": "lithium-plate", "label": "锂板", "is_raw": false, "expansion": "space-age", "group": "plate"},
+    {"name": "tungsten-ore", "label": "钨矿", "is_raw": true, "expansion": "space-age", "group": "raw"},
+    {"name": "tungsten-plate", "label": "钨板", "is_raw": false, "expansion": "space-age", "group": "plate"},
+    {"name": "tungsten-carbide", "label": "碳化钨", "is_raw": false, "expansion": "space-age", "group": "intermediate"},
+    {"name": "carbon-fiber", "label": "碳纤维", "is_raw": false, "expansion": "space-age", "group": "intermediate"},
+    {"name": "battery", "label": "电池", "is_raw": false, "expansion": "base", "group": "intermediate"},
+    {"name": "light-oil", "label": "轻油", "is_raw": false, "expansion": "base", "group": "fluid"},
+    {"name": "heavy-oil", "label": "重油", "is_raw": false, "expansion": "base", "group": "fluid"},
+    {"name": "electrolyte", "label": "电解质", "is_raw": false, "expansion": "space-age", "group": "fluid"},
+    {"name": "holmium-solution", "label": "钬溶液", "is_raw": false, "expansion": "space-age", "group": "fluid"},
+    {"name": "fluoroketone-cold", "label": "冷氟酮", "is_raw": false, "expansion": "space-age", "group": "fluid"},
+    {"name": "superconductor", "label": "超导体", "expansion": "space-age", "group": "circuit"},
+    {"name": "supercapacitor", "label": "超级电容", "expansion": "space-age", "group": "circuit"},
+    {"name": "quantum-processor", "label": "量子处理器", "expansion": "space-age", "group": "circuit"}
+  ],
+  "recipes": [
+    {
+      "name": "copper-cable",
+      "label": "铜线",
+      "category": "crafting",
+      "energy": 0.5,
+      "expansion": "base",
+      "ingredients": [{"name": "copper-plate", "amount": 1, "type": "item"}],
+      "products": [{"name": "copper-cable", "amount": 2, "type": "item"}]
+    },
+    {
+      "name": "electronic-circuit",
+      "label": "绿板",
+      "category": "crafting",
+      "energy": 0.5,
+      "expansion": "base",
+      "ingredients": [
+        {"name": "copper-cable", "amount": 3, "type": "item"},
+        {"name": "iron-plate", "amount": 1, "type": "item"}
+      ],
+      "products": [{"name": "electronic-circuit", "amount": 1, "type": "item"}]
+    },
+    {
+      "name": "advanced-circuit",
+      "label": "红板",
+      "category": "crafting",
+      "energy": 6,
+      "expansion": "base",
+      "ingredients": [
+        {"name": "electronic-circuit", "amount": 2, "type": "item"},
+        {"name": "copper-cable", "amount": 4, "type": "item"},
+        {"name": "plastic-bar", "amount": 2, "type": "item"}
+      ],
+      "products": [{"name": "advanced-circuit", "amount": 1, "type": "item"}]
+    },
+    {
+      "name": "processing-unit",
+      "label": "蓝板",
+      "category": "crafting",
+      "energy": 10,
+      "expansion": "base",
+      "ingredients": [
+        {"name": "electronic-circuit", "amount": 20, "type": "item"},
+        {"name": "advanced-circuit", "amount": 2, "type": "item"},
+        {"name": "sulfuric-acid", "amount": 5, "type": "fluid"}
+      ],
+      "products": [{"name": "processing-unit", "amount": 1, "type": "item"}]
+    },
+    {
+      "name": "battery",
+      "label": "电池",
+      "category": "crafting",
+      "energy": 4,
+      "expansion": "base",
+      "ingredients": [
+        {"name": "iron-plate", "amount": 1, "type": "item"},
+        {"name": "copper-plate", "amount": 1, "type": "item"},
+        {"name": "sulfuric-acid", "amount": 20, "type": "fluid"}
+      ],
+      "products": [{"name": "battery", "amount": 1, "type": "item"}]
+    },
+    {
+      "name": "superconductor",
+      "label": "超导体",
+      "category": "electromagnetics",
+      "energy": 5,
+      "expansion": "space-age",
+      "ingredients": [
+        {"name": "holmium-plate", "amount": 1, "type": "item"},
+        {"name": "copper-plate", "amount": 1, "type": "item"},
+        {"name": "plastic-bar", "amount": 1, "type": "item"},
+        {"name": "light-oil", "amount": 5, "type": "fluid"}
+      ],
+      "products": [{"name": "superconductor", "amount": 2, "type": "item"}]
+    },
+    {
+      "name": "supercapacitor",
+      "label": "超级电容",
+      "category": "electromagnetics",
+      "energy": 10,
+      "expansion": "space-age",
+      "ingredients": [
+        {"name": "holmium-plate", "amount": 2, "type": "item"},
+        {"name": "superconductor", "amount": 2, "type": "item"},
+        {"name": "electronic-circuit", "amount": 4, "type": "item"},
+        {"name": "battery", "amount": 1, "type": "item"},
+        {"name": "electrolyte", "amount": 10, "type": "fluid"}
+      ],
+      "products": [{"name": "supercapacitor", "amount": 1, "type": "item"}]
+    },
+    {
+      "name": "quantum-processor",
+      "label": "量子处理器",
+      "category": "electromagnetics",
+      "energy": 30,
+      "expansion": "space-age",
+      "ingredients": [
+        {"name": "tungsten-carbide", "amount": 1, "type": "item"},
+        {"name": "processing-unit", "amount": 1, "type": "item"},
+        {"name": "superconductor", "amount": 1, "type": "item"},
+        {"name": "carbon-fiber", "amount": 1, "type": "item"},
+        {"name": "lithium-plate", "amount": 2, "type": "item"},
+        {"name": "fluoroketone-cold", "amount": 10, "type": "fluid"}
+      ],
+      "products": [{"name": "quantum-processor", "amount": 1, "type": "item"}]
+    },
+    {
+      "name": "tungsten-carbide",
+      "label": "碳化钨",
+      "category": "metallurgy",
+      "energy": 2,
+      "expansion": "space-age",
+      "ingredients": [
+        {"name": "tungsten-plate", "amount": 2, "type": "item"},
+        {"name": "carbon-fiber", "amount": 1, "type": "item"}
+      ],
+      "products": [{"name": "tungsten-carbide", "amount": 1, "type": "item"}]
+    }
+  ]
+}

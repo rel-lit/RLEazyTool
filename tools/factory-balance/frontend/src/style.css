@@ -1,0 +1,25 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+  background: #0f1419;
+  color: #e6edf3;
+  overflow: hidden;
+}
+
+button {
+  cursor: pointer;
+}
+
+input,
+select {
+  font: inherit;
+}

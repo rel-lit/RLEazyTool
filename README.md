@@ -5,6 +5,7 @@
 ## 📢 最新更新
 
 - 🔧 **Merge**: `this` / `exc` / `c` / `ana`（tree-sitter 详细语法分析，默认关）、`.gitignore`
+- 🆕 **factory-balance**: 异星工厂自平衡布局计算器（SBTO + Vue 图形界面，含 Space Age）
 - 🔧 **架构**: 分层模块（`session`、`scope_rules`、`exc_handlers` 等），详见 [tools/merge/README.md](tools/merge/README.md)
 - 📝 **环境**: 虚拟环境支持（`.venv`）；merge 的 `.gitignore` 需可选依赖 `pathspec`
 
@@ -58,6 +59,10 @@ RLEazyTool/
 │   │   ├── requirements.txt    # 可选 pathspec
 │   │   ├── merge.bat
 │   │   └── test_*.py
+│   └── factory-balance/        # 异星自平衡布局 → README.md
+│       ├── balance.bat
+│       ├── backend/
+│       └── frontend/
 ├── .gitignore
 ├── README.md
 └── VENV_GUIDE.md               # 虚拟环境设置指南
@@ -129,6 +134,13 @@ RLEazyTool/
 当前为整体读入后再写出，体量极大时内存占用会升高；可用 `this 0` / `this N` 控制深度，或用 `exc` / `.gitignore` 缩小范围。
 
 单元测试：`tools/merge/test_merge_logic.py`、`test_path_utils.py`。
+
+### 2. factory-balance —— 异星自平衡布局计算器
+
+根据配方自动计算 **SBTO 自平衡传送带顺序** 与布局图（含 Space Age，中文 GUI）。
+
+- 双击 `tools/factory-balance/balance.bat` 启动（首次自动创建 `tools/factory-balance/.venv`）
+- 完整说明见 📖 **[tools/factory-balance/README.md](tools/factory-balance/README.md)**
 
 ## 贡献与反馈
 

@@ -38,6 +38,18 @@ desktop.ini
 
 # 忽略所有 json 文件（含 merge 等本地配置）
 *.json
+# factory-balance 需纳入版本管理的 JSON
+!tools/factory-balance/backend/data/recipes.json
+!tools/factory-balance/frontend/package.json
+!tools/factory-balance/frontend/package-lock.json
+!tools/factory-balance/frontend/tsconfig.json
+
+# Factorio 配方 dump 缓存（本地生成）
+tools/factory-balance/backend/data/cache/
+tools/factory-balance/factorio.local.json
 # 常见用户配置文件（已由 *.json 覆盖，便于检索）:
 #   tools/merge/merge_config.json
 # 如需提交示例配置，对单文件使用 !path/to/file.json
+
+# Node
+node_modules/

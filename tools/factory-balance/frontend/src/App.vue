@@ -1,0 +1,178 @@
+<script setup lang="ts">
+import { ref } from "vue";
+import { useApp } from "./app/useApp";
+import ItemTabsPanel from "./components/panels/ItemTabsPanel.vue";
+import LayoutWorkspace from "./components/panels/LayoutWorkspace.vue";
+import ModeToolbar from "./components/panels/ModeToolbar.vue";
+import ProgressPanel from "./components/panels/ProgressPanel.vue";
+
+const app = useApp();
+const showSavePanel = ref(true);
+</script>
+
+<template>
+  <div class="app">
+    <header class="header">
+      <h1>异星自平衡布局计算器</h1>
+      <p class="sub">纯布局 + SBTO · 存档进度同步 · v0.2</p>
+    </header>
+
+    <div class="main">
+      <div class="sidebar-group">
+        <aside v-if="showSavePanel" class="panel save-panel">
+          <ProgressPanel
+            :factorio-status="app.session.status"
+            :saves="app.session.saves"
+            :selected-save="app.savePicker.selectedSave"
+            :progress-loading="app.importCtrl.loading"
+            :purge-loading="app.purgeCtrl.loading"
+            :progress-msg="app.status.message"
+            :progress-warnings="app.status.warnings"
+            :progress-stale="app.session.progressStale"
+            :active-save-key="app.session.activeSaveKey"
+            @update:selected-save="app.savePicker.selectedSave = $event"
+            @import="app.importCtrl.importFromSave()"
+            @purge="app.purgeCtrl.purge(true)"
+          />
+        </aside>
+
+        <aside class="panel item-panel">
+          <div class="item-panel-head">
+            <button type="button" class="toggle-save" @click="showSavePanel = !showSavePanel">
+              {{ showSavePanel ? "◀ 隐藏存档" : "▶ 存档" }}
+            </button>
+
+            <ModeToolbar
+              :catalog-mode="app.catalog.mode"
+              :catalog-loading="app.catalog.loading"
+              :progress-loading="app.importCtrl.loading"
+              :progress-stale="app.session.progressStale"
+              :supply-mode="app.selection.supplyMode"
+              @switch-catalog-mode="app.switchCatalogMode($event)"
+              @update:supply-mode="app.selection.supplyMode = $event"
+            />
+          </div>
+
+          <ItemTabsPanel
+            :search-query="app.catalog.searchQuery"
+            :filtered-manufacture-items="app.catalog.filteredManufactureItems"
+            :filtered-supply-items="app.catalog.filteredSupplyItems"
+            :selected-targets="app.selection.selectedTargets"
+            :supplied-items="app.selection.suppliedItems"
+            :forbidden-items="app.selection.forbiddenItems"
+            @update:search-query="app.catalog.searchQuery = $event"
+            @toggle-target="app.selection.toggleTarget($event)"
+            @toggle-supplied="app.selection.toggleSupplied($event)"
+            @toggle-forbidden="app.selection.toggleForbidden($event)"
+          />
+        </aside>
+      </div>
+
+      <section class="panel result-panel">
+        <LayoutWorkspace
+          :layout="app.layout.layout"
+          :stale="app.layout.stale"
+          :loading="app.layout.loading"
+          :error="app.layout.error"
+          :analysis-warnings="app.layout.analysisWarnings"
+          :selected-edge-id="app.layout.selectedEdgeId"
+          :selected-edge="app.layout.selectedEdge"
+          :selected-tap="app.layout.selectedTap"
+          @select-edge="app.layout.selectEdge($event)"
+          @compute="app.layout.compute()"
+        />
+      </section>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 20px;
+  overflow: hidden;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.sub {
+  margin: 4px 0 16px;
+  color: #8b949e;
+  font-size: 0.9rem;
+}
+
+.main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.sidebar-group {
+  display: flex;
+  gap: 12px;
+  flex-shrink: 0;
+  min-height: 0;
+}
+
+.panel {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.save-panel {
+  width: 260px;
+}
+
+.item-panel {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.item-panel-head {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.item-panel :deep(.item-tabs) {
+  flex: 1;
+  min-height: 0;
+}
+
+.result-panel {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.toggle-save {
+  align-self: flex-start;
+  background: #21262d;
+  border: 1px solid #30363d;
+  color: #8b949e;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.toggle-save:hover {
+  border-color: #388bfd;
+  color: #58a6ff;
+}
+</style>
