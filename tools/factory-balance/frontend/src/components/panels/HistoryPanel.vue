@@ -41,7 +41,7 @@ function supplyLabel(mode: string): string {
   <section class="history-section">
     <h2>布局历史</h2>
     <p class="hint">
-      每次成功计算会保存完整布局快照（合并图等级、SBTO、坐标与边）。
+      每次成功计算保存 request（含重算前拖动快照）与 response（算法结果）。
       <span v-if="activeSaveKey">当前存档：{{ activeSaveKey }}</span>
     </p>
 

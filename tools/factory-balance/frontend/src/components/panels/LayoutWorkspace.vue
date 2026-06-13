@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import type { LayoutEdge, LayoutResponse, TapOrderEntry } from "../../api/client";
+import type { NodePositionMap } from "../../domains/layout/useLayout";
 import LayoutCanvas from "../LayoutCanvas.vue";
 
 defineProps<{
@@ -13,13 +15,19 @@ defineProps<{
   selectedTap: TapOrderEntry | null;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   selectEdge: [id: string | null];
-  compute: [];
+  compute: [positionsBefore: NodePositionMap];
 }>();
 
+const canvasRef = ref<InstanceType<typeof LayoutCanvas> | null>(null);
+
+function onComputeClick(): void {
+  const positions = canvasRef.value?.getNodePositions() ?? {};
+  emit("compute", positions);
+}
+
 function edgeTypeLabel(type: string): string {
-  if (type === "detour") return "绕路";
   if (type === "tap_chain") return "SBTO 链";
   return "传送带";
 }
@@ -29,7 +37,7 @@ function edgeTypeLabel(type: string): string {
   <div class="workspace">
     <div class="workspace-header">
       <h2 class="workspace-title">布局结果</h2>
-      <button class="primary" :disabled="loading" @click="$emit('compute')">
+      <button class="primary" :disabled="loading" @click="onComputeClick">
         {{ loading ? "计算中…" : "计算自平衡布局" }}
       </button>
     </div>
@@ -43,13 +51,14 @@ function edgeTypeLabel(type: string): string {
     <div class="canvas-area">
       <LayoutCanvas
         v-if="layout"
+        ref="canvasRef"
         :nodes="layout.nodes"
         :edges="layout.edges"
         :product-edges="layout.product_edges ?? []"
         :hidden-edges="layout.hidden_edges ?? []"
         :layout-direction="layout.layout_direction ?? 'left-to-right'"
         :selected-edge-id="selectedEdgeId"
-        @select-edge="$emit('selectEdge', $event)"
+        @select-edge="emit('selectEdge', $event)"
       />
       <div v-else class="placeholder">选择产出目标后点击「计算自平衡布局」</div>
     </div>

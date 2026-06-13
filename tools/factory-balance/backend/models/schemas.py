@@ -25,8 +25,19 @@ class LayoutTarget(BaseModel):
 
 class LayoutOptions(BaseModel):
     primary_direction: PrimaryDirection = PrimaryDirection.LEFT_TO_RIGHT
-    allow_detour: bool = True
     buffer_recommendation: bool = True
+
+
+class UserNodePosition(BaseModel):
+    x: float
+    y: float
+
+
+class UserLayoutSnapshot(BaseModel):
+    """重算前画布节点坐标；不参与闭包/SBTO/布局算法，仅随 request 入历史。"""
+
+    node_positions: dict[str, UserNodePosition] = Field(default_factory=dict)
+    captured_at: str | None = None
 
 
 class LayoutComputeRequest(BaseModel):
@@ -36,6 +47,7 @@ class LayoutComputeRequest(BaseModel):
     forbidden_items: list[str] = Field(default_factory=list)
     catalog_mode: str = Field(default="progress", description="progress | full，与 UI 列表 scope 一致")
     layout_options: LayoutOptions = Field(default_factory=LayoutOptions)
+    user_layout_before: UserLayoutSnapshot | None = None
 
 
 class Position(BaseModel):
@@ -45,7 +57,7 @@ class Position(BaseModel):
 
 class LayoutNode(BaseModel):
     id: str
-    type: str  # supply | producer | sink | buffer_placeholder
+    type: str  # item | buffer_placeholder
     item: str
     label: str
     layer: int
@@ -56,7 +68,7 @@ class LayoutNode(BaseModel):
 
 class LayoutEdge(BaseModel):
     id: str
-    type: str  # belt | tap_chain | detour | supply
+    type: str  # belt | tap_chain | product | hidden
     item: str
     label: str
     from_node: str = Field(alias="from")

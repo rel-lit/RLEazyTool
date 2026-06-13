@@ -1,5 +1,6 @@
 """布局计算历史：持久化完整请求/响应快照。
 
+request_json 含 user_layout_before（重算前玩家拖动坐标，不参与算法）。
 response_json 语义（一次分析集的可复现包）：
   - nodes：合并产物图节点
       · layer（grade）：结构层级，原料→终端

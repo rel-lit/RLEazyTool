@@ -1,4 +1,4 @@
-"""布局分层与存档过期检测测试。"""
+"""存档过期检测测试。"""
 
 from __future__ import annotations
 
@@ -11,94 +11,13 @@ from pathlib import Path
 BACKEND = Path(__file__).resolve().parent.parent / "backend"
 sys.path.insert(0, str(BACKEND))
 
-from core.graph_builder import ProductionGraph, ProductionNode, SupplyNode, _node_id, _supply_id  # noqa: E402
-from core.layout_engine import _assign_layers, _build_product_edges  # noqa: E402
-from db.connection import get_connection, init_db  # noqa: E402
+from db.connection import init_db  # noqa: E402
 from db.save_store import (  # noqa: E402
     get_save_progress_state,
     has_save_progress,
     is_save_progress_stale,
     upsert_save_progress,
 )
-
-
-class AssignLayersTest(unittest.TestCase):
-    def test_cycle_does_not_hang(self) -> None:
-        graph = ProductionGraph()
-        graph.supplies["iron-ore"] = SupplyNode(
-            id=_supply_id("iron-ore"), item="iron-ore", label="铁矿"
-        )
-        a = ProductionNode(
-            id=_node_id("recipe-a"),
-            recipe_name="recipe-a",
-            product="item-a",
-            label="A",
-            inputs=["item-b"],
-            outputs=["item-a"],
-        )
-        b = ProductionNode(
-            id=_node_id("recipe-b"),
-            recipe_name="recipe-b",
-            product="item-b",
-            label="B",
-            inputs=["item-a"],
-            outputs=["item-b"],
-        )
-        graph.producers[a.id] = a
-        graph.producers[b.id] = b
-
-        layers, warnings = _assign_layers(graph, ["item-a"])
-        self.assertGreaterEqual(len(layers), 3)
-        self.assertIn(_node_id("recipe-a"), layers)
-        self.assertIn(_node_id("recipe-b"), layers)
-
-
-class ProductEdgesTest(unittest.TestCase):
-    def test_product_edges_ignore_sbto_routing(self) -> None:
-        graph = ProductionGraph()
-        graph.supplies["copper-ore"] = SupplyNode(
-            id=_supply_id("copper-ore"), item="copper-ore", label="铜矿"
-        )
-        smelt = ProductionNode(
-            id=_node_id("copper-plate"),
-            recipe_name="copper-plate",
-            product="copper-plate",
-            label="铜板",
-            inputs=["copper-ore"],
-            outputs=["copper-plate"],
-        )
-        cable = ProductionNode(
-            id=_node_id("copper-cable"),
-            recipe_name="copper-cable",
-            product="copper-cable",
-            label="铜线",
-            inputs=["copper-plate"],
-            outputs=["copper-cable"],
-        )
-        circuit = ProductionNode(
-            id=_node_id("electronic-circuit"),
-            recipe_name="electronic-circuit",
-            product="electronic-circuit",
-            label="电路板",
-            inputs=["copper-cable", "iron-plate"],
-            outputs=["electronic-circuit"],
-        )
-        graph.producers = {
-            smelt.id: smelt,
-            cable.id: cable,
-            circuit.id: circuit,
-        }
-        graph.supplies["iron-plate"] = SupplyNode(
-            id=_supply_id("iron-plate"), item="iron-plate", label="铁板"
-        )
-
-        edges = _build_product_edges(graph, {})
-        keys = {(getattr(e, "from"), getattr(e, "to"), e.item) for e in edges}
-        self.assertIn((_supply_id("copper-ore"), smelt.id, "copper-ore"), keys)
-        self.assertIn((smelt.id, cable.id, "copper-plate"), keys)
-        self.assertIn((cable.id, circuit.id, "copper-cable"), keys)
-        self.assertIn((_supply_id("iron-plate"), circuit.id, "iron-plate"), keys)
-        self.assertTrue(all(e.type == "product" for e in edges))
 
 
 class SaveStalenessTest(unittest.TestCase):

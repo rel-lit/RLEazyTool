@@ -1,8 +1,9 @@
 import type { Edge, Node } from "@vue-flow/core";
 import type { LayoutEdge, LayoutNode } from "../api/client";
 import { assignEdgeGaps } from "./edgePathGap";
-import { isSbtoEdge } from "./focusGraph";
-import { itemEdgeColor } from "./itemColors";
+import { isSbtoEdge } from "./focus";
+import { assignSbtoBadgeColors } from "./itemColors";
+import { buildSbtoChainRanks, sbtoFlowSignForEdge } from "./sbtoFlow";
 import { beltHandleIds, sbtoHandleIds } from "./sbtoPorts";
 
 export const SBTO_STROKE = "#b1bac4";
@@ -11,21 +12,18 @@ export const BELT_STROKE = "#9aa4af";
 export type FactoryNodeData = LayoutNode;
 
 export function factoryNodeClass(n: LayoutNode): string {
-  const parts = ["fb-node", `fb-node--${n.type}`];
-  if (n.type === "supply" && n.meta?.supply_kind === "world_baseline") {
-    parts.push("fb-node--world-baseline");
+  const parts = ["fb-node", "fb-node--item"];
+  if (n.meta?.role === "terminal") {
+    parts.push("fb-node--terminal");
   }
-  if (n.meta?.role === "world_extract") {
-    parts.push("fb-node--world-extract");
+  if (n.meta?.external_leaf && !n.meta?.pseudo_external) {
+    parts.push("fb-node--external-leaf");
   }
   return parts.join(" ");
 }
 
 export function factoryNodeLabel(n: LayoutNode): string {
-  if (n.type === "supply" && n.meta?.supply_kind === "world_baseline") {
-    return `⛏ ${n.label}`;
-  }
-  if (n.meta?.role === "world_extract") {
+  if (n.meta?.external_leaf && !n.meta?.pseudo_external) {
     return `⛏ ${n.label}`;
   }
   return n.label;
@@ -36,12 +34,15 @@ function edgeTapLabel(e: LayoutEdge): string {
   return String(e.tap_index);
 }
 
-/** 布局重算：合并新坐标，保留用户已拖动的 position */
+/** 布局重算：preserve=false 时使用服务端坐标（严格重算） */
 export function mergeLayoutNodes(
   layoutNodes: LayoutNode[],
-  current: Node[]
+  current: Node[],
+  preserve = true
 ): Node[] {
-  const posById = new Map(current.map((n) => [n.id, n.position]));
+  const posById = preserve
+    ? new Map(current.map((n) => [n.id, n.position]))
+    : new Map<string, { x: number; y: number }>();
   return layoutNodes.map((n) => ({
     id: n.id,
     type: "factory" as const,
@@ -56,8 +57,12 @@ export function buildFlowEdges(
   overlayHidden: LayoutEdge[] = [],
   nodeById: Map<string, LayoutNode> = new Map()
 ): Edge[] {
+  const sbtoItems = layoutEdges.filter(isSbtoEdge).map((e) => e.item);
+  const badgeColors = assignSbtoBadgeColors(sbtoItems);
+  const chainRanks = buildSbtoChainRanks(layoutEdges);
+
   const visible = layoutEdges.map((e) =>
-    edgeToFlow(e, selectedEdgeId, nodeById)
+    edgeToFlow(e, selectedEdgeId, nodeById, badgeColors, chainRanks)
   );
   const hidden = overlayHidden.map((e) => hiddenEdgeToFlow(e, nodeById));
   return assignEdgeGaps([...visible, ...hidden], nodeById);
@@ -70,7 +75,9 @@ function nodeGrade(nodeById: Map<string, LayoutNode>, id: string): number {
 function edgeToFlow(
   e: LayoutEdge,
   selectedEdgeId: string | null,
-  nodeById: Map<string, LayoutNode>
+  nodeById: Map<string, LayoutNode>,
+  badgeColors: Map<string, string>,
+  chainRanks: Map<string, Map<string, number>>
 ): Edge {
   const selected = selectedEdgeId === e.id;
   if (isSbtoEdge(e)) {
@@ -86,10 +93,11 @@ function edgeToFlow(
       targetHandle: ports.targetHandle,
       data: {
         layoutEdge: e,
-        badgeColor: itemEdgeColor(e.item),
+        badgeColor: badgeColors.get(e.item) ?? "#58a6ff",
         tapLabel: edgeTapLabel(e),
         fromGrade: fromG,
         toGrade: toG,
+        flowSign: sbtoFlowSignForEdge(e, chainRanks),
       },
       style: {
         stroke: SBTO_STROKE,

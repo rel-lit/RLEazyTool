@@ -3,9 +3,8 @@ import { computed, inject, type Ref } from "vue";
 import { BaseEdge, type EdgeProps } from "@vue-flow/core";
 import { bezierPathWithGap } from "./bezierPathWithGap";
 import type { LayoutEdge } from "../api/client";
-import type { FocusHighlight } from "./focusGraph";
-import { isEdgeHighlighted } from "./focusGraph";
-import { focusTick } from "./canvasFocus";
+import type { FocusHighlight } from "./focus";
+import { isEdgeHighlighted } from "./focus";
 
 export interface BeltEdgeData {
   layoutEdge: LayoutEdge;
@@ -40,7 +39,6 @@ const bezier = computed(() => {
 const pathD = computed(() => bezier.value[0]);
 
 const lit = computed(() => {
-  focusTick.value;
   if (props.data?.isHiddenOverlay) return true;
   const f = canvasFocus?.value ?? null;
   if (!f) return true;

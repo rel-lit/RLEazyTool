@@ -15,8 +15,12 @@ export interface LayoutRequest {
   catalog_mode: "progress" | "full";
   layout_options: {
     primary_direction: "left-to-right" | "top-to-bottom";
-    allow_detour: boolean;
-    buffer_recommendation: boolean;
+  buffer_recommendation: boolean;
+  };
+  /** 重算前画布坐标快照，不参与算法，仅写入历史 request */
+  user_layout_before?: {
+    node_positions: Record<string, { x: number; y: number }>;
+    captured_at?: string | null;
   };
 }
 

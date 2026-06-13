@@ -2,14 +2,13 @@
 import { computed, inject, type Ref } from "vue";
 import { Handle } from "@vue-flow/core";
 import type { LayoutNode } from "../api/client";
-import type { FocusHighlight } from "./focusGraph";
-import { isNodeHighlighted } from "./focusGraph";
+import type { FocusHighlight } from "./focus";
+import { isNodeHighlighted } from "./focus";
 import {
   DEFAULT_LAYOUT_DIRECTION,
   type LayoutDirection,
 } from "./layoutTypes";
 import { factoryNodeClass, factoryNodeLabel } from "./flowGraph";
-import { focusTick } from "./canvasFocus";
 import { handlePosition } from "./sbtoPorts";
 
 const props = defineProps<{ data: LayoutNode }>();
@@ -20,10 +19,6 @@ const layoutDirection = inject<Ref<LayoutDirection>>(
 );
 
 const canvasFocus = inject<Ref<FocusHighlight | null>>("canvasFocus");
-const enterFocusFromNode = inject<
-  (nodeId: string, source: string) => void
->("enterFocusFromNode");
-const scheduleClearFocus = inject<() => void>("scheduleClearFocus");
 
 const dir = computed(
   () => layoutDirection.value ?? DEFAULT_LAYOUT_DIRECTION
@@ -35,7 +30,6 @@ const sL = computed(() => handlePosition("s-l", dir.value));
 const sR = computed(() => handlePosition("s-r", dir.value));
 
 const dimmed = computed(() => {
-  focusTick.value;
   const f = canvasFocus?.value ?? null;
   if (!f) return false;
   return !isNodeHighlighted(props.data.id, f);
@@ -46,22 +40,10 @@ const nodeClass = computed(() => [
   factoryNodeClass(props.data),
   dimmed.value ? "fb-node--dimmed" : "",
 ]);
-
-function onNodeMouseEnter() {
-  enterFocusFromNode?.(props.data.id, `节点内 ${props.data.id}`);
-}
-
-function onNodeMouseLeave() {
-  scheduleClearFocus?.();
-}
 </script>
 
 <template>
-  <div
-    :class="nodeClass"
-    @mouseenter="onNodeMouseEnter"
-    @mouseleave="onNodeMouseLeave"
-  >
+  <div :class="nodeClass">
     <Handle id="t-l" type="target" :position="tL" />
     <Handle id="t-r" type="target" :position="tR" />
     {{ label }}

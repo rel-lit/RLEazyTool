@@ -11,7 +11,8 @@ from pathlib import Path
 BACKEND = Path(__file__).resolve().parent.parent / "backend"
 sys.path.insert(0, str(BACKEND))
 
-from core.analysis_engine import run_analysis  # noqa: E402
+from core.original_tree import TreeBuildContext, build_original_forest  # noqa: E402
+from core.recipe_pick import pick_recipe_assignments  # noqa: E402
 from core.recipe_loader import ItemDef, ItemStack, Recipe, RecipeDatabase, _finalize_database  # noqa: E402
 from db.intrinsic.constants import IR_EXTRACTABLE  # noqa: E402
 from db.intrinsic.recipe_classifier import classify_recipe, FlowStack  # noqa: E402
@@ -142,37 +143,48 @@ class WaterClosureTest(unittest.TestCase):
     def test_only_barrel_recipes_water_is_supply(self) -> None:
         db = self._mini_db()
         d = set(db.items.keys())
-        result = run_analysis(
-            declared_outputs=["electronic-circuit"],
-            supply_mode=SupplyMode.RAW,
-            user_supplied=[],
-            forbidden=[],
+        expandable = {"electronic-circuit", "copper-cable"}
+        pick, _ = pick_recipe_assignments(["electronic-circuit"], db, d, expandable)
+        ctx = TreeBuildContext(
             db=db,
             data_source=d,
-            closure_expandable={"electronic-circuit", "copper-cable"},
+            expandable=expandable,
             pure_supply={"water"},
+            recipe_assignments=pick,
+            user_supplied=set(),
+            forbidden=set(),
+            supply_mode=SupplyMode.RAW,
+            labels={k: v.label for k, v in db.items.items()},
         )
-        self.assertFalse(result.summary.impossible)
-        self.assertIn("water", result.summary.true_pure_sources)
-        self.assertNotIn("water-barrel", result.summary.analysis_items)
+        result = build_original_forest(["electronic-circuit"], ctx)
+        self.assertFalse(result.impossible)
+        self.assertIn("water", result.analysis_items)
+        self.assertTrue(result.graph.nodes["water"].is_external_leaf)
 
     def test_pump_unlocked_water_is_producer(self) -> None:
         db = self._mini_db(include_pump=True)
         d = set(db.items.keys())
         expandable = {"electronic-circuit", "copper-cable", "water"}
-        result = run_analysis(
-            declared_outputs=["electronic-circuit"],
-            supply_mode=SupplyMode.RAW,
-            user_supplied=[],
-            forbidden=[],
+        pick, _ = pick_recipe_assignments(["electronic-circuit"], db, d, expandable)
+        ctx = TreeBuildContext(
             db=db,
             data_source=d,
-            closure_expandable=expandable,
+            expandable=expandable,
             pure_supply=set(),
+            recipe_assignments=pick,
+            user_supplied=set(),
+            forbidden=set(),
+            supply_mode=SupplyMode.RAW,
+            labels={k: v.label for k, v in db.items.items()},
         )
-        self.assertFalse(result.summary.impossible)
-        self.assertIn("producer:offshore-pump-water", set(result.graph.producers.keys()))
-        self.assertNotIn("water", result.summary.true_pure_sources)
+        result = build_original_forest(["electronic-circuit"], ctx)
+        self.assertFalse(result.impossible)
+        self.assertIn("water", result.analysis_items)
+        self.assertFalse(result.graph.nodes["water"].is_external_leaf)
+        self.assertEqual(
+            result.graph.nodes["water"].recipe_name,
+            "offshore-pump-water",
+        )
 
 
 class PetroleumGasClosureTest(unittest.TestCase):
@@ -228,21 +240,23 @@ class PetroleumGasClosureTest(unittest.TestCase):
         db = self._oil_db()
         d = set(db.items.keys())
         expandable = {"plastic-bar", "petroleum-gas", "crude-oil"}
-        result = run_analysis(
-            declared_outputs=["plastic-bar"],
-            supply_mode=SupplyMode.RAW,
-            user_supplied=[],
-            forbidden=[],
+        pick, _ = pick_recipe_assignments(["plastic-bar"], db, d, expandable)
+        ctx = TreeBuildContext(
             db=db,
             data_source=d,
-            closure_expandable=expandable,
+            expandable=expandable,
             pure_supply=set(),
+            recipe_assignments=pick,
+            user_supplied=set(),
+            forbidden=set(),
+            supply_mode=SupplyMode.RAW,
+            labels={k: v.label for k, v in db.items.items()},
         )
-        self.assertFalse(result.summary.impossible)
-        self.assertIn("producer:basic-oil-processing", set(result.graph.producers.keys()))
-        self.assertIn("producer:pumpjack-crude-oil", set(result.graph.producers.keys()))
-        self.assertNotIn("petroleum-gas", result.summary.true_pure_sources)
-        self.assertNotIn("crude-oil", result.summary.true_pure_sources)
+        result = build_original_forest(["plastic-bar"], ctx)
+        self.assertFalse(result.impossible)
+        self.assertIn("basic-oil-processing", {n.recipe_name for n in result.graph.nodes.values()})
+        self.assertIn("pumpjack-crude-oil", {n.recipe_name for n in result.graph.nodes.values()})
+        self.assertNotIn("petroleum-gas", {i for i, n in result.graph.nodes.items() if n.is_external_leaf and i == "petroleum-gas"})
 
 
 if __name__ == "__main__":

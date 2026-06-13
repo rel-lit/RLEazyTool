@@ -33,7 +33,7 @@ export type AppEvent =
   | { type: "CatalogLoadFailed"; message: string }
   | { type: "SelectionChanged"; reason: "user-toggle" | "pruned" | "reset" }
   | { type: "LayoutInvalidated"; reason: string }
-  | { type: "LayoutComputeStarted" }
+  | { type: "LayoutComputeStarted"; resetPositions?: boolean }
   | { type: "LayoutComputed"; layout: LayoutResponse }
   | { type: "LayoutRestoredFromHistory"; layout: LayoutResponse }
   | { type: "LayoutComputeFailed"; message: string }

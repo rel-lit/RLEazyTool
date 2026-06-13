@@ -83,6 +83,16 @@ cd tools\factory-balance\backend
 - 后端：`uvicorn main:app --reload --port 8765`（在 `backend/` 目录）
 - 前端：`npm run dev`（在 `frontend/`，代理 `/api` → 8765）
 
+## 布局流水线（v2）
+
+完整设计见 [`docs/PIPELINE_DESIGN_V2.md`](docs/PIPELINE_DESIGN_V2.md)：
+
+1. 原始树构建 + 分析集  
+2. layer（叶=0 向终端递增）+ 树合并  
+3. rank（L0 分数 × 子节点乘积 → 层内整型）  
+4. SBTO（仅 layer/rank，下游优先）  
+5. 渲染（节点 id = 物品名，四类边通道）
+
 ## SBTO 规则
 
 单次布局计算会先构建 **合并产物图** 并分配 **等级（layer）**，再在同一等级体系上计算 SBTO：
@@ -90,8 +100,7 @@ cd tools\factory-balance\backend
 | 原则 | 说明 |
 |------|------|
 | **合并等级** | 多目标原始树合并后，节点取各路径 **max 等级**；越靠近有效终端越高 |
-| **取用顺序** | 共享物上，**等级更高**的消费者优先 tap |
-| **门控约束** | 若消费者 A 依赖 B 的非共享产物，则 A 优先于 B（被门控者优先） |
+| **取用顺序** | 共享物上，**层级更高**（更下游）的消费者优先 tap；同层 **rank 更大** 者优先 |
 
 每次成功计算会写入 SQLite 表 `layout_compute_history`（完整请求/响应 JSON），可在侧栏 **历史** 中载入。
 

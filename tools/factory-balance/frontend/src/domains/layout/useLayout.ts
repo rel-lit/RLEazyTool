@@ -11,6 +11,8 @@ import { DEFAULT_LAYOUT_OPTIONS } from "../../app/config";
 import type { AppEventBus } from "../../app/events";
 import type { SelectionModule } from "../selection/useSelection";
 
+export type NodePositionMap = Record<string, { x: number; y: number }>;
+
 export function useLayout(bus: AppEventBus, selection: SelectionModule, catalogMode: { value: "progress" | "full" }) {
   const layout = ref<LayoutResponse | null>(null);
   const selectedEdgeId = ref<string | null>(null);
@@ -47,7 +49,7 @@ export function useLayout(bus: AppEventBus, selection: SelectionModule, catalogM
     selectedEdgeId.value = id;
   }
 
-  async function compute(): Promise<void> {
+  async function compute(nodePositionsBefore: NodePositionMap = {}): Promise<void> {
     if (!selection.selectedTargets.value.length) {
       error.value = "请至少选择一个产出物";
       return;
@@ -56,7 +58,7 @@ export function useLayout(bus: AppEventBus, selection: SelectionModule, catalogM
     error.value = "";
     selectedEdgeId.value = null;
     stale.value = false;
-    bus.emit({ type: "LayoutComputeStarted" });
+    bus.emit({ type: "LayoutComputeStarted", resetPositions: true });
 
     const body: LayoutRequest = {
       targets: selection.selectedTargets.value.map((item) => ({ item })),
@@ -65,6 +67,10 @@ export function useLayout(bus: AppEventBus, selection: SelectionModule, catalogM
       forbidden_items: [...selection.forbiddenItems.value],
       catalog_mode: catalogMode.value,
       layout_options: { ...DEFAULT_LAYOUT_OPTIONS },
+      user_layout_before: {
+        node_positions: { ...nodePositionsBefore },
+        captured_at: new Date().toISOString(),
+      },
     };
 
     try {

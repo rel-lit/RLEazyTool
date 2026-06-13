@@ -1,4 +1,4 @@
-import type { FocusHighlight } from "./focusGraph";
+import type { FocusHighlight } from "./focus";
 
 export const FOCUS_DEBUG_KEY = "fb-debug-focus";
 

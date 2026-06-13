@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { provide, ref } from "vue";
 import { useApp } from "./app/useApp";
 import ItemTabsPanel from "./components/panels/ItemTabsPanel.vue";
 import HistoryPanel from "./components/panels/HistoryPanel.vue";
@@ -8,6 +8,7 @@ import ModeToolbar from "./components/panels/ModeToolbar.vue";
 import ProgressPanel from "./components/panels/ProgressPanel.vue";
 
 const app = useApp();
+provide("appBus", app.bus);
 
 type LeftSidebar = "save" | "history";
 const leftSidebar = ref<LeftSidebar>("save");
@@ -131,7 +132,7 @@ async function clearHistory(): Promise<void> {
           :selected-edge="app.layout.selectedEdge"
           :selected-tap="app.layout.selectedTap"
           @select-edge="app.layout.selectEdge($event)"
-          @compute="app.layout.compute()"
+          @compute="app.layout.compute($event)"
         />
       </section>
     </div>

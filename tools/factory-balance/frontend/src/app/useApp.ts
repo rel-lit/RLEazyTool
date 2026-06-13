@@ -24,7 +24,7 @@ export function useApp() {
   const importCtrl = useImportController(bus, savePicker);
   const purgeCtrl = usePurgeController(bus, session, catalog);
 
-  const modules = { bus, session, catalog, selection, layout };
+  const modules = { bus, session, catalog, selection, layout, layoutHistory };
   wireAppModules(modules);
 
   watch(selection.supplyMode, () => {
@@ -41,6 +41,7 @@ export function useApp() {
   });
 
   return reactive({
+    bus,
     session,
     savePicker,
     catalog,

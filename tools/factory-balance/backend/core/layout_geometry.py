@@ -54,6 +54,27 @@ def _pick_brick_slot(layer_idx: int, preferred: float, used: list[float]) -> flo
     return staggered_base_cross(layer_idx, len(used))
 
 
+def assign_rank_cross_positions(
+    layers: dict[str, int],
+    intra_layer_rank: dict[str, int],
+) -> dict[str, float]:
+    """严格按 layer + rank 映射 cross：同层 Y 随 rank 单调递增，仅奇偶层错半格。"""
+    if not layers:
+        return {}
+
+    cross = {
+        nid: staggered_base_cross(li, intra_layer_rank.get(nid, 0))
+        for nid, li in layers.items()
+    }
+
+    if cross:
+        mid = sum(cross.values()) / len(cross)
+        for nid in cross:
+            cross[nid] -= mid
+
+    return cross
+
+
 def assign_brick_cross_positions(
     layers: dict[str, int],
     intra_layer_rank: dict[str, int],

@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed, inject, type Ref } from "vue";
-import { BaseEdge, EdgeLabelRenderer, type EdgeProps } from "@vue-flow/core";
+import { EdgeLabelRenderer, type EdgeProps } from "@vue-flow/core";
 import { bezierPathWithGap } from "./bezierPathWithGap";
 import type { LayoutEdge } from "../api/client";
-import type { FocusHighlight } from "./focusGraph";
-import { isEdgeHighlighted, sbtoFlowActive } from "./focusGraph";
-import { focusTick } from "./canvasFocus";
+import type { FocusHighlight, FocusPhase } from "./focus";
+import { isEdgeHighlighted, sbtoFlowActive } from "./focus";
 
 export interface SbtoEdgeData {
   layoutEdge: LayoutEdge;
@@ -13,15 +12,21 @@ export interface SbtoEdgeData {
   tapLabel: string;
   fromGrade: number;
   toGrade: number;
+  flowSign?: 1 | -1;
   pathGapPx?: number;
   gapNx?: number;
   gapNy?: number;
   pathCurvature?: number;
 }
 
+interface CanvasFocusView {
+  phase: FocusPhase;
+  highlight: FocusHighlight | null;
+}
+
 const props = defineProps<EdgeProps<SbtoEdgeData>>();
 
-const canvasFocus = inject<Ref<FocusHighlight | null>>("canvasFocus");
+const focusView = inject<Ref<CanvasFocusView>>("canvasFocusState");
 
 const bezier = computed(() => {
   const gap = props.data?.pathGapPx ?? 0;
@@ -45,33 +50,53 @@ const labelX = computed(() => bezier.value[1]);
 const labelY = computed(() => bezier.value[2]);
 
 const lit = computed(() => {
-  focusTick.value;
-  const f = canvasFocus?.value ?? null;
-  if (!f) return true;
-  return isEdgeHighlighted(props.data!.layoutEdge, f);
+  const view = focusView?.value;
+  if (!view?.highlight) return true;
+  return isEdgeHighlighted(props.data!.layoutEdge, view.highlight);
 });
 
-const flowFast = computed(() => {
-  focusTick.value;
-  const f = canvasFocus?.value ?? null;
-  return sbtoFlowActive(props.data!.layoutEdge, f);
+const flowActive = computed(() => {
+  const view = focusView?.value;
+  if (!view) return false;
+  return sbtoFlowActive(
+    props.data!.layoutEdge,
+    view.phase,
+    view.highlight
+  );
 });
 
-const mergedStyle = computed(() => ({
-  ...(props.style as object),
-  opacity: lit.value ? 1 : 0.12,
-}));
+const flowReverse = computed(() => (props.data?.flowSign ?? 1) < 0);
+
+const pathClass = computed(() => {
+  const c = ["vue-flow__edge-path", "sbto-dash-path"];
+  if (flowActive.value) {
+    c.push(flowReverse.value ? "sbto-dash-flow-rev" : "sbto-dash-flow-fwd");
+  }
+  return c.join(" ");
+});
+
+const pathStyle = computed(() => {
+  const base = (props.style ?? {}) as Record<string, string | number>;
+  return {
+    stroke: base.stroke ?? "#b1bac4",
+    strokeWidth: base.strokeWidth ?? 2.5,
+    strokeDasharray: base.strokeDasharray ?? "10 6",
+    fill: "none",
+    opacity: lit.value ? 1 : 0.12,
+  };
+});
 </script>
 
 <template>
-  <g class="sbto-edge" :class="{ 'sbto-edge--fast': flowFast }">
-    <BaseEdge
-      :id="id"
-      :path="pathD"
-      :style="mergedStyle"
-      :interaction-width="20"
-      class="sbto-edge-path"
+  <g class="sbto-edge">
+    <path
+      :d="pathD"
+      fill="none"
+      stroke="transparent"
+      stroke-width="20"
+      pointer-events="stroke"
     />
+    <path :d="pathD" :class="pathClass" :style="pathStyle" pointer-events="none" />
 
     <EdgeLabelRenderer v-if="data?.tapLabel">
       <div
@@ -89,23 +114,6 @@ const mergedStyle = computed(() => ({
 </template>
 
 <style scoped>
-.sbto-edge-path :deep(.vue-flow__edge-path) {
-  animation: sbto-dash-flow 6s linear infinite;
-}
-
-.sbto-edge--fast .sbto-edge-path :deep(.vue-flow__edge-path) {
-  animation-duration: 3s;
-}
-
-@keyframes sbto-dash-flow {
-  from {
-    stroke-dashoffset: 0;
-  }
-  to {
-    stroke-dashoffset: -32;
-  }
-}
-
 .sbto-tap-badge {
   position: absolute;
   pointer-events: none;
@@ -115,5 +123,37 @@ const mergedStyle = computed(() => ({
   padding: 2px 6px;
   border-radius: 4px;
   line-height: 1.2;
+}
+</style>
+
+<style>
+.sbto-dash-path {
+  stroke-linecap: round;
+}
+
+.sbto-dash-path.sbto-dash-flow-fwd {
+  animation: sbto-dash-flow-fwd 2.5s linear infinite;
+}
+
+.sbto-dash-path.sbto-dash-flow-rev {
+  animation: sbto-dash-flow-rev 2.5s linear infinite;
+}
+
+@keyframes sbto-dash-flow-fwd {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -32;
+  }
+}
+
+@keyframes sbto-dash-flow-rev {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: 32;
+  }
 }
 </style>

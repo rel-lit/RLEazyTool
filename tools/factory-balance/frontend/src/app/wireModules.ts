@@ -2,6 +2,7 @@ import type { AppEventBus } from "./events";
 import { loadCatalogFromApi } from "../domains/catalog/catalogService";
 import type { CatalogModule } from "../domains/catalog/useCatalog";
 import type { LayoutModule } from "../domains/layout/useLayout";
+import type { LayoutHistoryModule } from "../domains/layout/useLayoutHistory";
 import type { SelectionModule } from "../domains/selection/useSelection";
 import type { useSession } from "../domains/session/useSession";
 
@@ -11,11 +12,12 @@ export interface AppModules {
   catalog: CatalogModule;
   selection: SelectionModule;
   layout: LayoutModule;
+  layoutHistory: LayoutHistoryModule;
 }
 
 /** 跨模块联动规则：单一入口，避免 App.vue 里散落 await 链 */
 export function wireAppModules(modules: AppModules): void {
-  const { bus, session, catalog, selection } = modules;
+  const { bus, session, catalog, selection, layoutHistory } = modules;
 
   bus.on("ProgressChanged", async (e) => {
     session.setActiveSaveKey(e.saveKey, Boolean(e.progressStale));
@@ -36,6 +38,10 @@ export function wireAppModules(modules: AppModules): void {
     if (!session.progressLoaded.value) {
       bus.emit({ type: "ProgressCleared" });
     }
+  });
+
+  bus.on("LayoutComputed", () => {
+    void layoutHistory.refresh();
   });
 }
 
