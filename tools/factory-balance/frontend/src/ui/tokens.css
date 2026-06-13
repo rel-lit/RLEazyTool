@@ -1,0 +1,59 @@
+:root {
+  --ui-bg-app: #0f1419;
+  --ui-bg-panel: #161b22;
+  --ui-bg-inset: #0d1117;
+  --ui-bg-control: #21262d;
+  --ui-bg-control-hover: #30363d;
+  --ui-bg-control-active: #282e36;
+
+  --ui-border: #30363d;
+  --ui-border-muted: #21262d;
+  --ui-border-accent: #388bfd;
+  --ui-border-accent-hover: #58a6ff;
+  --ui-border-danger: #da3633;
+  --ui-border-danger-hover: #f85149;
+  --ui-border-danger-soft: #6b4548;
+  --ui-border-danger-soft-hover: #805055;
+  --ui-border-hover: #484f58;
+
+  --ui-text: #e6edf3;
+  --ui-text-muted: #8b949e;
+  --ui-text-accent: #58a6ff;
+  --ui-text-accent-hover: #79c0ff;
+  --ui-text-danger: #f85149;
+  --ui-text-danger-hover: #ffb4b4;
+  --ui-text-danger-soft: #ddb8b8;
+  --ui-text-danger-soft-hover: #eccaca;
+  --ui-text-on-primary: #ffffff;
+
+  --ui-primary: #238636;
+  --ui-primary-hover: #2ea043;
+  --ui-primary-active: #196c2e;
+
+  --ui-accent-bg: #1f3d5c;
+  --ui-accent-bg-hover: #244a6e;
+  --ui-accent-bg-active: #1a3350;
+
+  --ui-danger-soft-bg: #3a2829;
+  --ui-danger-soft-bg-hover: #452f31;
+  --ui-danger-soft-bg-active: #322426;
+
+  --ui-danger-bg-hover: #3d1214;
+  --ui-danger-bg-active: #2d0e10;
+
+  --ui-chip-on-bg: #1f6feb;
+  --ui-chip-on-bg-hover: #388bfd;
+  --ui-chip-on-bg-active: #1a5fdb;
+  --ui-chip-forbidden-bg: #3d1214;
+  --ui-chip-forbidden-bg-hover: #4a181b;
+  --ui-chip-forbidden-border-hover: #ff7b72;
+  --ui-chip-forbidden-text-hover: #ffc1c1;
+
+  --ui-radius: 6px;
+  --ui-radius-pill: 999px;
+
+  --ui-transition: 0.15s ease;
+  --ui-focus-ring: 2px solid #388bfd;
+  --ui-focus-offset: 2px;
+  --ui-disabled-opacity: 0.5;
+}

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ItemInfo } from "../../api/client";
+import { UiChip } from "../../ui";
 
 defineProps<{
   filteredManufactureItems: ItemInfo[];
@@ -14,16 +15,15 @@ defineEmits<{
 <template>
   <section>
     <div class="chip-list">
-      <button
+      <UiChip
         v-for="item in filteredManufactureItems"
         :key="item.name"
-        class="chip"
-        :class="{ on: selectedTargets.includes(item.name) }"
+        :selected="selectedTargets.includes(item.name)"
         @click="$emit('toggleTarget', item.name)"
       >
         {{ item.label }}
         <span v-if="item.expansion === 'space-age'" class="tag">SA</span>
-      </button>
+      </UiChip>
     </div>
   </section>
 </template>
@@ -33,21 +33,6 @@ defineEmits<{
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-}
-
-.chip {
-  background: #21262d;
-  border: 1px solid #30363d;
-  color: inherit;
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.chip.on {
-  background: #1f6feb;
-  border-color: #388bfd;
 }
 
 .tag {

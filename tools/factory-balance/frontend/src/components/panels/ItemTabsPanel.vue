@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import type { ItemInfo } from "../../api/client";
 import CatalogPanel from "./CatalogPanel.vue";
 import SupplyPanel from "./SupplyPanel.vue";
+import { UiButton, UiIconButton } from "../../ui";
 
 const props = defineProps<{
   targetSearchQuery: string;
@@ -68,56 +69,52 @@ function onClearSelection(): void {
 
 <template>
   <div class="item-tabs">
-    <div class="tab-bar" role="tablist">
-      <button
-        type="button"
+    <div class="ui-tab-bar" role="tablist">
+      <UiButton
+        variant="tab"
         role="tab"
-        class="tab"
-        :class="{ active: activeTab === 'target' }"
+        :pressed="activeTab === 'target'"
         :aria-selected="activeTab === 'target'"
         @click="activeTab = 'target'"
       >
         产出目标
-      </button>
-      <button
-        type="button"
+      </UiButton>
+      <UiButton
+        variant="tab"
         role="tab"
-        class="tab"
-        :class="{ active: activeTab === 'supply' }"
+        :pressed="activeTab === 'supply'"
         :aria-selected="activeTab === 'supply'"
         @click="activeTab = 'supply'"
       >
         已知外部供给
-      </button>
+      </UiButton>
     </div>
 
-    <div class="tab-toolbar">
-      <div class="search-wrap">
+    <div class="ui-toolbar-row">
+      <div class="ui-search-wrap">
         <input
-          class="search-input"
-          :class="{ 'has-clear': activeSearchQuery.length > 0 }"
+          class="ui-input"
+          :class="{ 'ui-input--with-clear': activeSearchQuery.length > 0 }"
           :value="activeSearchQuery"
           placeholder="搜索物品…"
           @input="onSearchInput"
         />
-        <button
+        <UiIconButton
           v-if="activeSearchQuery.length > 0"
-          type="button"
-          class="search-clear"
           aria-label="清空搜索"
           @click="onClearSearch"
         >
           ×
-        </button>
+        </UiIconButton>
       </div>
-      <button
-        type="button"
-        class="clear-btn"
+      <UiButton
+        variant="danger-soft"
+        size="sm"
         :disabled="!canClearSelection"
         @click="onClearSelection"
       >
         清空当前选择
-      </button>
+      </UiButton>
     </div>
 
     <div class="tab-scroll">
@@ -148,123 +145,6 @@ function onClearSelection(): void {
   flex-direction: column;
   min-height: 0;
   flex: 1;
-}
-
-.tab-bar {
-  display: flex;
-  gap: 0;
-  border-bottom: 1px solid #30363d;
-  margin-bottom: 10px;
-  flex-shrink: 0;
-}
-
-.tab {
-  flex: 1;
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: #8b949e;
-  padding: 8px 6px;
-  margin-bottom: -1px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
-}
-
-.tab:hover {
-  color: #c9d1d9;
-}
-
-.tab.active {
-  color: #58a6ff;
-  border-bottom-color: #388bfd;
-}
-
-.tab-toolbar {
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
-  margin-bottom: 10px;
-}
-
-.search-wrap {
-  flex: 1;
-  min-width: 0;
-  position: relative;
-}
-
-.search-input {
-  width: 100%;
-  padding: 6px 8px;
-  border-radius: 6px;
-  border: 1px solid #30363d;
-  background: #0d1117;
-  color: inherit;
-}
-
-.search-input.has-clear {
-  padding-right: 28px;
-}
-
-.search-clear {
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: #30363d;
-  color: #8b949e;
-  font-size: 12px;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-
-.search-clear:hover {
-  background: #484f58;
-  color: #c9d1d9;
-}
-
-.clear-btn {
-  flex: 1;
-  min-width: 0;
-  padding: 6px 8px;
-  border-radius: 6px;
-  border: 1px solid #30363d;
-  background: #21262d;
-  color: #c9d1d9;
-  font-size: 12px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
-}
-
-.clear-btn:not(:disabled) {
-  border-color: #6b4548;
-  background: #3a2829;
-  color: #ddb8b8;
-}
-
-.clear-btn:hover:not(:disabled) {
-  border-color: #805055;
-  background: #452f31;
-  color: #eccaca;
-}
-
-.clear-btn:disabled {
-  border-color: #30363d;
-  background: #21262d;
-  color: #8b949e;
-  opacity: 0.55;
-  cursor: not-allowed;
 }
 
 .tab-scroll {

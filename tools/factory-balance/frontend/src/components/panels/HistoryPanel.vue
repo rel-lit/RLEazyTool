@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { onMounted } from "vue";
 import type { LayoutHistoryEntry } from "../../api/client";
+import { UiButton } from "../../ui";
 
-const props = defineProps<{
+defineProps<{
   entries: LayoutHistoryEntry[];
   loading: boolean;
   error: string;
@@ -46,17 +47,17 @@ function supplyLabel(mode: string): string {
     </p>
 
     <div class="toolbar">
-      <button type="button" class="secondary" :disabled="loading" @click="emit('refresh')">
+      <UiButton variant="secondary" size="sm" :disabled="loading" @click="emit('refresh')">
         {{ loading ? "加载中…" : "刷新列表" }}
-      </button>
-      <button
-        type="button"
-        class="secondary danger"
+      </UiButton>
+      <UiButton
+        variant="danger"
+        size="sm"
         :disabled="loading || !entries.length"
         @click="emit('clearAll')"
       >
         清空全部
-      </button>
+      </UiButton>
     </div>
 
     <p v-if="error" class="error-msg">{{ error }}</p>
@@ -73,8 +74,8 @@ function supplyLabel(mode: string): string {
           <span v-if="row.save_key"> · {{ row.save_key }}</span>
         </div>
         <div class="actions">
-          <button type="button" class="link" @click="emit('restore', row.id)">载入画布</button>
-          <button type="button" class="link muted" @click="emit('remove', row.id)">删除</button>
+          <UiButton variant="link" @click="emit('restore', row.id)">载入画布</UiButton>
+          <UiButton variant="link-muted" @click="emit('remove', row.id)">删除</UiButton>
         </div>
       </li>
     </ul>
@@ -104,24 +105,9 @@ function supplyLabel(mode: string): string {
   margin-bottom: 8px;
 }
 
-.secondary {
+.toolbar :deep(.ui-btn) {
   flex: 1;
-  background: #21262d;
-  border: 1px solid #388bfd;
-  color: #58a6ff;
-  padding: 6px 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.secondary:disabled {
-  opacity: 0.5;
-}
-
-.secondary.danger {
-  border-color: #da3633;
-  color: #f85149;
+  min-width: 0;
 }
 
 .history-list {
@@ -164,19 +150,6 @@ function supplyLabel(mode: string): string {
   margin-top: 6px;
   display: flex;
   gap: 12px;
-}
-
-.link {
-  background: none;
-  border: none;
-  padding: 0;
-  color: #58a6ff;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.link.muted {
-  color: #8b949e;
 }
 
 .error-msg {

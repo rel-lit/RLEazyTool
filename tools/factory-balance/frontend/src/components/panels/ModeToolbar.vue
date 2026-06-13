@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { UiButton } from "../../ui";
+
 defineProps<{
   catalogMode: "progress" | "full";
   catalogLoading: boolean;
@@ -17,43 +19,43 @@ defineEmits<{
   <div class="mode-toolbar">
     <div class="mode-group">
       <span class="mode-label">数据源</span>
-      <button
-        type="button"
-        class="sub-btn"
-        :class="{ on: catalogMode === 'progress' }"
+      <UiButton
+        variant="toggle"
+        size="sm"
+        :pressed="catalogMode === 'progress'"
         :disabled="catalogLoading || progressLoading"
         @click="$emit('switchCatalogMode', 'progress')"
       >
         仅当前进度<span v-if="progressStale" class="dirty"> · 需更新</span>
-      </button>
-      <button
-        type="button"
-        class="sub-btn"
-        :class="{ on: catalogMode === 'full' }"
+      </UiButton>
+      <UiButton
+        variant="toggle"
+        size="sm"
+        :pressed="catalogMode === 'full'"
         :disabled="catalogLoading || progressLoading"
         @click="$emit('switchCatalogMode', 'full')"
       >
         {{ catalogLoading && catalogMode !== "full" ? "加载中…" : "完整全配方" }}
-      </button>
+      </UiButton>
     </div>
     <div class="mode-group">
       <span class="mode-label">供给模式</span>
-      <button
-        type="button"
-        class="sub-btn"
-        :class="{ on: supplyMode === 'raw' }"
+      <UiButton
+        variant="toggle"
+        size="sm"
+        :pressed="supplyMode === 'raw'"
         @click="$emit('update:supplyMode', 'raw')"
       >
         原料模式
-      </button>
-      <button
-        type="button"
-        class="sub-btn"
-        :class="{ on: supplyMode === 'direct' }"
+      </UiButton>
+      <UiButton
+        variant="toggle"
+        size="sm"
+        :pressed="supplyMode === 'direct'"
         @click="$emit('update:supplyMode', 'direct')"
       >
         直接产物
-      </button>
+      </UiButton>
     </div>
   </div>
 </template>
@@ -79,29 +81,6 @@ defineEmits<{
   font-size: 12px;
   color: #8b949e;
   flex-shrink: 0;
-}
-
-.sub-btn {
-  flex-shrink: 0;
-  background: #21262d;
-  border: 1px solid #30363d;
-  color: #8b949e;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.sub-btn.on {
-  background: #1f3d5c;
-  border-color: #388bfd;
-  color: #58a6ff;
-}
-
-.sub-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .dirty {

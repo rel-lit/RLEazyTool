@@ -31,7 +31,7 @@ export type AppEvent =
       hasRecipePack: boolean;
     }
   | { type: "CatalogLoadFailed"; message: string }
-  | { type: "SelectionChanged"; reason: "user-toggle" | "pruned" | "reset" }
+  | { type: "SelectionChanged"; reason: "user-toggle" | "user-clear" | "pruned" | "reset" }
   | { type: "LayoutInvalidated"; reason: string }
   | { type: "LayoutComputeStarted"; resetPositions?: boolean }
   | { type: "LayoutComputed"; layout: LayoutResponse }

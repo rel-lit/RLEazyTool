@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import type { LayoutEdge, LayoutResponse, TapOrderEntry } from "../../api/client";
 import LayoutCanvas from "../LayoutCanvas.vue";
+import { UiButton } from "../../ui";
 
 defineProps<{
   layout: LayoutResponse | null;
@@ -21,10 +22,6 @@ const emit = defineEmits<{
 
 const canvasRef = ref<InstanceType<typeof LayoutCanvas> | null>(null);
 
-function onComputeClick(): void {
-  emit("compute");
-}
-
 function edgeTypeLabel(type: string): string {
   if (type === "tap_chain") return "SBTO 链";
   return "传送带";
@@ -35,9 +32,9 @@ function edgeTypeLabel(type: string): string {
   <div class="workspace">
     <div class="workspace-header">
       <h2 class="workspace-title">布局结果</h2>
-      <button class="primary" :disabled="loading" @click="onComputeClick">
+      <UiButton variant="primary" :disabled="loading" @click="emit('compute')">
         {{ loading ? "计算中…" : "计算自平衡布局" }}
-      </button>
+      </UiButton>
     </div>
 
     <p v-if="error" class="error">{{ error }}</p>
@@ -121,23 +118,6 @@ function edgeTypeLabel(type: string): string {
   margin: 0;
   font-size: 0.95rem;
   color: #e6edf3;
-}
-
-.primary {
-  background: #238636;
-  border: none;
-  color: #fff;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .error {

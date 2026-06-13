@@ -1,0 +1,395 @@
+/* Shared focus ring for interactive controls */
+.ui-btn:focus-visible,
+.ui-chip:focus-visible,
+.ui-icon-btn:focus-visible,
+.ui-input:focus-visible,
+.ui-select:focus-visible {
+  outline: var(--ui-focus-ring);
+  outline-offset: var(--ui-focus-offset);
+}
+
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: var(--ui-radius);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--ui-transition),
+    border-color var(--ui-transition),
+    color var(--ui-transition),
+    opacity var(--ui-transition);
+}
+
+.ui-btn--md {
+  padding: 8px 16px;
+}
+
+.ui-btn--sm {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.ui-btn--block {
+  width: 100%;
+}
+
+.ui-btn:disabled {
+  opacity: var(--ui-disabled-opacity);
+  cursor: not-allowed;
+}
+
+/* primary */
+.ui-btn--primary {
+  background: var(--ui-primary);
+  border: none;
+  color: var(--ui-text-on-primary);
+  font-weight: 600;
+}
+
+.ui-btn--primary:not(:disabled):hover {
+  background: var(--ui-primary-hover);
+}
+
+.ui-btn--primary:not(:disabled):active {
+  background: var(--ui-primary-active);
+}
+
+.ui-btn--primary:disabled {
+  opacity: 0.6;
+}
+
+/* secondary */
+.ui-btn--secondary {
+  background: var(--ui-bg-control);
+  border: 1px solid var(--ui-border-accent);
+  color: var(--ui-text-accent);
+}
+
+.ui-btn--secondary:not(:disabled):hover {
+  background: var(--ui-bg-control-hover);
+  border-color: var(--ui-border-accent-hover);
+  color: var(--ui-text-accent-hover);
+}
+
+.ui-btn--secondary:not(:disabled):active {
+  background: var(--ui-bg-control-active);
+  border-color: var(--ui-border-accent);
+  color: var(--ui-text-accent);
+}
+
+/* danger block */
+.ui-btn--danger {
+  background: var(--ui-bg-control);
+  border: 1px solid var(--ui-border-danger);
+  color: var(--ui-text-danger);
+}
+
+.ui-btn--danger:not(:disabled):hover {
+  background: var(--ui-danger-bg-hover);
+  border-color: var(--ui-border-danger-hover);
+  color: var(--ui-text-danger-hover);
+}
+
+.ui-btn--danger:not(:disabled):active {
+  background: var(--ui-danger-bg-active);
+  border-color: var(--ui-border-danger);
+  color: var(--ui-text-danger);
+}
+
+/* danger-soft */
+.ui-btn--danger-soft {
+  background: var(--ui-danger-soft-bg);
+  border: 1px solid var(--ui-border-danger-soft);
+  color: var(--ui-text-danger-soft);
+}
+
+.ui-btn--danger-soft:not(:disabled):hover {
+  background: var(--ui-danger-soft-bg-hover);
+  border-color: var(--ui-border-danger-soft-hover);
+  color: var(--ui-text-danger-soft-hover);
+}
+
+.ui-btn--danger-soft:not(:disabled):active {
+  background: var(--ui-danger-soft-bg-active);
+  border-color: var(--ui-border-danger-soft);
+  color: var(--ui-text-danger-soft);
+}
+
+.ui-btn--danger-soft:disabled {
+  background: var(--ui-bg-control);
+  border-color: var(--ui-border);
+  color: var(--ui-text-muted);
+  opacity: 0.55;
+}
+
+/* toggle */
+.ui-btn--toggle {
+  background: var(--ui-bg-control);
+  border: 1px solid var(--ui-border);
+  color: var(--ui-text-muted);
+  flex-shrink: 0;
+}
+
+.ui-btn--toggle:not(:disabled):hover {
+  background: var(--ui-bg-control-hover);
+  border-color: var(--ui-border-hover);
+  color: var(--ui-text);
+}
+
+.ui-btn--toggle:not(:disabled):active {
+  background: var(--ui-bg-control-active);
+  border-color: var(--ui-border);
+  color: var(--ui-text-muted);
+}
+
+.ui-btn--toggle.ui-btn--on {
+  background: var(--ui-accent-bg);
+  border-color: var(--ui-border-accent);
+  color: var(--ui-text-accent);
+}
+
+.ui-btn--toggle.ui-btn--on:not(:disabled):hover {
+  background: var(--ui-accent-bg-hover);
+  border-color: var(--ui-border-accent-hover);
+  color: var(--ui-text-accent-hover);
+}
+
+.ui-btn--toggle.ui-btn--on:not(:disabled):active {
+  background: var(--ui-accent-bg-active);
+  border-color: var(--ui-border-accent);
+  color: var(--ui-text-accent);
+}
+
+/* tab */
+.ui-btn--tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  color: var(--ui-text-muted);
+  padding: 8px 6px;
+  margin-bottom: -1px;
+  font-weight: 600;
+}
+
+.ui-btn--tab:not(:disabled):hover {
+  color: var(--ui-text);
+}
+
+.ui-btn--tab.ui-btn--on {
+  color: var(--ui-text-accent);
+  border-bottom-color: var(--ui-border-accent);
+}
+
+/* link */
+.ui-btn--link,
+.ui-btn--link-muted {
+  background: none;
+  border: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: 12px;
+}
+
+.ui-btn--link {
+  color: var(--ui-text-accent);
+}
+
+.ui-btn--link:not(:disabled):hover {
+  color: var(--ui-text-accent-hover);
+  text-decoration: underline;
+}
+
+.ui-btn--link:not(:disabled):active {
+  color: var(--ui-text-accent);
+}
+
+.ui-btn--link-muted {
+  color: var(--ui-text-muted);
+}
+
+.ui-btn--link-muted:not(:disabled):hover {
+  color: var(--ui-text);
+  text-decoration: underline;
+}
+
+.ui-btn--link-muted:not(:disabled):active {
+  color: var(--ui-text-muted);
+}
+
+/* chip */
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--ui-bg-control);
+  border: 1px solid var(--ui-border);
+  color: inherit;
+  border-radius: var(--ui-radius-pill);
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background var(--ui-transition),
+    border-color var(--ui-transition),
+    color var(--ui-transition);
+}
+
+.ui-chip--md {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.ui-chip--sm {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+.ui-chip:not(:disabled):hover {
+  background: var(--ui-bg-control-hover);
+  border-color: var(--ui-border-hover);
+  color: var(--ui-text);
+}
+
+.ui-chip:not(:disabled):active {
+  background: var(--ui-bg-control-active);
+  border-color: var(--ui-border);
+}
+
+.ui-chip--on {
+  background: var(--ui-chip-on-bg);
+  border-color: var(--ui-border-accent);
+  color: var(--ui-text-on-primary);
+}
+
+.ui-chip--on:not(:disabled):hover {
+  background: var(--ui-chip-on-bg-hover);
+  border-color: var(--ui-border-accent-hover);
+}
+
+.ui-chip--on:not(:disabled):active {
+  background: var(--ui-chip-on-bg-active);
+  border-color: var(--ui-border-accent);
+}
+
+.ui-chip--forbidden {
+  background: var(--ui-chip-forbidden-bg);
+  border-color: var(--ui-border-danger-hover);
+  color: var(--ui-text-danger-hover);
+  text-decoration: line-through;
+}
+
+.ui-chip--forbidden:not(:disabled):hover {
+  background: var(--ui-chip-forbidden-bg-hover);
+  border-color: var(--ui-chip-forbidden-border-hover);
+  color: var(--ui-chip-forbidden-text-hover);
+}
+
+.ui-chip:disabled {
+  opacity: var(--ui-disabled-opacity);
+  cursor: not-allowed;
+}
+
+/* icon button */
+.ui-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--ui-border);
+  color: var(--ui-text-muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background var(--ui-transition),
+    color var(--ui-transition);
+}
+
+.ui-icon-btn:not(:disabled):hover {
+  background: var(--ui-border-hover);
+  color: var(--ui-text);
+}
+
+.ui-icon-btn:not(:disabled):active {
+  background: var(--ui-bg-control);
+  color: var(--ui-text-muted);
+}
+
+.ui-icon-btn:disabled {
+  opacity: var(--ui-disabled-opacity);
+  cursor: not-allowed;
+}
+
+/* form controls */
+.ui-input,
+.ui-select {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: var(--ui-radius);
+  border: 1px solid var(--ui-border);
+  background: var(--ui-bg-inset);
+  color: inherit;
+  font: inherit;
+  transition:
+    border-color var(--ui-transition),
+    background var(--ui-transition);
+}
+
+.ui-input:hover,
+.ui-select:hover {
+  border-color: var(--ui-border-hover);
+}
+
+.ui-input:focus-visible,
+.ui-select:focus-visible {
+  border-color: var(--ui-border-accent);
+}
+
+.ui-input--with-clear {
+  padding-right: 28px;
+}
+
+.ui-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.ui-search-wrap .ui-icon-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.ui-tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--ui-border);
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.ui-toolbar-row {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-bottom: 10px;
+}
+
+.ui-toolbar-row > .ui-btn,
+.ui-toolbar-row > .ui-search-wrap {
+  flex: 1;
+  min-width: 0;
+}

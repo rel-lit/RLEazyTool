@@ -6,6 +6,7 @@ import HistoryPanel from "./components/panels/HistoryPanel.vue";
 import LayoutWorkspace from "./components/panels/LayoutWorkspace.vue";
 import ModeToolbar from "./components/panels/ModeToolbar.vue";
 import ProgressPanel from "./components/panels/ProgressPanel.vue";
+import { UiButton } from "./ui";
 
 const app = useApp();
 provide("appBus", app.bus);
@@ -77,22 +78,22 @@ async function clearHistory(): Promise<void> {
         <aside class="panel item-panel">
           <div class="item-panel-head">
             <div class="sidebar-switch">
-              <button
-                type="button"
-                class="toggle-save"
-                :class="{ active: leftSidebar === 'save' }"
+              <UiButton
+                variant="toggle"
+                size="sm"
+                :pressed="leftSidebar === 'save'"
                 @click="showSave"
               >
                 存档
-              </button>
-              <button
-                type="button"
-                class="toggle-save"
-                :class="{ active: leftSidebar === 'history' }"
+              </UiButton>
+              <UiButton
+                variant="toggle"
+                size="sm"
+                :pressed="leftSidebar === 'history'"
                 @click="showHistory"
               >
                 历史
-              </button>
+              </UiButton>
             </div>
 
             <ModeToolbar
@@ -224,25 +225,8 @@ async function clearHistory(): Promise<void> {
   gap: 6px;
 }
 
-.toggle-save {
+.sidebar-switch :deep(.ui-btn) {
   flex: 1;
-  background: #21262d;
-  border: 1px solid #30363d;
-  color: #8b949e;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 11px;
-  cursor: pointer;
-}
-
-.toggle-save:hover {
-  border-color: #388bfd;
-  color: #58a6ff;
-}
-
-.toggle-save.active {
-  border-color: #388bfd;
-  color: #58a6ff;
-  background: #1c2128;
+  min-width: 0;
 }
 </style>

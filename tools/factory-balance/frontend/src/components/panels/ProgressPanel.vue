@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { FactorioStatus, SaveInfo } from "../api/client";
+import type { FactorioStatus, SaveInfo } from "../../api/client";
+import { UiButton } from "../../ui";
 
 defineProps<{
   factorioStatus: FactorioStatus | null;
@@ -33,6 +34,7 @@ defineEmits<{
       存档「{{ activeSaveKey }}」已在游戏中更新，当前列表仍为上次导入的进度。请点击下方按钮重新导入。
     </p>
     <select
+      class="ui-select"
       :value="selectedSave"
       @change="$emit('update:selectedSave', ($event.target as HTMLSelectElement).value)"
     >
@@ -41,16 +43,23 @@ defineEmits<{
         {{ s.name }}{{ s.is_last_played ? " · 最近" : "" }}{{ s.needs_reimport ? " · 需更新" : "" }}
       </option>
     </select>
-    <button
-      class="secondary import-main"
+    <UiButton
+      variant="secondary"
+      block
+      class="import-main"
       :disabled="progressLoading || !selectedSave"
       @click="$emit('import')"
     >
       {{ progressLoading ? "导入中…" : "从存档导入（覆盖缓存）" }}
-    </button>
-    <button class="secondary" :disabled="purgeLoading || progressLoading" @click="$emit('purge')">
+    </UiButton>
+    <UiButton
+      variant="secondary"
+      block
+      :disabled="purgeLoading || progressLoading"
+      @click="$emit('purge')"
+    >
       {{ purgeLoading ? "清理中…" : "清理过时缓存" }}
-    </button>
+    </UiButton>
     <p class="hint">重新导入会启动游戏读取进度（使用临时副本，不修改原存档），并清空当前选中项与布局。</p>
     <p v-if="progressMsg" class="progress-msg">{{ progressMsg }}</p>
     <ul v-if="progressWarnings.length" class="warn-list">
@@ -61,31 +70,11 @@ defineEmits<{
 
 <style scoped>
 .progress-section select {
-  width: 100%;
   margin-bottom: 4px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  border: 1px solid #30363d;
-  background: #0d1117;
-  color: inherit;
-}
-
-.secondary {
-  background: #21262d;
-  border: 1px solid #388bfd;
-  color: #58a6ff;
-  padding: 8px;
-  border-radius: 6px;
-  width: 100%;
-  margin-top: 6px;
-}
-
-.secondary:disabled {
-  opacity: 0.5;
 }
 
 .import-main {
-  width: 100%;
+  margin-top: 6px;
 }
 
 .hint {
