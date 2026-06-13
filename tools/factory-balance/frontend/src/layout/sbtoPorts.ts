@@ -1,24 +1,47 @@
 import { Position } from "@vue-flow/core";
+import type { LayoutNode } from "../api/client";
+import {
+  resolveSourceHandle,
+  resolveTargetHandle,
+  type HandleId,
+} from "./nodePorts";
+import type { LayoutDirection } from "./layoutTypes";
 
-/** SBTO 边端口（LR）：同级只用左侧；跨级仍用右出/左进或回绕 */
+/** SBTO 边端口（LR）：同级只用左侧；跨级仍用右出/左进或回绕；受 node_kind 约束 */
 export function sbtoHandleIds(
   fromGrade: number,
-  toGrade: number
+  toGrade: number,
+  fromNode?: LayoutNode,
+  toNode?: LayoutNode,
+  direction: LayoutDirection = "left-to-right"
 ): { sourceHandle: string; targetHandle: string } {
+  let source: HandleId;
+  let target: HandleId;
   if (fromGrade === toGrade) {
-    return { sourceHandle: "s-l", targetHandle: "t-l" };
+    source = "s-l";
+    target = "t-l";
+  } else if (fromGrade < toGrade) {
+    source = "s-r";
+    target = "t-l";
+  } else {
+    source = "s-l";
+    target = "t-r";
   }
-  if (fromGrade < toGrade) {
-    return { sourceHandle: "s-r", targetHandle: "t-l" };
-  }
-  return { sourceHandle: "s-l", targetHandle: "t-r" };
+  return {
+    sourceHandle: resolveSourceHandle(fromNode, source, direction),
+    targetHandle: resolveTargetHandle(toNode, target, direction),
+  };
 }
 
-export function beltHandleIds(): {
-  sourceHandle: string;
-  targetHandle: string;
-} {
-  return { sourceHandle: "s-r", targetHandle: "t-l" };
+export function beltHandleIds(
+  fromNode?: LayoutNode,
+  toNode?: LayoutNode,
+  direction: LayoutDirection = "left-to-right"
+): { sourceHandle: string; targetHandle: string } {
+  return {
+    sourceHandle: resolveSourceHandle(fromNode, "s-r", direction),
+    targetHandle: resolveTargetHandle(toNode, "t-l", direction),
+  };
 }
 
 export function handlePosition(

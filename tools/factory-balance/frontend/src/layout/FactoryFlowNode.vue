@@ -10,6 +10,7 @@ import {
 } from "./layoutTypes";
 import { factoryNodeLabel } from "./flowGraph";
 import { handlePosition } from "./sbtoPorts";
+import { nodeHandleVisibility } from "./nodePorts";
 import { nodeVisualStyle, NODE_BASE_OPACITY } from "./nodeVisual";
 
 const props = defineProps<{ data: LayoutNode }>();
@@ -29,6 +30,8 @@ const canvasFocus = inject<Ref<FocusHighlight | null>>("canvasFocus");
 const dir = computed(
   () => layoutDirection.value ?? DEFAULT_LAYOUT_DIRECTION
 );
+
+const ports = computed(() => nodeHandleVisibility(props.data, dir.value));
 
 const tL = computed(() => handlePosition("t-l", dir.value));
 const tR = computed(() => handlePosition("t-r", dir.value));
@@ -53,11 +56,35 @@ const nodeClass = computed(() => [
 
 <template>
   <div :class="nodeClass" :style="nodeStyle">
-    <Handle id="t-l" type="target" :position="tL" />
-    <Handle id="t-r" type="target" :position="tR" />
+    <Handle
+      v-if="ports['t-l']"
+      id="t-l"
+      type="target"
+      class="fb-handle"
+      :position="tL"
+    />
+    <Handle
+      v-if="ports['t-r']"
+      id="t-r"
+      type="target"
+      class="fb-handle"
+      :position="tR"
+    />
     {{ label }}
-    <Handle id="s-l" type="source" :position="sL" />
-    <Handle id="s-r" type="source" :position="sR" />
+    <Handle
+      v-if="ports['s-l']"
+      id="s-l"
+      type="source"
+      class="fb-handle"
+      :position="sL"
+    />
+    <Handle
+      v-if="ports['s-r']"
+      id="s-r"
+      type="source"
+      class="fb-handle"
+      :position="sR"
+    />
   </div>
 </template>
 
@@ -79,5 +106,17 @@ const nodeClass = computed(() => [
 .fb-node--dimmed {
   opacity: 0.12 !important;
   filter: grayscale(0.55);
+}
+
+/* 锚点 invisible：边仍挂接 handle，但不显示圆形连接球 */
+.fb-handle {
+  opacity: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  pointer-events: none !important;
 }
 </style>

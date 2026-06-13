@@ -72,7 +72,12 @@ function edgeToFlow(
   if (isSbtoEdge(e)) {
     const fromG = nodeGrade(nodeById, e.from);
     const toG = nodeGrade(nodeById, e.to);
-    const ports = sbtoHandleIds(fromG, toG);
+    const ports = sbtoHandleIds(
+      fromG,
+      toG,
+      nodeById.get(e.from),
+      nodeById.get(e.to)
+    );
     return {
       id: e.id,
       type: "sbto",
@@ -96,7 +101,7 @@ function edgeToFlow(
       },
     };
   }
-  const belt = beltHandleIds();
+  const belt = beltHandleIds(nodeById.get(e.from), nodeById.get(e.to));
   return {
     id: e.id,
     type: "belt",
@@ -117,7 +122,7 @@ function hiddenEdgeToFlow(
   e: LayoutEdge,
   nodeById: Map<string, LayoutNode>
 ): Edge {
-  const belt = beltHandleIds();
+  const belt = beltHandleIds(nodeById.get(e.from), nodeById.get(e.to));
   return {
     id: e.id,
     type: "belt",
