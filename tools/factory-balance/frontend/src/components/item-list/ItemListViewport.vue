@@ -4,13 +4,13 @@ import { useScrollRegion } from "../../ui/interaction";
 
 const rootEl = ref<HTMLElement | null>(null);
 
-useScrollRegion(rootEl);
+const { resetScroll } = useScrollRegion(rootEl);
 
-defineExpose({ rootEl });
+defineExpose({ rootEl, resetScroll });
 </script>
 
 <template>
-  <div ref="rootEl" class="item-list-viewport">
+  <div ref="rootEl" class="item-list-viewport" tabindex="-1">
     <slot />
   </div>
 </template>
@@ -26,5 +26,9 @@ defineExpose({ rootEl });
   border: 1px solid var(--ui-border, #30363d);
   border-radius: var(--ui-radius, 6px);
   background: var(--ui-bg-inset, #0d1117);
+}
+
+.item-list-viewport:focus {
+  outline: none;
 }
 </style>

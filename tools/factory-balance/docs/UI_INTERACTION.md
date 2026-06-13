@@ -407,12 +407,12 @@ import "./ui/interactive.css";
 | 选择（业务） | `domains/selection/useSelection.ts` | `selectedTargets` / `suppliedItems` / `forbiddenItems` |
 | 编排 | `components/panels/ItemTabsPanel.vue` | toggle → selection + session；**单例**区外提交 |
 | dumb 渲染 | `CatalogPanel` / `SupplyPanel` | 只读 `displayOrder`；chip 用 `@primary` / `@secondary` |
-| 视口壳 | `components/item-list/ItemListViewport.vue` | `useScrollRegion`（滚动 + 抑制空白区右键） |
+| 视口壳 | `components/item-list/ItemListViewport.vue` | `useScrollRegion`：滚动、抑制空白右键、失焦回顶 |
 
 ### 11.2 交互语义
 
 1. **列表内点击 chip**：只更新 selection（业务）+ 桶归属（session）；`displayOrder` **不变**；chip 高亮即时变化。
-2. **区外 pointerdown**（搜索框、tab、清空、画布等）：对**当前 tab** 的 session 调用 `commit()`（仅 `dirty` 时重排）。
+2. **区外 pointerdown**（搜索框、tab、清空、画布等）：对**当前 tab** 的 session 调用 `commit()`（仅 `dirty` 时重排），**并重置列表 scrollTop**。
 3. **commit 后分组**：产出目标 `[已选 → 未选]`；供给 `[已知 → 禁止 → 普通]`；组内字典序。
 4. **取消选择**：桶回到 normal；下次 commit 时回到 normal 组位置。
 

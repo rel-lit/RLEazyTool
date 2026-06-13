@@ -57,14 +57,22 @@ function commitSession(tab: ItemTab): void {
   else supplySession.commit();
 }
 
+function resetViewportScroll(tab: ItemTab): void {
+  const viewport =
+    tab === "target" ? targetViewportRef.value : supplyViewportRef.value;
+  viewport?.resetScroll();
+}
+
 function commitActiveSession(): void {
   commitSession(activeTab.value);
+  resetViewportScroll(activeTab.value);
 }
 
 function switchTab(next: ItemTab): void {
   if (next === activeTab.value) return;
   const prev = activeTab.value;
   activeTab.value = next;
+  resetViewportScroll(prev);
   commitSession(prev);
 }
 
