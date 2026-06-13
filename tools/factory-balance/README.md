@@ -2,6 +2,8 @@
 
 根据异星工厂（含 **Space Age**）配方，选择产出目标与供给模式，自动计算 **自平衡布局 (SBTO)** 与可视化有向图。
 
+> **架构 credit：** 本工具 v2 流水线语义模型由 **[rellit](https://github.com/rel-lit)** 定义并推动落地——原始树 → 合并图 → layer/rank → SBTO → 渲染；物品即节点，按需判断，六阶段严格隔离。详见 [`docs/PIPELINE_DESIGN_V2.md`](docs/PIPELINE_DESIGN_V2.md)。
+
 ## 存档进度与配方同步（v0.2）
 
 工具会读取 `%APPDATA%\\Factorio` 下的存档，并通过 **companion 模组** 导出当前已研究科技与 `force.recipes` 中已启用配方（与游戏内可制造列表一致）。
@@ -29,12 +31,13 @@
 
 在游戏中加载存档后，控制台执行（无需 companion 模组时不可用 force.recipes 导出）——推荐使用工具内置流程。
 
-## 功能（v0.1）
+## 功能概览
 
-- 多产出目标（合并共享生产链）
-- 供给模式：**原料模式** / **直接产物模式**
-- 自动计算共享传送带 **取用顺序 (SBTO)**
-- 图形化布局（Vue Flow）
+- 多产出目标（共享原料合并为 **物品节点图**）
+- 供给模式：**原料模式 (RAW)** / **直接产物模式 (DIRECT)**
+- **禁止供给**：仅阻止外源叶子；能展开则继续建树，**建树失败才报错**
+- 自动计算共享传送带 **取用顺序 (SBTO)**（仅 layer↓ rank↓，无门控、无 detour）
+- 图形化布局（Vue Flow）：节点 id = **物品名**；四类边 `belt` / `tap_chain` / `product` / `hidden`
 - 中文界面
 - **占位扩展**：蓝图导出、产能计算（未实现）
 
@@ -85,22 +88,24 @@ cd tools\factory-balance\backend
 
 ## 布局流水线（v2）
 
-完整设计见 [`docs/PIPELINE_DESIGN_V2.md`](docs/PIPELINE_DESIGN_V2.md)：
+完整设计规范见 **[`docs/PIPELINE_DESIGN_V2.md`](docs/PIPELINE_DESIGN_V2.md)**（rellit 定稿）。静态 Tag / 数据源 D 定义见 **[`backend/db/ANALYSIS_SUPPLY_SEMANTICS.md`](backend/db/ANALYSIS_SUPPLY_SEMANTICS.md)**。
 
-1. 原始树构建 + 分析集  
-2. layer（叶=0 向终端递增）+ 树合并  
-3. rank（L0 分数 × 子节点乘积 → 层内整型）  
-4. SBTO（仅 layer/rank，下游优先）  
-5. 渲染（节点 id = 物品名，四类边通道）
-
-## SBTO 规则
-
-单次布局计算会先构建 **合并产物图** 并分配 **等级（layer）**，再在同一等级体系上计算 SBTO：
+```
+用户输入 + 配方库 + 数据源 D
+  → 1. recipe_pick + original_tree（双指针建树，analysis_items 注册）
+  → 2–3. layer（叶=0 向终端递增）+ 跨树合并 → 原始图 G
+  → 4. rank（L0 分数 × 子 rank 乘积 → 层内整型）
+  → 5. SBTO（生产者侧发现；tap = layer↓ rank↓）
+  → 6. render（坐标 + product / belt / hidden / tap_chain 四类边）
+```
 
 | 原则 | 说明 |
 |------|------|
-| **合并等级** | 多目标原始树合并后，节点取各路径 **max 等级**；越靠近有效终端越高 |
-| **取用顺序** | 共享物上，**层级更高**（更下游）的消费者优先 tap；同层 **rank 更大** 者优先 |
+| **节点 = 物品名** | 合并后每个物品一个节点；`type=item` |
+| **分析集** | 物品加入原始树时 `set.add`；非旧版闭包即时 fail |
+| **禁止供给** | 叶子决策：能展开则 expand；仅无法建树时 `impossible` |
+| **SBTO 时机** | **必须在** 原始图 G 与 layer/rank 就绪 **之后** |
+| **无 detour** | 几何曲线仅为渲染；算法无绕行语义 |
 
 每次成功计算会写入 SQLite 表 `layout_compute_history`（完整请求/响应 JSON），可在侧栏 **历史** 中载入。
 
@@ -109,21 +114,33 @@ cd tools\factory-balance\backend
 ```
 factory-balance/
 ├── balance.bat
-├── setup.bat               # 初始化子工具 .venv
-├── venv_bootstrap.py
-├── .venv/                  # 子工具专用（git 忽略）
-├── requirements.txt
+├── setup.bat
+├── docs/
+│   └── PIPELINE_DESIGN_V2.md     # v2 全流程设计规范
 ├── backend/
-│   ├── main.py              # FastAPI
+│   ├── main.py                   # FastAPI
 │   ├── api/
 │   ├── core/
-│   │   ├── sbto.py          # SBTO 算法
-│   │   ├── layout_engine.py
-│   │   ├── blueprint.py     # 占位
-│   │   └── throughput.py    # 占位
-│   └── data/recipes.json    # vanilla + Space Age 配方快照
-├── frontend/                # Vue 3 + Vue Flow
+│   │   ├── layout_pipeline.py    # 阶段 1→6 串联
+│   │   ├── layout_engine.py      # API 入口 compute_layout
+│   │   ├── original_tree.py      # 阶段 1：双指针原始树
+│   │   ├── original_graph.py     # 原始图 G 数据结构
+│   │   ├── tree_layer.py         # 阶段 2–3：layer + 合并
+│   │   ├── rank_assigner.py      # 阶段 4：rank
+│   │   ├── recipe_pick.py        # 多 primary 配方优化
+│   │   ├── sbto.py               # 阶段 5：SBTO
+│   │   ├── layout_renderer.py    # 阶段 6：渲染
+│   │   ├── layout_geometry.py    # 坐标与 cross 布局
+│   │   ├── blueprint.py          # 占位
+│   │   └── throughput.py           # 占位
+│   └── db/
+│       ├── ANALYSIS_SUPPLY_SEMANTICS.md
+│       └── ...
+├── frontend/                     # Vue 3 + Vue Flow
+│   └── src/layout/focus/         # 画布 focus 状态机
 └── tests/
+    ├── test_pipeline_v2.py
+    └── test_v2_layer_rank.py
 ```
 
 ## 测试

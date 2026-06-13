@@ -5,7 +5,7 @@
 ## 📢 最新更新
 
 - 🔧 **Merge**: `this` / `exc` / `c` / `ana`（tree-sitter 详细语法分析，默认关）、`.gitignore`
-- 🆕 **factory-balance**: 异星工厂自平衡布局计算器（SBTO + Vue 图形界面，含 Space Age）
+- 🆕 **factory-balance**: 异星工厂自平衡布局计算器（**v2 六阶段流水线** · SBTO · Vue 图形界面，含 Space Age；语义由 rellit 定稿）
 - 🔧 **架构**: 分层模块（`session`、`scope_rules`、`exc_handlers` 等），详见 [tools/merge/README.md](tools/merge/README.md)
 - 📝 **环境**: 虚拟环境支持（`.venv`）；merge 的 `.gitignore` 需可选依赖 `pathspec`
 
@@ -137,10 +137,10 @@ RLEazyTool/
 
 ### 2. factory-balance —— 异星自平衡布局计算器
 
-根据配方自动计算 **SBTO 自平衡传送带顺序** 与布局图（含 Space Age，中文 GUI）。
+根据配方自动计算 **SBTO 自平衡传送带顺序** 与布局图（含 Space Age，中文 GUI）。v2 采用 **原始树 → 合并图 → layer/rank → SBTO → 渲染** 六阶段流水线，节点即物品名。
 
 - 双击 `tools/factory-balance/balance.bat` 启动（首次自动创建 `tools/factory-balance/.venv`）
-- 完整说明见 📖 **[tools/factory-balance/README.md](tools/factory-balance/README.md)**
+- 完整说明见 📖 **[tools/factory-balance/README.md](tools/factory-balance/README.md)** · 设计规范 **[PIPELINE_DESIGN_V2.md](tools/factory-balance/docs/PIPELINE_DESIGN_V2.md)**
 
 ## 贡献与反馈
 

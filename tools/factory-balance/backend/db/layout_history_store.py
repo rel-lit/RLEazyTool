@@ -8,7 +8,7 @@ response_json 语义（一次分析集的可复现包）：
       · meta.intra_layer_frac：当层合并用小数（仅计算用）
   - product_edges：合并原始树的全产物 DAG（无 SBTO 路由）
   - hidden_edges：被 SBTO 替代的反向树实线（悬停时露出）
-  - edges：画布可见边 = SBTO 链 (tap_chain/detour) + 剩余 belt
+  - edges：画布可见边 = SBTO 链 (tap_chain) + 剩余 belt
   - tap_orders：每条共享物一条 SBTO 链（消费者 node id 有序列表）
   - analysis：闭包摘要（有效终端、true_pure 等）
 """

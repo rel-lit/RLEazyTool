@@ -1,9 +1,10 @@
 # 分析集与 Tag 体系设计（完整参考）
 
-> 规则版本：`tag_rule_version = 3` · Schema：`schema_final` v3  
-> 相关实现：`db/intrinsic/` · `db/extraction_etl.py` · `db/catalog_builder.py` · `core/analysis_engine.py`
+> 规则版本：`tag_rule_version = 3` · Schema：`schema_final` v3 · 布局流水线：**v2**  
+> 相关实现：`db/intrinsic/` · `db/extraction_etl.py` · `db/catalog_builder.py` · `core/layout_pipeline.py` · `core/original_tree.py`  
+> 运行时流水线详规：[`docs/PIPELINE_DESIGN_V2.md`](../docs/PIPELINE_DESIGN_V2.md)（**rellit** 定稿）
 
-本文档是**分析集（Analysis Set）**与**游戏 Tag 四层体系**的对照规范。后续改 UI、闭包、catalog 时以此为准，避免把「游戏世界原料」「Catalog 上下文 tag」「运行时 supply 节点」混为一谈。
+本文档是**分析集（Analysis Set）**与**游戏 Tag 四层体系**的对照规范。后续改 UI、catalog、原始树建树逻辑时以此为准，避免把「游戏世界原料」「Catalog 上下文 tag」「运行时外源叶子 meta」混为一谈。
 
 ---
 
@@ -36,21 +37,23 @@ flowchart TB
         G --> Cat
     end
 
-    subgraph analysis ["分析集（单次布局计算）"]
-        Ctx["AnalysisContext: D, expandable, pure_supply"]
-        Graph["ProductionGraph + AnalysisSummary"]
+    subgraph analysis ["分析集（单次布局计算 · v2）"]
+        Ctx["TreeBuildContext: D, expandable, pure_supply"]
+        Graph["OriginalGraph G + analysis meta"]
         Cat --> Ctx
         Ctx --> Graph
     end
 ```
 
-**分析集** = 在某次 `compute_layout` / `run_analysis` 中，由 **AnalysisContext** 限定的物品集合 + 对用户选择（产出目标、已知供给、禁止供给、supply_mode）做 **反向闭包** 后得到的：
+**分析集** = 在某次 `compute_layout` / `run_layout_pipeline` 中，由 **数据源 D + TreeBuildContext** 限定，经 **双指针原始树构建** 得到的：
 
-- 参与物品集合 `analysis_items`
-- 生产图 `ProductionGraph`（`producer:*` / `supply:*`）
-- 摘要 `AnalysisSummary`（纯粹原料、有效终端、配方指派等）
+- 参与物品集合 `analysis_items`（物品加入树时 `set.add`）
+- 合并 **原始图 G**（节点 id = **物品名**；边 = 原料 → 产物）
+- 摘要 meta（`terminals`、`pseudo_external`、`recipe_assignments`、`impossible` 等）
 
-分析集 **不是** 数据库里的一张表；它是 **Context tag + 用户输入 + 闭包算法** 的运行时结果。
+分析集 **不是** 数据库里的一张表；它是 **Context tag + 用户输入 + 阶段 1 建树算法** 的运行时结果。
+
+**v2 与 v1 关键差异：** 无 `ProductionGraph`、无 `producer:`/`supply:` 节点 id；禁止供给不在输入时即时 fail，而在 **叶子决策** 处尝试 expand，**建树失败** 才 `impossible`。
 
 ---
 
@@ -204,111 +207,113 @@ Context tag `producible` / `consumable` 来自 G 层。
 | `closure_expandable` | 上式子集 | 上式子集 |
 | `pure_supply` | `baseline ∧ ¬closure_expandable` | 同上 |
 
-**分析集边界：** 闭包中遇到的物品必须在 `D` 内，否则报错「不在当前数据源内」。
+**分析集边界：** 建树过程中遇到的物品必须在 `D` 内，否则报错「不在当前数据源内」。
 
 ---
 
-## 6. 分析集核心概念（运行时）
+## 6. 分析集核心概念（运行时 · v2）
 
-以下概念出现在 `AnalysisSummary` / `ProductionGraph` / 布局节点中。
+以下概念出现在 `layout_pipeline` 响应的 `analysis` meta 与 **物品节点图** 中。完整阶段语义见 [`PIPELINE_DESIGN_V2.md`](../../docs/PIPELINE_DESIGN_V2.md)。
 
 ### 6.1 与用户输入的关系
 
 | 用户输入 | 字段 | 作用 |
 |----------|------|------|
-| 产出目标 | `declared_outputs` | 闭包 **根**；必须 `closure_expandable` |
-| 已知外部供给 | `user_supplied` | 强制 `supply:*`，不再向上展开 |
-| 禁止供给 | `forbidden` | 禁止该物品作 supply；可致 `impossible` |
+| 产出目标 | `declared_outputs` / `targets` | 原始树 **根**；必须 `closure_expandable` |
+| 已知外部供给 | `user_supplied` / `supplied_items` | 叶子 **stop_true**，不再向上展开 |
+| 禁止供给 | `forbidden_items` | 禁止外源叶子；**可 expand 则继续**；无法建树 → `impossible` |
 | 供给模式 | `supply_mode` | `raw` / `direct`（见 §6.5） |
 | Catalog 模式 | `catalog_mode` | `progress` → save scope；`full` → environment |
 
-### 6.2 纯粹原料（Pure Source）
+### 6.2 外源叶子（External Leaf）
 
-分析集里 **不再向上展开** 的输入，对应图节点 `supply:{item}`。
+v2 不再使用 `supply:{item}` 节点 id；外源物品仍是 **同一物品节点**，通过 `meta.external_leaf` / `meta.supply_kind` 区分。
 
-| 概念 | 字段 / 节点 | 定义 |
+| 概念 | 字段 / meta | 定义 |
 |------|-------------|------|
-| **真实纯粹原料** | `true_pure_sources` | RAW 模式下进入 `supply:*` 的物品 |
-| **伪纯粹原料** | `pseudo_pure_sources` | DIRECT 模式下占位 supply |
-| **Catalog 默认供给** | `pure_supply`（Context） | 算法 **倾向** 将其作 supply，可被用户 `user_supplied` / 展开 recipe 覆盖 |
-| **世界 baseline** | `baseline_supply` / `ir.extractable` | 静态：地图上可抽；**不等于** 一定是 supply 节点 |
+| **真实外源** | `stop_true` → `external_leaf=true` | RAW 模式下不再向上展开的叶子 |
+| **伪外源** | `stop_pseudo` → `pseudo_external` | DIRECT 模式下占位外源 |
+| **Catalog 默认供给** | `pure_supply`（Context） | 建树时 **倾向** 作外源叶子，可被 `user_supplied` / expand 覆盖 |
+| **世界 baseline** | `baseline_supply` / `ir.extractable` | 静态：地图上可抽；**不等于** 一定是外源叶子 |
 
-#### `resolve_material` 决策顺序（RAW 模式）
+#### `_resolve_leaf` 决策顺序（`original_tree.py`）
 
 ```
-1. user_supplied           → supply（true_pure）
-2. closure_expandable      → manufacture → producer（含 fb-extract:*）
-3. pure_supply / baseline  → supply（true_pure）
-4. 有 primary 配方         → 尝试 manufacture
-5. 兜底                    → supply（true_pure）
+1. forbidden + 可 expand     → expand（否则 fail 建树）
+2. user_supplied             → stop_true
+3. supply_mode == DIRECT     → stop_pseudo
+4. expandable + 可 expand    → world_leaf ? stop_true : expand
+5. world_leaf                → stop_true
+6. 可 expand                 → expand
+7. 兜底                      → stop_true
 ```
 
-#### 纯粹原料 vs 世界原料 vs 抽取 producer
+#### 外源叶子 vs 世界原料 vs 抽取展开
 
-| 物品 | ir.extractable | 抽取建筑已解锁 | 闭包中节点 |
-|------|----------------|----------------|------------|
-| 铁矿 | 是 | 否（仅矿机配方未解锁） | 常作 `supply:*`（true_pure） |
-| 原油 | 是 | 是（pumpjack） | `producer:fb-extract:crude-oil` |
-| 石油气 | 否 | — | `producer:basic-oil-processing` 等 |
-| 铜板 | 否 | — | `producer:*` 或 supply（若用户指定） |
+| 物品 | ir.extractable | 抽取建筑已解锁 | 树中行为 |
+|------|----------------|----------------|----------|
+| 铁矿 | 是 | 否 | 常作 **外源叶子**（true） |
+| 原油 | 是 | 是（pumpjack） | **expand** → `fb-extract:*` 配方 |
+| 石油气 | 否 | — | **expand** 炼油配方，非外源 |
+| 铜板 | 否 | — | expand 或外源（若用户指定 supplied） |
 
 ### 6.3 中间产物（Intermediate）
 
-**多级中间产物** = 闭包展开过程中，既 **被制造** 又 **作为下游原料** 的物品。
+**多级中间产物** = 建树展开过程中，既 **被制造** 又 **作为下游原料** 的物品。
 
 | 视角 | 标识 | 说明 |
 |------|------|------|
 | Catalog（静态 gate 图） | `intermediate` tag | `closure_expandable ∧ used_as_input` |
-| 分析集（单次闭包） | ∈ `analysis_items`，非 `true_pure`，有 `producer:*` | 如铜板→铜线→绿板链每一环 |
-| 布局图 | `type=producer` | 蓝色节点；`fb-extract:*` 带虚线边框 |
+| 分析集（单次建树） | ∈ `analysis_items`，非 `pseudo_external`，有配方边 | 如铜板→铜线→绿板链每一环 |
+| 布局图 | `type=item`，无 `external_leaf` | 普通物品节点；抽取配方带 `fb-extract` meta |
 
-**层级：** 由 `layout_engine._assign_layers` 保证物料边 `from → to` 满足 `layer(from) < layer(to)`；行号 `_assign_rows` 减少同层视觉「反向」。
+**层级：** 阶段 2–3 `tree_layer` 自叶 layer=0 向终端递增；阶段 4 `rank_assigner` 分配层内 rank。
 
-中间产物 **不应** 带 `pure_supply`（除非用户强制 `user_supplied`）。
+中间产物 **不应** 带 `pure_supply`（除非用户强制 `supplied_items`）。
 
-### 6.4 终端产物（Terminal / Sink）
+### 6.4 终端产物（Terminal）
 
 | 概念 | 字段 / tag | 定义 |
 |------|------------|------|
 | **声明终端** | `declared_outputs` | 用户在「产出目标」中选择的物品 |
-| **有效终端** | `effective_terminals` | 声明终端中，不被其它声明终端「依赖支配」者 |
-| **降级终端** | `demoted_outputs` | 被其它声明终端支配者（如同时选绿板和红板，绿板可能 demote） |
+| **有效终端** | `terminals`（v2 meta） | 建树后保留的终端根（动态修订：遇依赖终端则合并/剔除） |
 | Catalog terminal | `terminal` tag | gate 图内可产物且不再作原料 |
-| 布局 sink | `type=sink` | 对应 `effective_terminals` 中的产物，布局最右层 |
+| 布局 | `is_terminal` / 终端 styling | 对应 `terminals` 中的产物，布局最高 layer |
 
-支配关系：`compute_effective_terminals()` — 若声明目标 A 的配方链需要声明目标 B，则 B 被 A 支配，B 进入 `demoted_outputs`，不为 B 单独建对外产线。
+v2 在阶段 1 双指针建树时处理终端修订；若声明目标 A 的链需要声明目标 B，B 可并入 A 的树或从独立终端列表剔除。
 
 ### 6.5 供给模式 SupplyMode
 
 | 模式 | 行为 |
 |------|------|
-| `RAW` | 仅 `true_pure` 与真实 supply 节点；尽量展开制造链 |
-| `DIRECT` | 中间需求可 `pseudo_pure` 占位，用于直接法/对比 |
+| `RAW` | 外源叶子仅 true external；尽量 expand 制造链 |
+| `DIRECT` | 中间需求可 `stop_pseudo`，用于直接法/对比 |
 
 ### 6.6 其它分析集字段
 
 | 字段 | 含义 |
 |------|------|
-| `analysis_items` | 闭包内所有涉及物品（supply + 各层中间 + 终端） |
-| `recipe_assignments` | 多 primary 配方时 SBTO 选的 `product → recipe` |
-| `impossible` | 禁止供给或无法闭包时为 true |
+| `analysis_items` | 建树内所有涉及物品 |
+| `recipe_assignments` | 多 primary 配方时 `pick_recipe_assignments` 选的 `product → recipe` |
+| `pseudo_external` | DIRECT 模式下伪外源物品集合 |
+| `impossible` | 禁止供给且无法 expand，或其它建树失败时为 true |
 
 ---
 
-## 7. 对照总表：分析概念 ↔ Tag ↔ 游戏数据
+## 7. 对照总表：分析概念 ↔ Tag ↔ 游戏数据（v2 图节点）
 
-| 分析集概念 | Context / IR tag | 游戏数据根 | 图节点类型 |
-|------------|-------------------|------------|------------|
+| 分析集概念 | Context / IR tag | 游戏数据根 | v2 图表现 |
+|------------|-------------------|------------|-----------|
 | 世界可抽取 | `ir.extractable`, `baseline_supply` | `resource.minable`, `extractor` | — |
-| 默认外部供给 | `pure_supply` | baseline + 未解锁制造/抽取 | `supply:*` |
-| 用户指定供给 | — | 用户 UI | `supply:*` |
-| 世界抽取（已展开） | `closure_expandable`, `ip.extract` | `fb-extract:*` + 抽取建筑解锁 | `producer:fb-extract:*` |
-| 一级中间物 | `intermediate`, `closure_expandable` | primary 配方链 | `producer:*` |
-| 多级中间物 | 同上，链式多次 | 多级 primary 配方 | 多层 `producer:*` |
-| 炼油中间物 | `ip.refining`, `closure_expandable` | `oil-processing` 类配方 | `producer:*` |
-| 产出目标 | `manufacture` | 用户选择 + gate 内可造 | 闭包根 |
-| 有效终端 | —（运行时 `effective_terminals`） | 用户选择 − demote | `sink` |
-| 桶装物流 | `craftable_logistics_only`, `ip.barrel.*` | fill/empty barrel | 不参与闭包 |
+| 默认外部供给 | `pure_supply` | baseline + 未解锁制造/抽取 | 物品节点 + `external_leaf` |
+| 用户指定供给 | — | 用户 UI | 物品节点 + `external_leaf` |
+| 世界抽取（已展开） | `closure_expandable`, `ip.extract` | `fb-extract:*` + 抽取建筑解锁 | 物品节点 + extract meta |
+| 一级中间物 | `intermediate`, `closure_expandable` | primary 配方链 | 物品节点 |
+| 多级中间物 | 同上，链式多次 | 多级 primary 配方 | 物品节点 |
+| 炼油中间物 | `ip.refining`, `closure_expandable` | `oil-processing` 类配方 | 物品节点 |
+| 产出目标 | `manufacture` | 用户选择 + gate 内可造 | 终端根 + 最高 layer |
+| 有效终端 | —（运行时 `terminals`） | 用户选择 − 动态修订 | 终端 styling |
+| 桶装物流 | `craftable_logistics_only`, `ip.barrel.*` | fill/empty barrel | 不参与建树 |
 | 不参与分析 | `internal` | parameter-* | — |
 
 ---
@@ -321,17 +326,17 @@ Context tag `producible` / `consumable` 来自 G 层。
 | 已知外部供给 | `supply`（排除 `terminal`） | baseline、中间物、pure_supply 候选 |
 | 全部 | `craftable` | 更广列表 |
 
-布局画布节点样式（约定）：
+布局画布节点样式（v2 约定）：
 
 | 节点 | 条件 | 视觉 |
 |------|------|------|
-| 世界 baseline supply | `supply` + `meta.supply_kind=world_baseline` | 深绿 + ⛏ |
-| 其它 supply | `supply` + implicit | 绿色 |
-| 世界抽取 producer | `recipe` 前缀 `fb-extract:` | 蓝 + 虚线 + ⛏ |
-| 中间 producer | 普通 primary | 蓝色 |
-| 终端 sink | `effective_terminals` | 紫色 |
+| 世界 baseline 外源 | `external_leaf` + `supply_kind=world_baseline` | 深绿 + ⛏ |
+| 其它外源叶子 | `external_leaf` | 绿色 |
+| 抽取展开 | `recipe` 前缀 `fb-extract:` | 蓝 + 虚线 + ⛏ |
+| 中间物 | 普通物品 | 蓝色 |
+| 终端 | `terminals` / terminal meta | 紫色 |
 
-流动：**左 → 右**；连线 **右出左入**。
+流动：**左 → 右**；连线 **右出左入**。边类型：`belt` · `tap_chain` · `product`（悬停）· `hidden`（悬停）。
 
 ---
 
@@ -339,14 +344,14 @@ Context tag `producible` / `consumable` 来自 G 层。
 
 | 物品 | IR | Context（已解锁相关科技） | 分析集中预期 |
 |------|----|-----------------------------|--------------|
-| 铁矿 | extractable | baseline, pure_supply? | supply 或 矿机链（若展开） |
-| 原油 | extractable | expandable（pumpjack） | `fb-extract:crude-oil` |
-| 石油气 | — | expandable（炼油） | **producer**，非 supply |
-| 水 | extractable | expandable（offshore-pump） | `fb-extract:water` |
-| 铜板 | — | intermediate | producer |
-| 引擎 | — | intermediate | producer |
-| 硫 | — | intermediate | producer |
-| 蓝瓶 | — | manufacture | sink（有效终端） |
+| 铁矿 | extractable | baseline, pure_supply? | 外源叶子 或 矿机链（若 expand） |
+| 原油 | extractable | expandable（pumpjack） | expand → `fb-extract:crude-oil` |
+| 石油气 | — | expandable（炼油） | **expand**，非外源叶子 |
+| 水 | extractable | expandable（offshore-pump） | expand → `fb-extract:water` |
+| 铜板 | — | intermediate | 物品节点（中间物） |
+| 引擎 | — | intermediate | 物品节点 |
+| 硫 | — | intermediate | 物品节点 |
+| 蓝瓶 | — | manufacture | 终端根 |
 
 若 **石油气出现在左侧 supply 列** → 违反本文档：查 gate 是否含炼油配方、流体配方是否入库、`pure_supply` 是否误标。
 
@@ -355,12 +360,12 @@ Context tag `producible` / `consumable` 来自 G 层。
 ## 10. 决策 Checklist（改代码前）
 
 1. 是否在 `snap_resource_extraction`？→ 世界 baseline，非中间物  
-2. 抽取建筑是否在 `save_recipe_gate`？→ 应 `fb-extract` producer  
+2. 抽取建筑是否在 `save_recipe_gate`？→ 应 expand `fb-extract`  
 3. 是否仅由有原料 primary 配方产出？→ 仅 `intermediate` / `closure_expandable`，非 baseline  
-4. 是否 `ip.barrel.*`？→ logistics，不闭包  
+4. 是否 `ip.barrel.*`？→ logistics，不建树  
 5. 是否在 `data_source` D 内？→ 否则不应出现在分析集  
-6. 声明终端是否被其它终端支配？→ `effective_terminals` vs `demoted_outputs`  
-7. 图上 `supply:petroleum-gas`？→ **bug**
+6. 声明终端是否被其它终端依赖？→ `terminals` 动态修订  
+7. 石油气被标为外源叶子？→ **bug**（应 expand 炼油链）
 
 ---
 
@@ -373,9 +378,11 @@ Context tag `producible` / `consumable` 来自 G 层。
 | `db/intrinsic/recipe_classifier.py` | IP + closure_role |
 | `db/intrinsic/apply.py` | ETL 后写入 IR/IP |
 | `db/catalog_builder.py` | Layer C 物化 |
-| `db/data_source.py` | `AnalysisContext` |
-| `core/analysis_engine.py` | 分析集闭包、纯粹原料、有效终端 |
-| `core/layout_engine.py` | 分层、分行、节点 meta |
+| `db/data_source.py` | 数据源 D、`AnalysisContext` |
+| `core/original_tree.py` | 阶段 1：双指针建树、分析集、叶子决策 |
+| `core/layout_pipeline.py` | 阶段 1→6 串联 |
+| `core/layout_engine.py` | API 入口 `compute_layout` |
+| `docs/PIPELINE_DESIGN_V2.md` | v2 全流程规范（rellit） |
 | `frontend/LayoutCanvas.vue` | 端口方向与样式 |
 
 ---
@@ -384,6 +391,7 @@ Context tag `producible` / `consumable` 来自 G 层。
 
 | 版本 | 变更 |
 |------|------|
+| v4 | 对齐 v2 流水线：物品节点、原始树、`external_leaf`；移除 ProductionGraph / producer: supply: 语义 |
 | v3 | 世界抽取表；流体配方全入库；extractable 来自 extraction 非手写名单 |
 | v2 | intrinsic tag + closure primary/logistics |
 | v1 | 初版 catalog |

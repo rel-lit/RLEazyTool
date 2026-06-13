@@ -1,7 +1,8 @@
 # 异星自平衡布局 — 全流程设计规范 v2
 
-> **状态：** 修订版完整规范，用于 **完全重构** 现有实现。  
+> **状态：** v2 已定稿并 **已实现**（`backend/core/layout_pipeline.py` 串联阶段 1→6）。  
 > **原则：** 不兼容旧版语义；模块严格隔离；用户输入仅为 **按需读取的判断数据**。  
+> **作者：** 语义模型由 **rellit** 定义；本文为实现对照规范。  
 > **关联：** 静态 Tag / 数据源定义见 `backend/db/ANALYSIS_SUPPLY_SEMANTICS.md`；本文描述 **单次布局计算** 的运行时流水线。
 
 ---
@@ -504,26 +505,24 @@ SBTO 流动方向：沿链几何 **与 tap_index 递增一致**（已在 `sbtoFl
 
 ---
 
-## 13. 建议代码布局（重构目标）
+## 13. 代码布局（当前实现）
 
 ```
 backend/core/
   original_tree.py      # 阶段 1
   tree_layer.py         # 阶段 2–3 layer + 合并
   original_graph.py     # G 数据结构
-  rank_assigner.py        # 阶段 4
-  sbto.py                 # 阶段 5（重写）
-  layout_renderer.py      # 阶段 6
-  layout_pipeline.py      # 串联 1→6
-  recipe_pick.py          # 多配方优化
-
-backend/core/analysis_engine.py   # 删除或瘦身为 pipeline 入口
-backend/core/graph_builder.py     # 删除（旧 ProductionGraph）
-backend/core/layout_ordering.py   # 删除（旧 rank）
-backend/core/layout_engine.py     # 瘦身为 API 调用 pipeline
+  rank_assigner.py      # 阶段 4
+  sbto.py               # 阶段 5
+  layout_renderer.py    # 阶段 6
+  layout_pipeline.py    # 串联 1→6
+  recipe_pick.py        # 多配方优化
+  layout_engine.py      # API 入口 → run_layout_pipeline
 ```
 
-测试：按阶段单元测试 + 红绿蓝 / 量子链 **集成用例** 对齐本文语义。
+已删除 v1 模块：`analysis_engine.py`、`graph_builder.py`、`layout_ordering.py`。
+
+测试：`tests/test_pipeline_v2.py`、`tests/test_v2_layer_rank.py` + 红绿蓝 / 量子链集成用例对齐本文语义。
 
 ---
 
@@ -557,17 +556,17 @@ backend/core/layout_engine.py     # 瘦身为 API 调用 pipeline
 
 ## 16. 重构检查清单
 
-- [ ] 阶段 1 双指针原始树 + `analysis_items` set
-- [ ] 禁止供给：仅叶子决策 + 建树失败
-- [ ] 终端动态修订（遇 B 接入或删 B）
-- [ ] 阶段 2–3 layer 初算 / 合并 / 跨树 → G
-- [ ] 阶段 4 rank 分数 + 整型
-- [ ] 阶段 5 SBTO（无门控、无 fallback、无 detour）
-- [ ] 阶段 6 四类边 + strict cross
-- [ ] API schema 更新（节点 type 简化）
-- [ ] 删除旧 ProductionGraph / layout_ordering 路径
-- [ ] 测试与文档与本文一致
+- [x] 阶段 1 双指针原始树 + `analysis_items` set
+- [x] 禁止供给：仅叶子决策 + 建树失败
+- [x] 终端动态修订（遇 B 接入或删 B）
+- [x] 阶段 2–3 layer 初算 / 合并 / 跨树 → G
+- [x] 阶段 4 rank 分数 + 整型
+- [x] 阶段 5 SBTO（无门控、无 fallback、无 detour）
+- [x] 阶段 6 四类边 + strict cross
+- [x] API schema 更新（节点 type 简化）
+- [x] 删除旧 ProductionGraph / layout_ordering 路径
+- [x] 测试与文档与本文一致
 
 ---
 
-*文档版本：`pipeline_v2` · 与实现重构同步更新。*
+*文档版本：`pipeline_v2` · 与 `main` 分支 v2 实现同步。*
