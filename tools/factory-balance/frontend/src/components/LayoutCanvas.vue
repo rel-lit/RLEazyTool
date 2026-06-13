@@ -184,17 +184,6 @@ function onDragStop() {
   transition: opacity 0.12s ease;
 }
 
-:deep(.vue-flow__handle) {
-  opacity: 0;
-  width: 1px;
-  height: 1px;
-  min-width: 0;
-  min-height: 0;
-  border: none;
-  background: transparent;
-  pointer-events: none;
-}
-
 :deep(.vue-flow__node-default) {
   background: transparent;
   border: none;

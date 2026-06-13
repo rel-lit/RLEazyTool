@@ -2,7 +2,7 @@ import { ref, watch, type Ref } from "vue";
 import type { Edge, Node } from "@vue-flow/core";
 import type { AppEventBus } from "../app/events";
 import type { LayoutEdge, LayoutNode } from "../api/client";
-import { buildFlowEdges, mergeLayoutNodes } from "./flowGraph";
+import { buildFlowEdges, mergeLayoutNodes, applyConnectedHandlesToNodes } from "./flowGraph";
 import type { FocusHighlight } from "./focus";
 
 export interface CanvasLayoutProps {
@@ -41,6 +41,7 @@ export function useCanvasLayout(
       hiddenOverlay(),
       nodeByIdMap()
     );
+    flowNodes.value = applyConnectedHandlesToNodes(flowNodes.value, flowEdges.value);
   }
 
   rebuildFlowEdges();
@@ -61,6 +62,10 @@ export function useCanvasLayout(
         layoutNodes,
         flowNodes.value,
         preserveNodePositions.value
+      );
+      flowNodes.value = applyConnectedHandlesToNodes(
+        flowNodes.value,
+        flowEdges.value
       );
       preserveNodePositions.value = true;
     }

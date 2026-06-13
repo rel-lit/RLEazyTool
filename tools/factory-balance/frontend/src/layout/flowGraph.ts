@@ -9,7 +9,39 @@ import { beltHandleIds, sbtoHandleIds } from "./sbtoPorts";
 export const SBTO_STROKE = "#b1bac4";
 export const BELT_STROKE = "#9aa4af";
 
-export type FactoryNodeData = LayoutNode;
+export type FactoryNodeData = LayoutNode & {
+  /** 当前有边挂接的 handle id，用于仅渲染有连线的端口圆点 */
+  connectedHandles?: string[];
+};
+
+export function computeConnectedHandles(edges: Edge[]): Map<string, Set<string>> {
+  const map = new Map<string, Set<string>>();
+  function add(nodeId: string, handle: string | null | undefined): void {
+    if (!handle) return;
+    let set = map.get(nodeId);
+    if (!set) {
+      set = new Set();
+      map.set(nodeId, set);
+    }
+    set.add(handle);
+  }
+  for (const e of edges) {
+    add(e.source, e.sourceHandle);
+    add(e.target, e.targetHandle);
+  }
+  return map;
+}
+
+export function applyConnectedHandlesToNodes(nodes: Node[], edges: Edge[]): Node[] {
+  const byNode = computeConnectedHandles(edges);
+  return nodes.map((n) => ({
+    ...n,
+    data: {
+      ...(n.data as FactoryNodeData),
+      connectedHandles: [...(byNode.get(n.id) ?? [])],
+    },
+  }));
+}
 
 export function factoryNodeLabel(n: LayoutNode): string {
   if (n.meta?.external_leaf && !n.meta?.pseudo_external) {

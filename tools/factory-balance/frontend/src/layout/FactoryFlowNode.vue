@@ -8,12 +8,12 @@ import {
   DEFAULT_LAYOUT_DIRECTION,
   type LayoutDirection,
 } from "./layoutTypes";
-import { factoryNodeLabel } from "./flowGraph";
+import { factoryNodeLabel, type FactoryNodeData } from "./flowGraph";
 import { handlePosition } from "./sbtoPorts";
-import { nodeHandleVisibility } from "./nodePorts";
+import type { HandleId } from "./nodePorts";
 import { nodeVisualStyle, NODE_BASE_OPACITY } from "./nodeVisual";
 
-const props = defineProps<{ data: LayoutNode }>();
+const props = defineProps<{ data: FactoryNodeData }>();
 
 const layoutDirection = inject<Ref<LayoutDirection>>(
   "layoutDirection",
@@ -31,7 +31,13 @@ const dir = computed(
   () => layoutDirection.value ?? DEFAULT_LAYOUT_DIRECTION
 );
 
-const ports = computed(() => nodeHandleVisibility(props.data, dir.value));
+const connected = computed(
+  () => new Set(props.data.connectedHandles ?? [])
+);
+
+function showHandle(id: HandleId): boolean {
+  return connected.value.has(id);
+}
 
 const tL = computed(() => handlePosition("t-l", dir.value));
 const tR = computed(() => handlePosition("t-r", dir.value));
@@ -44,9 +50,11 @@ const dimmed = computed(() => {
   return !isNodeHighlighted(props.data.id, f);
 });
 
-const label = computed(() => factoryNodeLabel(props.data));
+const label = computed(() => factoryNodeLabel(props.data as LayoutNode));
 
-const nodeStyle = computed(() => nodeVisualStyle(props.data, layoutMaxLayer.value));
+const nodeStyle = computed(() =>
+  nodeVisualStyle(props.data as LayoutNode, layoutMaxLayer.value)
+);
 
 const nodeClass = computed(() => [
   "fb-node",
@@ -57,14 +65,14 @@ const nodeClass = computed(() => [
 <template>
   <div :class="nodeClass" :style="nodeStyle">
     <Handle
-      v-if="ports['t-l']"
+      v-if="showHandle('t-l')"
       id="t-l"
       type="target"
       class="fb-handle"
       :position="tL"
     />
     <Handle
-      v-if="ports['t-r']"
+      v-if="showHandle('t-r')"
       id="t-r"
       type="target"
       class="fb-handle"
@@ -72,14 +80,14 @@ const nodeClass = computed(() => [
     />
     {{ label }}
     <Handle
-      v-if="ports['s-l']"
+      v-if="showHandle('s-l')"
       id="s-l"
       type="source"
       class="fb-handle"
       :position="sL"
     />
     <Handle
-      v-if="ports['s-r']"
+      v-if="showHandle('s-r')"
       id="s-r"
       type="source"
       class="fb-handle"
@@ -108,15 +116,10 @@ const nodeClass = computed(() => [
   filter: grayscale(0.55);
 }
 
-/* 锚点 invisible：边仍挂接 handle，但不显示圆形连接球 */
 .fb-handle {
-  opacity: 0 !important;
-  width: 1px !important;
-  height: 1px !important;
-  min-width: 0 !important;
-  min-height: 0 !important;
-  border: none !important;
-  background: transparent !important;
-  pointer-events: none !important;
+  width: 8px;
+  height: 8px;
+  background: #9aa4af;
+  border: 2px solid #30363d;
 }
 </style>
