@@ -8,7 +8,7 @@ from pathlib import Path
 
 DB_PATH = Path(__file__).resolve().parent.parent / "data" / "factory-balance.db"
 SCHEMA_FILE = Path(__file__).resolve().parent / "schema_final.sql"
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 _MIGRATION_V4 = """
 CREATE TABLE IF NOT EXISTS layout_compute_history (
@@ -30,6 +30,31 @@ CREATE INDEX IF NOT EXISTS idx_layout_history_created ON layout_compute_history(
 CREATE INDEX IF NOT EXISTS idx_layout_history_save ON layout_compute_history(save_key);
 """
 
+_MIGRATION_V5 = """
+DROP TABLE IF EXISTS layout_compute_history;
+DROP TABLE IF EXISTS layout_snapshot;
+CREATE TABLE layout_snapshot (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    layout_key          TEXT NOT NULL UNIQUE,
+    save_key            TEXT,
+    env_key             TEXT,
+    catalog_mode        TEXT NOT NULL DEFAULT 'progress',
+    supply_mode         TEXT NOT NULL DEFAULT 'raw',
+    target_summary      TEXT NOT NULL,
+    target_count        INTEGER NOT NULL DEFAULT 0,
+    node_count          INTEGER NOT NULL DEFAULT 0,
+    edge_count          INTEGER NOT NULL DEFAULT 0,
+    tap_count           INTEGER NOT NULL DEFAULT 0,
+    request_json        TEXT NOT NULL,
+    response_json       TEXT NOT NULL,
+    user_positions_json TEXT NOT NULL DEFAULT '{}',
+    created_at          TEXT NOT NULL,
+    updated_at          TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_layout_snapshot_updated ON layout_snapshot(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_layout_snapshot_save ON layout_snapshot(save_key);
+"""
+
 
 def get_connection() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -49,15 +74,19 @@ def _current_schema_version(conn: sqlite3.Connection) -> int:
 
 
 def _apply_migrations(conn: sqlite3.Connection, from_version: int) -> None:
+    now = datetime.now(timezone.utc).isoformat()
     if from_version < 4:
         conn.executescript(_MIGRATION_V4)
         conn.execute(
             "INSERT INTO meta_schema (version, applied_at, note) VALUES (?, ?, ?)",
-            (
-                4,
-                datetime.now(timezone.utc).isoformat(),
-                "layout_compute_history table",
-            ),
+            (4, now, "layout_compute_history table"),
+        )
+        from_version = 4
+    if from_version < 5:
+        conn.executescript(_MIGRATION_V5)
+        conn.execute(
+            "INSERT INTO meta_schema (version, applied_at, note) VALUES (?, ?, ?)",
+            (5, now, "layout_snapshot upsert (Layer P)"),
         )
 
 

@@ -443,24 +443,27 @@ GROUP BY e.env_key;
 -- =============================================================================
 
 -- =============================================================================
--- §8 布局计算历史 — 完整请求/响应快照（合并图 + SBTO + 坐标）
+-- §8 Layer P — 布局快照（layout_key upsert，与算法流水线解耦）
 -- =============================================================================
 
-CREATE TABLE layout_compute_history (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    save_key        TEXT,
-    env_key         TEXT,
-    catalog_mode    TEXT NOT NULL DEFAULT 'progress',
-    supply_mode     TEXT NOT NULL DEFAULT 'raw',
-    target_summary  TEXT NOT NULL,
-    target_count    INTEGER NOT NULL DEFAULT 0,
-    node_count      INTEGER NOT NULL DEFAULT 0,
-    edge_count      INTEGER NOT NULL DEFAULT 0,
-    tap_count       INTEGER NOT NULL DEFAULT 0,
-    request_json    TEXT NOT NULL,
-    response_json   TEXT NOT NULL,
-    created_at      TEXT NOT NULL
+CREATE TABLE layout_snapshot (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    layout_key          TEXT NOT NULL UNIQUE,
+    save_key            TEXT,
+    env_key             TEXT,
+    catalog_mode        TEXT NOT NULL DEFAULT 'progress',
+    supply_mode         TEXT NOT NULL DEFAULT 'raw',
+    target_summary      TEXT NOT NULL,
+    target_count        INTEGER NOT NULL DEFAULT 0,
+    node_count          INTEGER NOT NULL DEFAULT 0,
+    edge_count          INTEGER NOT NULL DEFAULT 0,
+    tap_count           INTEGER NOT NULL DEFAULT 0,
+    request_json        TEXT NOT NULL,
+    response_json       TEXT NOT NULL,
+    user_positions_json TEXT NOT NULL DEFAULT '{}',
+    created_at          TEXT NOT NULL,
+    updated_at          TEXT NOT NULL
 );
 
-CREATE INDEX idx_layout_history_created ON layout_compute_history(created_at DESC);
-CREATE INDEX idx_layout_history_save ON layout_compute_history(save_key);
+CREATE INDEX idx_layout_snapshot_updated ON layout_snapshot(updated_at DESC);
+CREATE INDEX idx_layout_snapshot_save ON layout_snapshot(save_key);

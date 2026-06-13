@@ -33,13 +33,6 @@ class UserNodePosition(BaseModel):
     y: float
 
 
-class UserLayoutSnapshot(BaseModel):
-    """重算前画布节点坐标；不参与闭包/SBTO/布局算法，仅随 request 入历史。"""
-
-    node_positions: dict[str, UserNodePosition] = Field(default_factory=dict)
-    captured_at: str | None = None
-
-
 class LayoutComputeRequest(BaseModel):
     targets: list[LayoutTarget]
     supply_mode: SupplyMode = SupplyMode.RAW
@@ -47,7 +40,6 @@ class LayoutComputeRequest(BaseModel):
     forbidden_items: list[str] = Field(default_factory=list)
     catalog_mode: str = Field(default="progress", description="progress | full，与 UI 列表 scope 一致")
     layout_options: LayoutOptions = Field(default_factory=LayoutOptions)
-    user_layout_before: UserLayoutSnapshot | None = None
 
 
 class Position(BaseModel):
@@ -101,7 +93,6 @@ class LayoutComputeResponse(BaseModel):
     warnings: list[str]
     analysis: dict[str, Any] = Field(default_factory=dict)
     layout_direction: str = "left-to-right"
-    history_id: int | None = None
     extensions: dict[str, Any] = Field(
         default_factory=lambda: {
             "blueprint": {"enabled": False, "placeholder": "Phase3 蓝图导出"},
@@ -111,8 +102,27 @@ class LayoutComputeResponse(BaseModel):
     )
 
 
-class LayoutHistoryEntry(BaseModel):
+class LayoutSnapshotUpsert(BaseModel):
+    """Layer P：可 upsert 的布局快照（算法 response + 用户坐标 overlay）。"""
+
+    request: LayoutComputeRequest
+    response: LayoutComputeResponse
+    user_positions: dict[str, UserNodePosition] = Field(default_factory=dict)
+    layout_key: str | None = Field(
+        default=None,
+        description="可选；缺省由服务端按 request + save_key 计算",
+    )
+
+
+class LayoutSnapshotUpsertResult(BaseModel):
     id: int
+    layout_key: str
+    updated_at: str
+
+
+class LayoutSnapshotEntry(BaseModel):
+    id: int
+    layout_key: str
     save_key: str | None = None
     env_key: str | None = None
     catalog_mode: str
@@ -123,11 +133,13 @@ class LayoutHistoryEntry(BaseModel):
     edge_count: int
     tap_count: int
     created_at: str
+    updated_at: str
 
 
-class LayoutHistoryDetail(LayoutHistoryEntry):
+class LayoutSnapshotDetail(LayoutSnapshotEntry):
     request: dict[str, Any]
     response: dict[str, Any]
+    user_positions: dict[str, Any]
 
 
 class ItemInfo(BaseModel):

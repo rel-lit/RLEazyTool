@@ -107,7 +107,7 @@ cd tools\factory-balance\backend
 | **SBTO 时机** | **必须在** 原始图 G 与 layer/rank 就绪 **之后** |
 | **无 detour** | 几何曲线仅为渲染；算法无绕行语义 |
 
-每次成功计算会写入 SQLite 表 `layout_compute_history`（完整请求/响应 JSON），可在侧栏 **历史** 中载入。
+布局快照按 `layout_key` upsert 至 SQLite 表 `layout_snapshot`（算法 response + 用户坐标），可在侧栏 **历史** 中载入。
 
 ## 目录结构
 

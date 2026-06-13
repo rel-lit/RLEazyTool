@@ -1,4 +1,4 @@
-import { computed, ref } from "vue";
+import { computed, ref, type Ref } from "vue";
 import axios from "axios";
 import {
   computeLayout,
@@ -7,13 +7,20 @@ import {
   type LayoutResponse,
   type TapOrderEntry,
 } from "../../api/client";
-import { DEFAULT_LAYOUT_OPTIONS } from "../../app/config";
 import type { AppEventBus } from "../../app/events";
+import type { LayoutPersistence } from "./layoutPersistence";
 import type { SelectionModule } from "../selection/useSelection";
+import { buildLayoutRequest } from "./layoutSnapshot";
 
 export type NodePositionMap = Record<string, { x: number; y: number }>;
 
-export function useLayout(bus: AppEventBus, selection: SelectionModule, catalogMode: { value: "progress" | "full" }) {
+export function useLayout(
+  bus: AppEventBus,
+  selection: SelectionModule,
+  catalogMode: { value: "progress" | "full" },
+  persistence: LayoutPersistence,
+  boundRequestRef: Ref<LayoutRequest | null>
+) {
   const layout = ref<LayoutResponse | null>(null);
   const selectedEdgeId = ref<string | null>(null);
   const loading = ref(false);
@@ -36,6 +43,7 @@ export function useLayout(bus: AppEventBus, selection: SelectionModule, catalogM
     selectedEdgeId.value = null;
     error.value = "";
     stale.value = false;
+    boundRequestRef.value = null;
   }
 
   function invalidate(reason: string): void {
@@ -49,7 +57,7 @@ export function useLayout(bus: AppEventBus, selection: SelectionModule, catalogM
     selectedEdgeId.value = id;
   }
 
-  async function compute(nodePositionsBefore: NodePositionMap = {}): Promise<void> {
+  async function compute(): Promise<void> {
     if (!selection.selectedTargets.value.length) {
       error.value = "请至少选择一个产出物";
       return;
@@ -58,25 +66,21 @@ export function useLayout(bus: AppEventBus, selection: SelectionModule, catalogM
     error.value = "";
     selectedEdgeId.value = null;
     stale.value = false;
+
+    // 仅持久化「当前画布上的旧布局」；新 layout_key 在计算成功后才绑定，且不立刻写历史
+    await persistence.saveBeforeRecompute();
+
     bus.emit({ type: "LayoutComputeStarted", resetPositions: true });
 
-    const body: LayoutRequest = {
-      targets: selection.selectedTargets.value.map((item) => ({ item })),
-      supply_mode: selection.supplyMode.value,
-      supplied_items: [...selection.suppliedItems.value],
-      forbidden_items: [...selection.forbiddenItems.value],
-      catalog_mode: catalogMode.value,
-      layout_options: { ...DEFAULT_LAYOUT_OPTIONS },
-      user_layout_before: {
-        node_positions: { ...nodePositionsBefore },
-        captured_at: new Date().toISOString(),
-      },
-    };
+    const body: LayoutRequest = buildLayoutRequest(selection, catalogMode.value);
 
     try {
       layout.value = await computeLayout(body);
       if (layout.value.analysis?.impossible) {
         error.value = "当前约束下无法实现所选产出";
+        boundRequestRef.value = null;
+      } else {
+        boundRequestRef.value = body;
       }
       bus.emit({ type: "LayoutComputed", layout: layout.value });
     } catch (e: unknown) {
@@ -86,17 +90,21 @@ export function useLayout(bus: AppEventBus, selection: SelectionModule, catalogM
       }
       error.value = message;
       layout.value = null;
+      boundRequestRef.value = null;
       bus.emit({ type: "LayoutComputeFailed", message });
     } finally {
       loading.value = false;
     }
   }
 
-  function applyLayout(data: LayoutResponse): void {
+  function applyLayout(data: LayoutResponse, request?: LayoutRequest): void {
     layout.value = data;
     selectedEdgeId.value = null;
     error.value = "";
     stale.value = false;
+    if (request) {
+      boundRequestRef.value = request;
+    }
     if (data.analysis?.impossible) {
       error.value = "当前约束下无法实现所选产出";
     }
@@ -106,7 +114,9 @@ export function useLayout(bus: AppEventBus, selection: SelectionModule, catalogM
   bus.on("ProgressCleared", () => reset());
   bus.on("SelectionChanged", () => invalidate("selection-changed"));
   bus.on("LayoutRestoredFromHistory", (e) => {
-    if (e.type === "LayoutRestoredFromHistory") applyLayout(e.layout);
+    if (e.type === "LayoutRestoredFromHistory") {
+      applyLayout(e.layout, e.request);
+    }
   });
 
   return {

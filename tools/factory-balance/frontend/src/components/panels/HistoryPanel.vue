@@ -41,7 +41,7 @@ function supplyLabel(mode: string): string {
   <section class="history-section">
     <h2>布局历史</h2>
     <p class="hint">
-      每次成功计算保存 request（含重算前拖动快照）与 response（算法结果）。
+      按产出/供给配置 upsert 快照（含拖动坐标）；同一配置覆盖更新。
       <span v-if="activeSaveKey">当前存档：{{ activeSaveKey }}</span>
     </p>
 
@@ -65,7 +65,7 @@ function supplyLabel(mode: string): string {
       <li v-for="row in entries" :key="row.id" class="history-item">
         <div class="history-item-head">
           <strong>{{ row.target_summary }}</strong>
-          <span class="time">{{ formatTime(row.created_at) }}</span>
+          <span class="time">{{ formatTime(row.updated_at) }}</span>
         </div>
         <div class="meta">
           {{ row.node_count }} 节点 · {{ row.edge_count }} 边 · {{ row.tap_count }} SBTO
@@ -78,7 +78,7 @@ function supplyLabel(mode: string): string {
         </div>
       </li>
     </ul>
-    <p v-else-if="!loading" class="hint empty">尚无历史记录。计算布局后会自动保存。</p>
+    <p v-else-if="!loading" class="hint empty">尚无快照。计算布局、拖动节点或离开页面后会自动保存。</p>
   </section>
 </template>
 

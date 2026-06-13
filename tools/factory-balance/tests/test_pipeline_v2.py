@@ -94,6 +94,17 @@ class PipelineIntegrationTest(unittest.TestCase):
             self.assertEqual(n.id, n.item)
             self.assertEqual(n.type, "item")
 
+    def test_node_kind_meta_and_max_layer(self) -> None:
+        result = compute_layout(self._req("processing-unit"))
+        self.assertIn("max_layer", result.analysis)
+        self.assertGreater(result.analysis["max_layer"], 0)
+        terminal = next(n for n in result.nodes if n.item == "processing-unit")
+        self.assertEqual(terminal.meta.get("node_kind"), "terminal")
+        pure = [n for n in result.nodes if n.meta.get("node_kind") == "pure_source"]
+        self.assertTrue(pure)
+        circuit = next(n for n in result.nodes if n.item == "electronic-circuit")
+        self.assertEqual(circuit.meta.get("node_kind"), "intermediate")
+
 
 if __name__ == "__main__":
     unittest.main()

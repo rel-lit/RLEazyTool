@@ -1,4 +1,4 @@
-import type { FactorioStatus, ItemInfo, LayoutResponse, PurgeCacheResponse } from "../api/client";
+import type { FactorioStatus, ItemInfo, LayoutRequest, LayoutResponse, PurgeCacheResponse } from "../api/client";
 
 export interface CatalogPayload {
   manufacture_items: ItemInfo[];
@@ -35,8 +35,9 @@ export type AppEvent =
   | { type: "LayoutInvalidated"; reason: string }
   | { type: "LayoutComputeStarted"; resetPositions?: boolean }
   | { type: "LayoutComputed"; layout: LayoutResponse }
-  | { type: "LayoutRestoredFromHistory"; layout: LayoutResponse }
+  | { type: "LayoutRestoredFromHistory"; layout: LayoutResponse; request: LayoutRequest }
   | { type: "LayoutComputeFailed"; message: string }
+  | { type: "LayoutSnapshotSaved"; reason: string }
   | { type: "CachePurgeStarted" }
   | { type: "CachePurged"; result: PurgeCacheResponse; progressStillLoaded: boolean };
 

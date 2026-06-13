@@ -79,7 +79,8 @@ flowchart TB
 | `supply_mode`                      | `M`        | `raw` 原料模式 / `direct` 直接产物模式        |
 | `catalog_mode`                     | —          | `progress` | `full`，决定数据源 D 的 scope |
 | `layout_options.primary_direction` | —          | `left-to-right` | `top-to-bottom`   |
-| `user_layout_before`               | —          | 重算前用户拖拽坐标（**仅渲染/历史**，不参与算法）         |
+
+画布坐标 **不在** `LayoutComputeRequest` 中；由 Layer P `user_positions_json` 单独持久化（见 §10.3）。
 
 
 ### 2.2 按需可见原则
@@ -399,7 +400,7 @@ cross(v) = staggered_base_cross(v.layer, v.rank)
 
 - **TB 模式：** 交换 x/y 角色。
 
-**用户拖拽：** `user_layout_before` 仅在新一次渲染时作为 **初始偏移/历史**；重算 **layer/rank/SBTO 仍由后端决定**。
+**用户拖拽：** 坐标写入 `user_positions_json`（Layer P，在 §10.3 两个触发边界上随画布落盘；拖动本身不 upsert）；重算 **layer/rank/SBTO 仍由后端决定**。
 
 ### 9.2 四类画布元素（语义通道）
 
@@ -469,10 +470,71 @@ interface LayoutComputeResponse {
 
 SBTO 流动方向：沿链几何 **与 tap_index 递增一致**（已在 `sbtoFlow.ts` 思路，v2 接新 tap 序）。
 
-### 10.3 历史
+### 10.3 Layer P — 布局快照持久化
 
-- 每次成功计算写入 `layout_compute_history`（request + response JSON）。
-- `user_layout_before` 用于重算对比，**不参与** 阶段 1–5。
+与阶段 1→6 **平行**，不侵入 `layout_pipeline`：
+
+```mermaid
+flowchart LR
+  subgraph triggers ["触发层（前端）"]
+    T1[before-recompute]
+    T2[page-leave]
+  end
+  subgraph store ["存储层"]
+    S1[buildLayoutSnapshot]
+    S2[PUT/POST /layout/snapshot]
+    DB[(layout_snapshot)]
+  end
+  T1 --> S1 --> S2 --> DB
+  T2 --> S1
+```
+
+| 概念 | 说明 |
+|------|------|
+| **`layout_key`** | 配置指纹：`save_key` + `catalog_mode` + `supply_mode` + 排序后的 targets / supplied / forbidden |
+| **upsert** | 同一 `layout_key` **覆盖**更新，不 append |
+| **`request_json`** | 与 `response_json` 成对的 `LayoutComputeRequest`（**boundRequest**，非「即将重算」的 selection） |
+| **`response_json`** | 最后一次算法结果（结构、SBTO、边） |
+| **`user_positions_json`** | 画布坐标 overlay；**算法不读** |
+| **载入** | merge `user_positions` → `nodes[].position` |
+
+**触发时机（`useLayout.compute` + 页面离开钩子）：**
+
+| reason | 时机 | 写入内容 | 坐标来源 |
+|--------|------|----------|----------|
+| `before-recompute` | 用户点击「计算布局」前（仅当画布已有 layout） | **当前显示的旧 layout** + 其 boundRequest | 画布拖动坐标 |
+| `page-leave` | 关页 / 刷新 / 浏览器导航离开（`beforeunload` / `pagehide`，sendBeacon） | 当前 layout + boundRequest | 画布拖动坐标 |
+
+#### 为何仅这两个时机
+
+Layer P 只在用户行为表明**「这份画布状态不会再被继续编辑」**或**「马上就要被替换 / 会话结束」**时写入。中间态（拖动、改选终端/供给物、Vue 组件卸载等）** deliberately 不触发** upsert：用户仍可能继续拖、撤销选项、或马上重算，此时保存既不确定也浪费资源；拖动坐标会在上述两个明确边界上随画布一并落盘。
+
+**共同原则**：只持久化**当前画布上真实存在的那份**（`boundRequest` + `response` + `user_positions`），**从不**存「正准备算出来的」新 layout；`POST /layout/compute` 成功返回后**不写库**，仅更新内存中的 `boundRequest` 与画布。
+
+**`before-recompute` — 主动替换前的归档**
+
+用户点击「计算布局」意味着即将用新 pipeline 结果**覆盖**当前画布。这是旧布局从屏幕上消失前的最后一次完整采样机会：
+
+- 写入的是**旧 boundRequest + 旧 response + 画布坐标**，不是本次点击即将用于计算的 selection；改选目标后重算时，历史仍落在**旧 layout_key** 下，不会被新配置污染。
+- 新算法结果在计算成功后** deliberately 不进历史**；只有**下一次**再点「计算布局」时，这次的结果才会作为那时的「旧布局」被 `before-recompute` 归档。
+
+**`page-leave` — 会话结束前的兜底**
+
+关页、刷新、导航离开表示用户**不会再在本会话中操作**。若用户算完布局、拖过节点、却未再点「计算布局」，离开保存是唯一能确定落盘的时机；使用 `sendBeacon` 是因为普通异步请求在页面卸载时常被浏览器取消。
+
+此处**不包含** Vue `onUnmounted` 或选项变动：组件重建只表示界面局部变化，不代表编辑结束；选项变动后用户可能立刻重算，保存时机仍不确定。
+
+**两个时机的分工**
+
+| | `before-recompute` | `page-leave` |
+|--|-------------------|--------------|
+| 边界语义 | 主动替换画布 | 主动结束会话 |
+| 典型写入对象 | 即将被盖掉的**旧** layout | 当前画布上的有效 layout（含尚未因重算而归档的新 layout） |
+| 新 layout 首次进历史的途径 | 下次再点计算时，作为那时的「旧布局」 | 或关页时直接写入 |
+
+**历史侧栏可见性**：新 layout 在计算成功后不会立刻出现在历史中；需等到**下一次点击计算**（作为 `before-recompute` 的旧布局）或**离开页面**后，对应 `layout_key` 的快照才会被 upsert 并刷新列表。
+
+持久化统一走 `PUT|POST /layout/snapshot`（`page-leave` 经 sendBeacon 调同一端点）。
 
 ---
 
@@ -499,7 +561,8 @@ SBTO 流动方向：沿链几何 **与 tap_index 递增一致**（已在 `sbtoFl
 | rank        | —   | —     | ✓   | ✓            | —      |
 | SBTO        | —   | —     | ✓   | ✓            | —      |
 | 渲染          | —   | —     | ✓   | ✓            | ✓      |
-| 前端          | —   | —     | API | API          | API    |
+| Layer P 快照  | —   | —     | —   | —            | —      | upsert 坐标 overlay |
+| 前端          | —   | —     | API | API          | API    | 触发 Layer P |
 
 
 ---
@@ -517,6 +580,13 @@ backend/core/
   layout_pipeline.py    # 串联 1→6
   recipe_pick.py        # 多配方优化
   layout_engine.py      # API 入口 → run_layout_pipeline
+backend/db/
+  layout_snapshot_store.py  # Layer P：layout_key upsert
+frontend/src/domains/layout/
+  layoutSnapshot.ts       # 纯组装 + merge 坐标
+  layoutPersistence.ts    # 存储逻辑（API upsert）
+frontend/src/layout/
+  layoutCanvasBridge.ts   # 画布坐标读取桥
 ```
 
 已删除 v1 模块：`analysis_engine.py`、`graph_builder.py`、`layout_ordering.py`。
@@ -564,6 +634,7 @@ backend/core/
 - [x] 阶段 6 四类边 + strict cross
 - [x] API schema 更新（节点 type 简化）
 - [x] 删除旧 ProductionGraph / layout_ordering 路径
+- [x] Layer P：快照 upsert + 触发/存储分离
 - [x] 测试与文档与本文一致
 
 ---

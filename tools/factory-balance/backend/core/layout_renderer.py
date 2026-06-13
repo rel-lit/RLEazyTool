@@ -37,12 +37,22 @@ def render_layout(
             "rank": node.rank,
             "rank_frac": node.rank_frac,
         }
-        if node.is_terminal:
-            meta["role"] = "terminal"
-        if node.is_external_leaf:
-            meta["external_leaf"] = True
         if node.is_pseudo_external:
+            meta["node_kind"] = "pure_source"
+            meta["external_leaf"] = True
             meta["pseudo_external"] = True
+        elif node.is_external_leaf:
+            meta["node_kind"] = "pure_source"
+            meta["external_leaf"] = True
+            if db.is_baseline_supply(item):
+                meta["supply_kind"] = "world_baseline"
+            else:
+                meta["supply_kind"] = "user_supplied"
+        elif node.is_terminal:
+            meta["node_kind"] = "terminal"
+            meta["role"] = "terminal"
+        else:
+            meta["node_kind"] = "intermediate"
         if node.recipe_name:
             meta["recipe"] = node.recipe_name
 

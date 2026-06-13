@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import type { LayoutEdge, LayoutResponse, TapOrderEntry } from "../../api/client";
-import type { NodePositionMap } from "../../domains/layout/useLayout";
 import LayoutCanvas from "../LayoutCanvas.vue";
 
 defineProps<{
@@ -17,14 +16,13 @@ defineProps<{
 
 const emit = defineEmits<{
   selectEdge: [id: string | null];
-  compute: [positionsBefore: NodePositionMap];
+  compute: [];
 }>();
 
 const canvasRef = ref<InstanceType<typeof LayoutCanvas> | null>(null);
 
 function onComputeClick(): void {
-  const positions = canvasRef.value?.getNodePositions() ?? {};
-  emit("compute", positions);
+  emit("compute");
 }
 
 function edgeTypeLabel(type: string): string {

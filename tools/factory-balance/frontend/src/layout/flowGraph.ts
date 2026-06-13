@@ -11,17 +11,6 @@ export const BELT_STROKE = "#9aa4af";
 
 export type FactoryNodeData = LayoutNode;
 
-export function factoryNodeClass(n: LayoutNode): string {
-  const parts = ["fb-node", "fb-node--item"];
-  if (n.meta?.role === "terminal") {
-    parts.push("fb-node--terminal");
-  }
-  if (n.meta?.external_leaf && !n.meta?.pseudo_external) {
-    parts.push("fb-node--external-leaf");
-  }
-  return parts.join(" ");
-}
-
 export function factoryNodeLabel(n: LayoutNode): string {
   if (n.meta?.external_leaf && !n.meta?.pseudo_external) {
     return `⛏ ${n.label}`;

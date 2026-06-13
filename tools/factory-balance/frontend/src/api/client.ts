@@ -17,11 +17,6 @@ export interface LayoutRequest {
     primary_direction: "left-to-right" | "top-to-bottom";
   buffer_recommendation: boolean;
   };
-  /** 重算前画布坐标快照，不参与算法，仅写入历史 request */
-  user_layout_before?: {
-    node_positions: Record<string, { x: number; y: number }>;
-    captured_at?: string | null;
-  };
 }
 
 export interface LayoutNode {
@@ -33,8 +28,15 @@ export interface LayoutNode {
   position: { x: number; y: number };
   recipe?: string | null;
   meta?: {
+    node_kind?: "pure_source" | "terminal" | "intermediate";
     role?: string;
-    supply_kind?: string;
+    external_leaf?: boolean;
+    pseudo_external?: boolean;
+    supply_kind?: "world_baseline" | "user_supplied";
+    layer?: number;
+    rank?: number;
+    rank_frac?: number;
+    recipe?: string;
     is_pure_source?: boolean;
     placeholder?: string;
   };
@@ -82,12 +84,25 @@ export interface LayoutResponse {
   warnings: string[];
   analysis: AnalysisSummary;
   layout_direction?: "left-to-right" | "top-to-bottom";
-  history_id?: number | null;
   extensions: Record<string, unknown>;
+}
+
+export interface LayoutSnapshotUpsert {
+  request: LayoutRequest;
+  response: LayoutResponse;
+  user_positions: Record<string, { x: number; y: number }>;
+  layout_key?: string | null;
+}
+
+export interface LayoutSnapshotUpsertResult {
+  id: number;
+  layout_key: string;
+  updated_at: string;
 }
 
 export interface LayoutHistoryEntry {
   id: number;
+  layout_key: string;
   save_key: string | null;
   env_key: string | null;
   catalog_mode: string;
@@ -98,11 +113,13 @@ export interface LayoutHistoryEntry {
   edge_count: number;
   tap_count: number;
   created_at: string;
+  updated_at: string;
 }
 
-export interface LayoutHistoryDetail extends LayoutHistoryEntry {
+export interface LayoutSnapshotDetail extends LayoutHistoryEntry {
   request: LayoutRequest;
   response: LayoutResponse;
+  user_positions: Record<string, { x: number; y: number }>;
 }
 
 export interface ItemInfo {
@@ -186,12 +203,35 @@ export async function computeLayout(body: LayoutRequest): Promise<LayoutResponse
   return data;
 }
 
+export async function upsertLayoutSnapshot(
+  body: LayoutSnapshotUpsert
+): Promise<LayoutSnapshotUpsertResult> {
+  const { data } = await client.put("/layout/snapshot", body);
+  return data;
+}
+
+/** 关页/刷新时用 sendBeacon，避免异步请求被浏览器取消 */
+export function upsertLayoutSnapshotBeacon(body: LayoutSnapshotUpsert): void {
+  const payload = JSON.stringify(body);
+  if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+    const blob = new Blob([payload], { type: "application/json" });
+    navigator.sendBeacon("/api/v1/layout/snapshot", blob);
+    return;
+  }
+  void fetch("/api/v1/layout/snapshot", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: payload,
+    keepalive: true,
+  });
+}
+
 export async function listLayoutHistory(limit = 50): Promise<LayoutHistoryEntry[]> {
   const { data } = await client.get("/layout/history", { params: { limit } });
   return data;
 }
 
-export async function getLayoutHistory(id: number): Promise<LayoutHistoryDetail> {
+export async function getLayoutHistory(id: number): Promise<LayoutSnapshotDetail> {
   const { data } = await client.get(`/layout/history/${id}`);
   return data;
 }

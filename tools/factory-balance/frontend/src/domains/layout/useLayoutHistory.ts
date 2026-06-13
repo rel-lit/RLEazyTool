@@ -2,14 +2,14 @@ import { ref } from "vue";
 import {
   clearLayoutHistory,
   deleteLayoutHistory,
-  getLayoutHistory,
   listLayoutHistory,
   type LayoutHistoryEntry,
   type LayoutResponse,
 } from "../../api/client";
 import type { AppEventBus } from "../../app/events";
+import type { LayoutPersistence } from "./layoutPersistence";
 
-export function useLayoutHistory(bus: AppEventBus) {
+export function useLayoutHistory(bus: AppEventBus, persistence: LayoutPersistence) {
   const entries = ref<LayoutHistoryEntry[]>([]);
   const loading = ref(false);
   const error = ref("");
@@ -30,9 +30,15 @@ export function useLayoutHistory(bus: AppEventBus) {
     loading.value = true;
     error.value = "";
     try {
-      const detail = await getLayoutHistory(id);
-      bus.emit({ type: "LayoutRestoredFromHistory", layout: detail.response });
-      return detail.response;
+      const detail = await persistence.loadDetail(id);
+      if (detail) {
+        bus.emit({
+          type: "LayoutRestoredFromHistory",
+          layout: detail.layout,
+          request: detail.request,
+        });
+      }
+      return detail?.layout ?? null;
     } catch (e: unknown) {
       error.value = e instanceof Error ? e.message : "读取历史失败";
       return null;
@@ -50,6 +56,10 @@ export function useLayoutHistory(bus: AppEventBus) {
     await clearLayoutHistory();
     entries.value = [];
   }
+
+  bus.on("LayoutSnapshotSaved", () => {
+    void refresh();
+  });
 
   return {
     entries,

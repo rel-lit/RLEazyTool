@@ -106,6 +106,9 @@ def run_layout_pipeline(
 
     graph = build_merged_graph_with_layers(tree_result.graph)
     assign_ranks(graph)
+    analysis_meta["max_layer"] = max(
+        (n.layer for n in graph.nodes.values()), default=0
+    )
 
     chains = discover_sbto_chains(graph)
     tap_results = chains_to_tap_results(chains, graph, labels)

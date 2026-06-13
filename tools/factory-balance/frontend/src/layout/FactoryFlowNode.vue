@@ -8,14 +8,20 @@ import {
   DEFAULT_LAYOUT_DIRECTION,
   type LayoutDirection,
 } from "./layoutTypes";
-import { factoryNodeClass, factoryNodeLabel } from "./flowGraph";
+import { factoryNodeLabel } from "./flowGraph";
 import { handlePosition } from "./sbtoPorts";
+import { nodeVisualStyle, NODE_BASE_OPACITY } from "./nodeVisual";
 
 const props = defineProps<{ data: LayoutNode }>();
 
 const layoutDirection = inject<Ref<LayoutDirection>>(
   "layoutDirection",
   computed(() => DEFAULT_LAYOUT_DIRECTION)
+);
+
+const layoutMaxLayer = inject<Ref<number>>(
+  "layoutMaxLayer",
+  computed(() => 0)
 );
 
 const canvasFocus = inject<Ref<FocusHighlight | null>>("canvasFocus");
@@ -36,14 +42,17 @@ const dimmed = computed(() => {
 });
 
 const label = computed(() => factoryNodeLabel(props.data));
+
+const nodeStyle = computed(() => nodeVisualStyle(props.data, layoutMaxLayer.value));
+
 const nodeClass = computed(() => [
-  factoryNodeClass(props.data),
+  "fb-node",
   dimmed.value ? "fb-node--dimmed" : "",
 ]);
 </script>
 
 <template>
-  <div :class="nodeClass">
+  <div :class="nodeClass" :style="nodeStyle">
     <Handle id="t-l" type="target" :position="tL" />
     <Handle id="t-r" type="target" :position="tR" />
     {{ label }}
@@ -60,41 +69,15 @@ const nodeClass = computed(() => [
   min-width: 100px;
   text-align: center;
   color: #fff;
+  opacity: v-bind("NODE_BASE_OPACITY");
+  background: var(--fb-bg);
+  border: var(--fb-border-width, 1px) var(--fb-border-style, solid)
+    var(--fb-border, #484f58);
   transition: opacity 0.12s ease, filter 0.12s ease;
 }
 
 .fb-node--dimmed {
-  opacity: 0.12;
+  opacity: 0.12 !important;
   filter: grayscale(0.55);
-}
-
-.fb-node--supply {
-  background: #238636;
-  border: 1px solid #484f58;
-}
-
-.fb-node--supply.fb-node--world-baseline {
-  background: #1a4d2e;
-  border: 2px solid #3fb950;
-}
-
-.fb-node--producer {
-  background: #1f6feb;
-  border: 1px solid #484f58;
-}
-
-.fb-node--producer.fb-node--world-extract {
-  background: #1f3d5c;
-  border: 2px dashed #58a6ff;
-}
-
-.fb-node--sink {
-  background: #8957e5;
-  border: 1px solid #484f58;
-}
-
-.fb-node--buffer_placeholder {
-  background: #6e7681;
-  border: 1px solid #484f58;
 }
 </style>

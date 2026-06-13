@@ -13,11 +13,12 @@ export interface AppModules {
   selection: SelectionModule;
   layout: LayoutModule;
   layoutHistory: LayoutHistoryModule;
+  persistence: import("../domains/layout/layoutPersistence").LayoutPersistence;
 }
 
 /** 跨模块联动规则：单一入口，避免 App.vue 里散落 await 链 */
 export function wireAppModules(modules: AppModules): void {
-  const { bus, session, catalog, selection, layoutHistory } = modules;
+  const { bus, session, catalog, selection } = modules;
 
   bus.on("ProgressChanged", async (e) => {
     session.setActiveSaveKey(e.saveKey, Boolean(e.progressStale));
@@ -38,10 +39,6 @@ export function wireAppModules(modules: AppModules): void {
     if (!session.progressLoaded.value) {
       bus.emit({ type: "ProgressCleared" });
     }
-  });
-
-  bus.on("LayoutComputed", () => {
-    void layoutHistory.refresh();
   });
 }
 

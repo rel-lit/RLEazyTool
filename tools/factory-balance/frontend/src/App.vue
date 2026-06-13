@@ -132,7 +132,7 @@ async function clearHistory(): Promise<void> {
           :selected-edge="app.layout.selectedEdge"
           :selected-tap="app.layout.selectedTap"
           @select-edge="app.layout.selectEdge($event)"
-          @compute="app.layout.compute($event)"
+          @compute="app.layout.compute()"
         />
       </section>
     </div>

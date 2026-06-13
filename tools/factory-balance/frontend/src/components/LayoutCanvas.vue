@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, onMounted, provide, ref, toRef } from "vue";
+import { computed, inject, onMounted, onUnmounted, provide, ref, toRef } from "vue";
 import { VueFlow } from "@vue-flow/core";
 import type { LayoutEdge, LayoutNode } from "../api/client";
 import type { AppEventBus } from "../app/events";
@@ -16,9 +16,14 @@ import {
 import { useCanvasFocus } from "../layout/focus";
 import { useCanvasLayout } from "../layout/useCanvasLayout";
 import {
+  registerCanvasPositionReader,
+  unregisterCanvasPositionReader,
+} from "../layout/layoutCanvasBridge";
+import {
   DEFAULT_LAYOUT_DIRECTION,
   type LayoutDirection,
 } from "../layout/layoutTypes";
+import { layoutMaxLayer } from "../layout/nodeVisual";
 
 const props = defineProps<{
   nodes: LayoutNode[];
@@ -37,6 +42,9 @@ const direction = computed(
   () => props.layoutDirection ?? DEFAULT_LAYOUT_DIRECTION
 );
 provide("layoutDirection", direction);
+
+const maxLayer = computed(() => layoutMaxLayer(props.nodes));
+provide("layoutMaxLayer", maxLayer);
 
 const focus = useCanvasFocus({
   nodes: toRef(props, "nodes"),
@@ -73,6 +81,11 @@ const debugLastEvent = ref("—");
 
 onMounted(() => {
   debugOn.value = isFocusDebugEnabled();
+  registerCanvasPositionReader(getNodePositions);
+});
+
+onUnmounted(() => {
+  unregisterCanvasPositionReader();
 });
 
 defineExpose({ getNodePositions });
