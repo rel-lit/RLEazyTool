@@ -4,12 +4,11 @@ import type { ItemInfo } from "../../api/client";
 import type { AppEventBus } from "../../app/events";
 import {
   createItemListSession,
-  useOutsidePointerCommit,
 } from "../../domains/item-list";
 import ItemListViewport from "../item-list/ItemListViewport.vue";
 import CatalogPanel from "./CatalogPanel.vue";
 import SupplyPanel from "./SupplyPanel.vue";
-import { UiButton, UiIconButton } from "../../ui";
+import { UiButton, UiIconButton, useRegionOutside } from "../../ui";
 
 const props = defineProps<{
   targetSearchQuery: string;
@@ -69,12 +68,14 @@ function switchTab(next: ItemTab): void {
   commitSession(prev);
 }
 
-useOutsidePointerCommit(
+useRegionOutside(
   activeRegionRoot,
   commitActiveSession,
-  (target) => {
-    const bar = tabBarRef.value;
-    return bar != null && bar.contains(target);
+  {
+    ignore: (target) => {
+      const bar = tabBarRef.value;
+      return bar != null && target instanceof Node && bar.contains(target);
+    },
   }
 );
 
@@ -182,7 +183,7 @@ onUnmounted(() => {
         role="tab"
         :pressed="activeTab === 'target'"
         :aria-selected="activeTab === 'target'"
-        @click="switchTab('target')"
+        @primary="switchTab('target')"
       >
         产出目标
       </UiButton>
@@ -191,7 +192,7 @@ onUnmounted(() => {
         role="tab"
         :pressed="activeTab === 'supply'"
         :aria-selected="activeTab === 'supply'"
-        @click="switchTab('supply')"
+        @primary="switchTab('supply')"
       >
         已知外部供给
       </UiButton>
@@ -209,7 +210,7 @@ onUnmounted(() => {
         <UiIconButton
           v-if="activeSearchQuery.length > 0"
           aria-label="清空搜索"
-          @click="onClearSearch"
+          @primary="onClearSearch"
         >
           ×
         </UiIconButton>
@@ -218,7 +219,7 @@ onUnmounted(() => {
         variant="danger-soft"
         size="sm"
         :disabled="!canClearSelection"
-        @click="onClearSelection"
+        @primary="onClearSelection"
       >
         清空当前选择
       </UiButton>

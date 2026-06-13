@@ -24,8 +24,8 @@ defineEmits<{
         size="sm"
         :selected="suppliedItems.includes(item.name)"
         :forbidden="forbiddenItems.includes(item.name)"
-        @click="$emit('toggleSupplied', item.name)"
-        @contextmenu.prevent="$emit('toggleForbidden', item.name)"
+        @primary="$emit('toggleSupplied', item.name)"
+        @secondary="$emit('toggleForbidden', item.name)"
       >
         {{ item.label }}
       </UiChip>

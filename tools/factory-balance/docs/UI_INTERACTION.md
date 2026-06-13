@@ -319,17 +319,17 @@ import "./ui/interactive.css";
 ### UiChip
 
 ```vue
-<UiChip :selected="selectedTargets.includes(item.name)" @click="toggle">
+<UiChip :selected="selectedTargets.includes(item.name)" @primary="toggle">
   {{ item.label }}
 </UiChip>
 
-<UiChip variant="forbidden" :selected="..." @click @contextmenu />
+<UiChip variant="forbidden" :selected="..." @primary @secondary />
 ```
 
 ### UiIconButton
 
 ```vue
-<UiIconButton aria-label="清空搜索" @click="onClear">×</UiIconButton>
+<UiIconButton aria-label="清空搜索" @primary="onClear">×</UiIconButton>
 ```
 
 ---
@@ -403,11 +403,11 @@ import "./ui/interactive.css";
 |----|------|------|
 | 纯排序 | `domains/item-list/order.ts` | 桶内 `label → name` 字典序、flatten |
 | 编辑会话 | `domains/item-list/session.ts` | 桶数组、`displayOrder` 冻结列、`dirty` 标记 |
-| 区外提交 | `domains/item-list/useOutsidePointerCommit.ts` | document capture `pointerdown`，目标在 region 外 → `commit()` |
+| 区外提交 | `ui/interaction/useRegionOutside.ts`（VueUse `onClickOutside`） | `ItemTabsPanel` 编排调用 |
 | 选择（业务） | `domains/selection/useSelection.ts` | `selectedTargets` / `suppliedItems` / `forbiddenItems` |
 | 编排 | `components/panels/ItemTabsPanel.vue` | toggle → selection + session；**单例**区外提交 |
-|  dumb 渲染 | `CatalogPanel` / `SupplyPanel` | 只读 `displayOrder` + selection props |
-| 视口壳 | `components/item-list/ItemListViewport.vue` | 滚动/边框，**零** commit 逻辑 |
+| dumb 渲染 | `CatalogPanel` / `SupplyPanel` | 只读 `displayOrder`；chip 用 `@primary` / `@secondary` |
+| 视口壳 | `components/item-list/ItemListViewport.vue` | `useScrollRegion`（滚动 + 抑制空白区右键） |
 
 ### 11.2 交互语义
 
@@ -425,47 +425,36 @@ import "./ui/interactive.css";
 
 ---
 
-## 12. 交互语义层（v2 · VueUse）
+## 12. 交互语义层（v2 · UiControl + VueUse）
 
-> Vue 3 **本身不提供** React Aria 级别的统一 Press/Hover/Focus 抽象；DOM 事件可透传，但无标准 composable。  
-> **方案**：引入 [`@vueuse/core`](https://vueuse.org/) 作为底层，在 `frontend/src/ui/interaction/` 做薄封装，**不替换**现有 `Ui*` 视觉与业务 `@click` / `@contextmenu` 接线。
+> Vue 3 无内置 Press/Hover 抽象。**唯一交互入口**为 `ui/primitives/UiControl.vue`；`UiButton` / `UiChip` / `UiIconButton` 仅为样式变体。  
+> 底层依赖 [`@vueuse/core`](https://vueuse.org/)，业务 **只订阅语义 emit**（`@primary` / `@secondary` 等），禁止在 panel 绑 raw `@click` / `@contextmenu`。
 
-### 12.1 为何用 VueUse 而非自研 / 整套 Reka UI
-
-| 选项 | 说明 |
-|------|------|
-| **VueUse** ✅ | 轻量 composable（`onLongPress`、`useElementHover`、`useEventListener`、`onClickOutside`）；与现有 `UiButton`/`UiChip` 共存，业务零改动 |
-| **Reka UI** | Radix 的 Vue 版，偏「整套 headless 组件」；迁移成本高，易破坏现网 |
-| **纯 CSS v1** | 仅有 `:hover`/`:active`/`:focus-visible` 视觉，无统一事件语义 |
-
-### 12.2 模块
+### 12.1 目录
 
 ```
-ui/interaction/
-  types.ts                    # InteractionSemantic、handlers
-  useInteractiveTarget.ts     # VueUse 组合：hover / press / focus / longPress / wheel / aux / contextmenu
-  useUiControlInteraction.ts  # UiButton/Chip/IconButton 的 emit 桥接
-  index.ts                    # 再导出 VueUse 常用 API
+ui/
+  primitives/UiControl.vue       # 唯一 <button> + 全量交互 wiring
+  UiButton.vue / UiChip.vue / UiIconButton.vue   # 样式壳，inheritAttrs → UiControl
+  interaction/
+    useInteractiveTarget.ts      # VueUse：hover / press / focus / longPress / wheel / aux
+    useUiControl.ts              # primary(click) + secondary(contextmenu) → emit
+    useRegionOutside.ts          # onClickOutside（列表 commit、dismiss）
+    useScrollRegion.ts           # 滚动区 contextmenu 抑制
+    events.ts / types.ts
 ```
 
-### 12.3 语义覆盖
+### 12.2 业务接线约定
 
-| 语义 | 实现 | 组件 emit（可选订阅） |
-|------|------|----------------------|
-| 左键点击 | 原生 `click`（不变） | — |
-| 右键 | `contextmenu` | `secondaryClick` |
-| 长按 | VueUse `onLongPress` | `longPress` |
-| 悬停 / 取消悬停 | `useElementHover` | `hoverChange` |
-| 聚焦 / 失焦 | `focus` / `blur` | `focusChange` |
-| 按下 / 抬起 / 取消 | `pointerdown/up/cancel/leave` | `pressChange` |
-| 滚轮 | `wheel`（passive） | `wheel` |
-| 中键 | `auxclick` button=1 | `auxClick` |
-| 区外 pointer | `domains/item-list/useOutsidePointerCommit`（可逐步换 `onClickOutside`） | — |
+| 语义 | Panel 监听 | 说明 |
+|------|-----------|------|
+| 左键 | `@primary` | 替代 `@click` |
+| 右键 | `@secondary` | 替代 `@contextmenu`；UiChip 默认 `suppressContextMenu` |
+| 长按 / 中键 / 滚轮 | `@longPress` 等 | 按需，底层已支持 |
+| 列表区外 | `useRegionOutside` | 在编排层调用，domain 不 duplicate document 监听 |
 
-`data-ui-hover` / `data-ui-pressed` / `data-ui-focused` 供调试或后续 CSS；**现网样式仍用伪类**，行为不变。
+### 12.3 已删除（勿恢复）
 
-### 12.4 原则
-
-1. **业务 panel 继续 `@click` / `@contextmenu`**，不强制改 emit。  
-2. **domain 不 import Ui\***；列表区外提交仍在 `item-list` 域。  
-3. 新功能需要长按时，监听 `@longPress`，勿在 panel 手写 timer。
+- `useUiControlInteraction.ts`（并入 `useUiControl` + `UiControl`）
+- `domains/item-list/useOutsidePointerCommit.ts`（改用 `useRegionOutside`）
+- Panel 上对 Ui* 的 `@click` / `@contextmenu`

@@ -82,7 +82,7 @@ async function clearHistory(): Promise<void> {
                 variant="toggle"
                 size="sm"
                 :pressed="leftSidebar === 'save'"
-                @click="showSave"
+                @primary="showSave"
               >
                 存档
               </UiButton>
@@ -90,7 +90,7 @@ async function clearHistory(): Promise<void> {
                 variant="toggle"
                 size="sm"
                 :pressed="leftSidebar === 'history'"
-                @click="showHistory"
+                @primary="showHistory"
               >
                 历史
               </UiButton>

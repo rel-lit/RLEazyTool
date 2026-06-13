@@ -32,7 +32,7 @@ function edgeTypeLabel(type: string): string {
   <div class="workspace">
     <div class="workspace-header">
       <h2 class="workspace-title">布局结果</h2>
-      <UiButton variant="primary" :disabled="loading" @click="emit('compute')">
+      <UiButton variant="primary" :disabled="loading" @primary="emit('compute')">
         {{ loading ? "计算中…" : "计算自平衡布局" }}
       </UiButton>
     </div>

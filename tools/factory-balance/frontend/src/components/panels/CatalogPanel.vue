@@ -19,7 +19,7 @@ defineEmits<{
         v-for="item in filteredManufactureItems"
         :key="item.name"
         :selected="selectedTargets.includes(item.name)"
-        @click="$emit('toggleTarget', item.name)"
+        @primary="$emit('toggleTarget', item.name)"
       >
         {{ item.label }}
         <span v-if="item.expansion === 'space-age'" class="tag">SA</span>

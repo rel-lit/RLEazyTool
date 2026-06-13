@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import { useScrollRegion } from "../../ui/interaction";
 
-/** 纯展示容器：滚动、边框。不含 commit / focus 逻辑。 */
 const rootEl = ref<HTMLElement | null>(null);
+
+useScrollRegion(rootEl);
 
 defineExpose({ rootEl });
 </script>
 
 <template>
-  <div ref="rootEl" class="item-list-viewport" @contextmenu.prevent>
+  <div ref="rootEl" class="item-list-viewport">
     <slot />
   </div>
 </template>

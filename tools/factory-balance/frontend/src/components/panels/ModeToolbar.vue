@@ -24,7 +24,7 @@ defineEmits<{
         size="sm"
         :pressed="catalogMode === 'progress'"
         :disabled="catalogLoading || progressLoading"
-        @click="$emit('switchCatalogMode', 'progress')"
+        @primary="$emit('switchCatalogMode', 'progress')"
       >
         仅当前进度<span v-if="progressStale" class="dirty"> · 需更新</span>
       </UiButton>
@@ -33,7 +33,7 @@ defineEmits<{
         size="sm"
         :pressed="catalogMode === 'full'"
         :disabled="catalogLoading || progressLoading"
-        @click="$emit('switchCatalogMode', 'full')"
+        @primary="$emit('switchCatalogMode', 'full')"
       >
         {{ catalogLoading && catalogMode !== "full" ? "加载中…" : "完整全配方" }}
       </UiButton>
@@ -44,7 +44,7 @@ defineEmits<{
         variant="toggle"
         size="sm"
         :pressed="supplyMode === 'raw'"
-        @click="$emit('update:supplyMode', 'raw')"
+        @primary="$emit('update:supplyMode', 'raw')"
       >
         原料模式
       </UiButton>
@@ -52,7 +52,7 @@ defineEmits<{
         variant="toggle"
         size="sm"
         :pressed="supplyMode === 'direct'"
-        @click="$emit('update:supplyMode', 'direct')"
+        @primary="$emit('update:supplyMode', 'direct')"
       >
         直接产物
       </UiButton>

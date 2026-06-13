@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, toRef } from "vue";
-import { useUiControlInteraction } from "./interaction/useUiControlInteraction";
+import UiControl from "./primitives/UiControl.vue";
 
-const props = withDefaults(
+defineOptions({ inheritAttrs: false });
+
+withDefaults(
   defineProps<{
     disabled?: boolean;
     type?: "button" | "submit";
@@ -14,30 +15,16 @@ const props = withDefaults(
     ariaLabel: "",
   }
 );
-
-const emit = defineEmits<{
-  longPress: [event: PointerEvent];
-  secondaryClick: [event: MouseEvent];
-  auxClick: [event: MouseEvent];
-  wheel: [event: WheelEvent];
-  hoverChange: [hovering: boolean];
-  focusChange: [focused: boolean];
-  pressChange: [pressed: boolean];
-}>();
-
-const rootRef = ref<HTMLButtonElement | null>(null);
-const { uiStateAttrs } = useUiControlInteraction(rootRef, emit, toRef(props, "disabled"));
 </script>
 
 <template>
-  <button
-    ref="rootRef"
-    v-bind="uiStateAttrs"
-    type="button"
+  <UiControl
+    v-bind="$attrs"
     class="ui-icon-btn"
     :disabled="disabled"
+    :type="type"
     :aria-label="ariaLabel || undefined"
   >
     <slot />
-  </button>
+  </UiControl>
 </template>

@@ -48,7 +48,7 @@ defineEmits<{
         variant="secondary"
         block
         :disabled="progressLoading || !selectedSave"
-        @click="$emit('import')"
+        @primary="$emit('import')"
       >
         {{ progressLoading ? "导入中…" : "从存档导入（覆盖缓存）" }}
       </UiButton>
@@ -56,7 +56,7 @@ defineEmits<{
         variant="secondary"
         block
         :disabled="purgeLoading || progressLoading"
-        @click="$emit('purge')"
+        @primary="$emit('purge')"
       >
         {{ purgeLoading ? "清理中…" : "清理过时缓存" }}
       </UiButton>

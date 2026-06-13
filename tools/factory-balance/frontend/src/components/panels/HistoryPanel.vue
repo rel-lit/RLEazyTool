@@ -47,14 +47,14 @@ function supplyLabel(mode: string): string {
     </p>
 
     <div class="toolbar">
-      <UiButton variant="secondary" size="sm" :disabled="loading" @click="emit('refresh')">
+      <UiButton variant="secondary" size="sm" :disabled="loading" @primary="emit('refresh')">
         {{ loading ? "加载中…" : "刷新列表" }}
       </UiButton>
       <UiButton
         variant="danger"
         size="sm"
         :disabled="loading || !entries.length"
-        @click="emit('clearAll')"
+        @primary="emit('clearAll')"
       >
         清空全部
       </UiButton>
@@ -74,8 +74,8 @@ function supplyLabel(mode: string): string {
           <span v-if="row.save_key"> · {{ row.save_key }}</span>
         </div>
         <div class="actions">
-          <UiButton variant="link" @click="emit('restore', row.id)">载入画布</UiButton>
-          <UiButton variant="link-muted" @click="emit('remove', row.id)">删除</UiButton>
+          <UiButton variant="link" @primary="emit('restore', row.id)">载入画布</UiButton>
+          <UiButton variant="link-muted" @primary="emit('remove', row.id)">删除</UiButton>
         </div>
       </li>
     </ul>
