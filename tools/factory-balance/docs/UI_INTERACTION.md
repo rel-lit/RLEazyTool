@@ -390,3 +390,35 @@ import "./ui/interactive.css";
 - [x] `ItemTabsPanel` tab / clear / search-clear
 
 **实现目录**：`frontend/src/ui/`（`tokens.css`、`interactive.css`、`UiButton`、`UiChip`、`UiIconButton`）。
+
+---
+
+## 11. 物品列表：会话式展示与区外提交
+
+> 参考商业化 headless 组件的分层方式（Radix `DismissableLayer` / `onPointerDownOutside`、Material roving tabindex、Ariakit Composite），**不把 focusout、relatedTarget、pointerleave 混进展示逻辑**。
+
+### 11.1 模块边界
+
+| 层 | 路径 | 职责 |
+|----|------|------|
+| 纯排序 | `domains/item-list/order.ts` | 桶内 `label → name` 字典序、flatten |
+| 编辑会话 | `domains/item-list/session.ts` | 桶数组、`displayOrder` 冻结列、`dirty` 标记 |
+| 区外提交 | `domains/item-list/useOutsidePointerCommit.ts` | document capture `pointerdown`，目标在 region 外 → `commit()` |
+| 选择（业务） | `domains/selection/useSelection.ts` | `selectedTargets` / `suppliedItems` / `forbiddenItems` |
+| 编排 | `components/panels/ItemTabsPanel.vue` | toggle → selection + session；**单例**区外提交 |
+|  dumb 渲染 | `CatalogPanel` / `SupplyPanel` | 只读 `displayOrder` + selection props |
+| 视口壳 | `components/item-list/ItemListViewport.vue` | 滚动/边框，**零** commit 逻辑 |
+
+### 11.2 交互语义
+
+1. **列表内点击 chip**：只更新 selection（业务）+ 桶归属（session）；`displayOrder` **不变**；chip 高亮即时变化。
+2. **区外 pointerdown**（搜索框、tab、清空、画布等）：对**当前 tab** 的 session 调用 `commit()`（仅 `dirty` 时重排）。
+3. **commit 后分组**：产出目标 `[已选 → 未选]`；供给 `[已知 → 禁止 → 普通]`；组内字典序。
+4. **取消选择**：桶回到 normal；下次 commit 时回到 normal 组位置。
+
+### 11.3 反模式（旧设计，已废弃）
+
+- 每个 `ItemListRegion` 各自挂 document listener → inactive tab 误 commit
+- `focusout` + `relatedTarget` 判断离开
+- 从 buckets 实时 flatten 渲染（应使用冻结的 `displayOrder`）
+- 在 presentation 模块内耦合 `mode: catalog | grouped` 与焦点启发式

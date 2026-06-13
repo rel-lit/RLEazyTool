@@ -43,23 +43,24 @@ defineEmits<{
         {{ s.name }}{{ s.is_last_played ? " · 最近" : "" }}{{ s.needs_reimport ? " · 需更新" : "" }}
       </option>
     </select>
-    <UiButton
-      variant="secondary"
-      block
-      class="import-main"
-      :disabled="progressLoading || !selectedSave"
-      @click="$emit('import')"
-    >
-      {{ progressLoading ? "导入中…" : "从存档导入（覆盖缓存）" }}
-    </UiButton>
-    <UiButton
-      variant="secondary"
-      block
-      :disabled="purgeLoading || progressLoading"
-      @click="$emit('purge')"
-    >
-      {{ purgeLoading ? "清理中…" : "清理过时缓存" }}
-    </UiButton>
+    <div class="progress-actions">
+      <UiButton
+        variant="secondary"
+        block
+        :disabled="progressLoading || !selectedSave"
+        @click="$emit('import')"
+      >
+        {{ progressLoading ? "导入中…" : "从存档导入（覆盖缓存）" }}
+      </UiButton>
+      <UiButton
+        variant="secondary"
+        block
+        :disabled="purgeLoading || progressLoading"
+        @click="$emit('purge')"
+      >
+        {{ purgeLoading ? "清理中…" : "清理过时缓存" }}
+      </UiButton>
+    </div>
     <p class="hint">重新导入会启动游戏读取进度（使用临时副本，不修改原存档），并清空当前选中项与布局。</p>
     <p v-if="progressMsg" class="progress-msg">{{ progressMsg }}</p>
     <ul v-if="progressWarnings.length" class="warn-list">
@@ -70,11 +71,19 @@ defineEmits<{
 
 <style scoped>
 .progress-section select {
+  margin-bottom: 8px;
+}
+
+.progress-actions {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
   margin-bottom: 4px;
 }
 
-.import-main {
-  margin-top: 6px;
+/* 块级按钮全宽时 flex gap 在部分环境下不明显，用 margin 保证间距 */
+.progress-actions :deep(.ui-btn.ui-btn--block + .ui-btn.ui-btn--block) {
+  margin-top: 14px;
 }
 
 .hint {
