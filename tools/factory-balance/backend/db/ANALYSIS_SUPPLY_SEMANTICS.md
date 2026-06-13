@@ -2,7 +2,7 @@
 
 > 规则版本：`tag_rule_version = 3` · Schema：`schema_final` v3 · 布局流水线：**v2**  
 > 相关实现：`db/intrinsic/` · `db/extraction_etl.py` · `db/catalog_builder.py` · `core/layout_pipeline.py` · `core/original_tree.py`  
-> 运行时流水线详规：[`docs/PIPELINE_DESIGN_V2.md`](../docs/PIPELINE_DESIGN_V2.md)（**rellit** 定稿）
+> 运行时流水线详规：[`docs/PIPELINE_DESIGN_V2.md`](../docs/PIPELINE_DESIGN_V2.md)
 
 本文档是**分析集（Analysis Set）**与**游戏 Tag 四层体系**的对照规范。后续改 UI、catalog、原始树建树逻辑时以此为准，避免把「游戏世界原料」「Catalog 上下文 tag」「运行时外源叶子 meta」混为一谈。
 
@@ -382,7 +382,7 @@ v2 在阶段 1 双指针建树时处理终端修订；若声明目标 A 的链�
 | `core/original_tree.py` | 阶段 1：双指针建树、分析集、叶子决策 |
 | `core/layout_pipeline.py` | 阶段 1→6 串联 |
 | `core/layout_engine.py` | API 入口 `compute_layout` |
-| `docs/PIPELINE_DESIGN_V2.md` | v2 全流程规范（rellit） |
+| `docs/PIPELINE_DESIGN_V2.md` | v2 全流程规范 |
 | `frontend/LayoutCanvas.vue` | 端口方向与样式 |
 
 ---

@@ -5,7 +5,7 @@
 ## 📢 最新更新
 
 - 🔧 **Merge**: `this` / `exc` / `c` / `ana`（tree-sitter 详细语法分析，默认关）、`.gitignore`
-- 🆕 **factory-balance**: 异星工厂自平衡布局计算器（**v2 六阶段流水线** · SBTO · Vue 图形界面，含 Space Age；语义由 rellit 定稿）
+- 🆕 **factory-balance**: 异星工厂自平衡布局计算器（**v2 六阶段流水线** · SBTO · Vue 图形界面，含 Space Age）
 - 🔧 **架构**: 分层模块（`session`、`scope_rules`、`exc_handlers` 等），详见 [tools/merge/README.md](tools/merge/README.md)
 - 📝 **环境**: 虚拟环境支持（`.venv`）；merge 的 `.gitignore` 需可选依赖 `pathspec`
 

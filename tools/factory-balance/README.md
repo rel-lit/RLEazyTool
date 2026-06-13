@@ -2,7 +2,7 @@
 
 根据异星工厂（含 **Space Age**）配方，选择产出目标与供给模式，自动计算 **自平衡布局 (SBTO)** 与可视化有向图。
 
-> **架构 credit：** 本工具 v2 流水线语义模型由 **[rellit](https://github.com/rel-lit)** 定义并推动落地——原始树 → 合并图 → layer/rank → SBTO → 渲染；物品即节点，按需判断，六阶段严格隔离。详见 [`docs/PIPELINE_DESIGN_V2.md`](docs/PIPELINE_DESIGN_V2.md)。
+> **v2 流水线：** 原始树 → 合并图 → 层/秩 → SBTO → 渲染；节点即物品名，按需判断，六阶段严格隔离。详见 [`docs/PIPELINE_DESIGN_V2.md`](docs/PIPELINE_DESIGN_V2.md)。
 
 ## 存档进度与配方同步（v0.2）
 
@@ -88,7 +88,7 @@ cd tools\factory-balance\backend
 
 ## 布局流水线（v2）
 
-完整设计规范见 **[`docs/PIPELINE_DESIGN_V2.md`](docs/PIPELINE_DESIGN_V2.md)**（rellit 定稿）。静态 Tag / 数据源 D 定义见 **[`backend/db/ANALYSIS_SUPPLY_SEMANTICS.md`](backend/db/ANALYSIS_SUPPLY_SEMANTICS.md)**。
+完整设计规范见 **[`docs/PIPELINE_DESIGN_V2.md`](docs/PIPELINE_DESIGN_V2.md)**。静态 Tag / 数据源 D 定义见 **[`backend/db/ANALYSIS_SUPPLY_SEMANTICS.md`](backend/db/ANALYSIS_SUPPLY_SEMANTICS.md)**。
 
 ```
 用户输入 + 配方库 + 数据源 D
@@ -102,8 +102,8 @@ cd tools\factory-balance\backend
 | 原则 | 说明 |
 |------|------|
 | **节点 = 物品名** | 合并后每个物品一个节点；`type=item` |
-| **分析集** | 物品加入原始树时 `set.add`；非旧版闭包即时 fail |
-| **禁止供给** | 叶子决策：能展开则 expand；仅无法建树时 `impossible` |
+| **分析集** | 物品加入原始树时 `set.add`；非旧版闭包即时失败 |
+| **禁止供给** | 叶子决策：能展开则继续；仅无法建树时标记 `impossible` |
 | **SBTO 时机** | **必须在** 原始图 G 与 layer/rank 就绪 **之后** |
 | **无 detour** | 几何曲线仅为渲染；算法无绕行语义 |
 
@@ -153,6 +153,6 @@ factory-balance/
 
 ## 后续版本（占位）
 
-- **Phase 2**：产能 / 装配机数量（`throughput.py`）
-- **Phase 3**：Factorio 蓝图导出（`blueprint.py`）
+- **阶段二**：产能 / 装配机数量（`throughput.py`）
+- **阶段三**：Factorio 蓝图导出（`blueprint.py`）
 - 从游戏目录加载完整配方 / 模组
