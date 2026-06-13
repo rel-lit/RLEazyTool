@@ -2,30 +2,29 @@ import { computed, ref } from "vue";
 import type { ItemInfo } from "../../api/client";
 import type { AppEventBus, CatalogPayload } from "../../app/events";
 
+function filterItems(list: ItemInfo[], q: string): ItemInfo[] {
+  const needle = q.trim().toLowerCase();
+  if (!needle) return list;
+  return list.filter(
+    (i) => i.label.toLowerCase().includes(needle) || i.name.toLowerCase().includes(needle)
+  );
+}
+
 export function useCatalog(bus: AppEventBus) {
   const mode = ref<"progress" | "full">("progress");
   const manufactureItems = ref<ItemInfo[]>([]);
   const supplyItems = ref<ItemInfo[]>([]);
   const loading = ref(false);
-  const searchQuery = ref("");
+  const targetSearchQuery = ref("");
+  const supplySearchQuery = ref("");
 
-  const filteredManufactureItems = computed(() => {
-    const q = searchQuery.value.trim().toLowerCase();
-    const list = manufactureItems.value;
-    if (!q) return list;
-    return list.filter(
-      (i) => i.label.toLowerCase().includes(q) || i.name.toLowerCase().includes(q)
-    );
-  });
+  const filteredManufactureItems = computed(() =>
+    filterItems(manufactureItems.value, targetSearchQuery.value)
+  );
 
-  const filteredSupplyItems = computed(() => {
-    const q = searchQuery.value.trim().toLowerCase();
-    const list = supplyItems.value;
-    if (!q) return list;
-    return list.filter(
-      (i) => i.label.toLowerCase().includes(q) || i.name.toLowerCase().includes(q)
-    );
-  });
+  const filteredSupplyItems = computed(() =>
+    filterItems(supplyItems.value, supplySearchQuery.value)
+  );
 
   function applyPayload(catalog: CatalogPayload): void {
     manufactureItems.value = catalog.manufacture_items;
@@ -37,7 +36,8 @@ export function useCatalog(bus: AppEventBus) {
   }
 
   function clearSearch(): void {
-    searchQuery.value = "";
+    targetSearchQuery.value = "";
+    supplySearchQuery.value = "";
   }
 
   bus.on("ProgressChanged", (e) => {
@@ -56,7 +56,8 @@ export function useCatalog(bus: AppEventBus) {
     manufactureItems,
     supplyItems,
     loading,
-    searchQuery,
+    targetSearchQuery,
+    supplySearchQuery,
     filteredManufactureItems,
     filteredSupplyItems,
     applyPayload,

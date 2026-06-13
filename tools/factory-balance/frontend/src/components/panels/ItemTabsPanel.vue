@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import type { ItemInfo } from "../../api/client";
 import CatalogPanel from "./CatalogPanel.vue";
 import SupplyPanel from "./SupplyPanel.vue";
 
-defineProps<{
-  searchQuery: string;
+const props = defineProps<{
+  targetSearchQuery: string;
+  supplySearchQuery: string;
   filteredManufactureItems: ItemInfo[];
   filteredSupplyItems: ItemInfo[];
   selectedTargets: string[];
@@ -13,16 +14,56 @@ defineProps<{
   forbiddenItems: string[];
 }>();
 
-defineEmits<{
-  "update:searchQuery": [value: string];
+const emit = defineEmits<{
+  "update:targetSearchQuery": [value: string];
+  "update:supplySearchQuery": [value: string];
   toggleTarget: [name: string];
   toggleSupplied: [name: string];
   toggleForbidden: [name: string];
+  clearTargets: [];
+  clearSupplySelections: [];
 }>();
 
 type ItemTab = "target" | "supply";
 
 const activeTab = ref<ItemTab>("target");
+
+const activeSearchQuery = computed(() =>
+  activeTab.value === "target" ? props.targetSearchQuery : props.supplySearchQuery
+);
+
+const canClearSelection = computed(() => {
+  if (activeTab.value === "target") {
+    return props.selectedTargets.length > 0;
+  }
+  return props.suppliedItems.length > 0 || props.forbiddenItems.length > 0;
+});
+
+function onSearchInput(event: Event): void {
+  const value = (event.target as HTMLInputElement).value;
+  if (activeTab.value === "target") {
+    emit("update:targetSearchQuery", value);
+  } else {
+    emit("update:supplySearchQuery", value);
+  }
+}
+
+function onClearSearch(): void {
+  if (activeTab.value === "target") {
+    emit("update:targetSearchQuery", "");
+  } else {
+    emit("update:supplySearchQuery", "");
+  }
+}
+
+function onClearSelection(): void {
+  if (!canClearSelection.value) return;
+  if (activeTab.value === "target") {
+    emit("clearTargets");
+  } else {
+    emit("clearSupplySelections");
+  }
+}
 </script>
 
 <template>
@@ -50,13 +91,36 @@ const activeTab = ref<ItemTab>("target");
       </button>
     </div>
 
-    <div class="tab-body">
-      <input
-        :value="searchQuery"
-        placeholder="搜索物品…"
-        @input="$emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
-      />
+    <div class="tab-toolbar">
+      <div class="search-wrap">
+        <input
+          class="search-input"
+          :class="{ 'has-clear': activeSearchQuery.length > 0 }"
+          :value="activeSearchQuery"
+          placeholder="搜索物品…"
+          @input="onSearchInput"
+        />
+        <button
+          v-if="activeSearchQuery.length > 0"
+          type="button"
+          class="search-clear"
+          aria-label="清空搜索"
+          @click="onClearSearch"
+        >
+          ×
+        </button>
+      </div>
+      <button
+        type="button"
+        class="clear-btn"
+        :disabled="!canClearSelection"
+        @click="onClearSelection"
+      >
+        清空当前选择
+      </button>
+    </div>
 
+    <div class="tab-scroll">
       <div v-show="activeTab === 'target'" class="tab-pane" role="tabpanel">
         <CatalogPanel
           :filtered-manufacture-items="filteredManufactureItems"
@@ -117,22 +181,98 @@ const activeTab = ref<ItemTab>("target");
   border-bottom-color: #388bfd;
 }
 
-.tab-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 2px;
+.tab-toolbar {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-bottom: 10px;
 }
 
-input {
+.search-wrap {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.search-input {
   width: 100%;
   padding: 6px 8px;
   border-radius: 6px;
   border: 1px solid #30363d;
   background: #0d1117;
   color: inherit;
-  margin-bottom: 10px;
+}
+
+.search-input.has-clear {
+  padding-right: 28px;
+}
+
+.search-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #30363d;
+  color: #8b949e;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.search-clear:hover {
+  background: #484f58;
+  color: #c9d1d9;
+}
+
+.clear-btn {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #30363d;
+  background: #21262d;
+  color: #c9d1d9;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.clear-btn:not(:disabled) {
+  border-color: #6b4548;
+  background: #3a2829;
+  color: #ddb8b8;
+}
+
+.clear-btn:hover:not(:disabled) {
+  border-color: #805055;
+  background: #452f31;
+  color: #eccaca;
+}
+
+.clear-btn:disabled {
+  border-color: #30363d;
+  background: #21262d;
+  color: #8b949e;
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.tab-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
 }
 
 .tab-pane {

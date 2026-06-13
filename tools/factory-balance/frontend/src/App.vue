@@ -107,16 +107,20 @@ async function clearHistory(): Promise<void> {
           </div>
 
           <ItemTabsPanel
-            :search-query="app.catalog.searchQuery"
+            :target-search-query="app.catalog.targetSearchQuery"
+            :supply-search-query="app.catalog.supplySearchQuery"
             :filtered-manufacture-items="app.catalog.filteredManufactureItems"
             :filtered-supply-items="app.catalog.filteredSupplyItems"
             :selected-targets="app.selection.selectedTargets"
             :supplied-items="app.selection.suppliedItems"
             :forbidden-items="app.selection.forbiddenItems"
-            @update:search-query="app.catalog.searchQuery = $event"
+            @update:target-search-query="app.catalog.targetSearchQuery = $event"
+            @update:supply-search-query="app.catalog.supplySearchQuery = $event"
             @toggle-target="app.selection.toggleTarget($event)"
             @toggle-supplied="app.selection.toggleSupplied($event)"
             @toggle-forbidden="app.selection.toggleForbidden($event)"
+            @clear-targets="app.selection.clearTargets()"
+            @clear-supply-selections="app.selection.clearSupplySelections()"
           />
         </aside>
       </div>

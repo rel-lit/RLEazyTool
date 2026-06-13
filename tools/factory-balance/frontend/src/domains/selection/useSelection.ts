@@ -58,6 +58,19 @@ export function useSelection(bus: AppEventBus) {
     bus.emit({ type: "SelectionChanged", reason: "user-toggle" });
   }
 
+  function clearTargets(): void {
+    if (!selectedTargets.value.length) return;
+    selectedTargets.value = [];
+    bus.emit({ type: "SelectionChanged", reason: "user-clear" });
+  }
+
+  function clearSupplySelections(): void {
+    if (!suppliedItems.value.length && !forbiddenItems.value.length) return;
+    suppliedItems.value = [];
+    forbiddenItems.value = [];
+    bus.emit({ type: "SelectionChanged", reason: "user-clear" });
+  }
+
   bus.on("ProgressChanged", (e) => {
     boundSaveKey.value = e.saveKey;
     reset();
@@ -81,6 +94,8 @@ export function useSelection(bus: AppEventBus) {
     toggleTarget,
     toggleSupplied,
     toggleForbidden,
+    clearTargets,
+    clearSupplySelections,
   };
 }
 
