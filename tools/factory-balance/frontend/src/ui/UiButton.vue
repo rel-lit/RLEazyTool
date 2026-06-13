@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, toRef } from "vue";
+import { useUiControlInteraction } from "./interaction/useUiControlInteraction";
 
 export type UiButtonVariant =
   | "primary"
@@ -30,6 +31,19 @@ const props = withDefaults(
   }
 );
 
+const emit = defineEmits<{
+  longPress: [event: PointerEvent];
+  secondaryClick: [event: MouseEvent];
+  auxClick: [event: MouseEvent];
+  wheel: [event: WheelEvent];
+  hoverChange: [hovering: boolean];
+  focusChange: [focused: boolean];
+  pressChange: [pressed: boolean];
+}>();
+
+const rootRef = ref<HTMLButtonElement | null>(null);
+const { uiStateAttrs } = useUiControlInteraction(rootRef, emit, toRef(props, "disabled"));
+
 const classes = computed(() => [
   "ui-btn",
   `ui-btn--${props.variant}`,
@@ -42,7 +56,13 @@ const classes = computed(() => [
 </script>
 
 <template>
-  <button :type="type" :class="classes" :disabled="disabled">
+  <button
+    ref="rootRef"
+    v-bind="uiStateAttrs"
+    :type="type"
+    :class="classes"
+    :disabled="disabled"
+  >
     <slot />
   </button>
 </template>

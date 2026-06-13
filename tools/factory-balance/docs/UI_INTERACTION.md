@@ -422,3 +422,50 @@ import "./ui/interactive.css";
 - `focusout` + `relatedTarget` 判断离开
 - 从 buckets 实时 flatten 渲染（应使用冻结的 `displayOrder`）
 - 在 presentation 模块内耦合 `mode: catalog | grouped` 与焦点启发式
+
+---
+
+## 12. 交互语义层（v2 · VueUse）
+
+> Vue 3 **本身不提供** React Aria 级别的统一 Press/Hover/Focus 抽象；DOM 事件可透传，但无标准 composable。  
+> **方案**：引入 [`@vueuse/core`](https://vueuse.org/) 作为底层，在 `frontend/src/ui/interaction/` 做薄封装，**不替换**现有 `Ui*` 视觉与业务 `@click` / `@contextmenu` 接线。
+
+### 12.1 为何用 VueUse 而非自研 / 整套 Reka UI
+
+| 选项 | 说明 |
+|------|------|
+| **VueUse** ✅ | 轻量 composable（`onLongPress`、`useElementHover`、`useEventListener`、`onClickOutside`）；与现有 `UiButton`/`UiChip` 共存，业务零改动 |
+| **Reka UI** | Radix 的 Vue 版，偏「整套 headless 组件」；迁移成本高，易破坏现网 |
+| **纯 CSS v1** | 仅有 `:hover`/`:active`/`:focus-visible` 视觉，无统一事件语义 |
+
+### 12.2 模块
+
+```
+ui/interaction/
+  types.ts                    # InteractionSemantic、handlers
+  useInteractiveTarget.ts     # VueUse 组合：hover / press / focus / longPress / wheel / aux / contextmenu
+  useUiControlInteraction.ts  # UiButton/Chip/IconButton 的 emit 桥接
+  index.ts                    # 再导出 VueUse 常用 API
+```
+
+### 12.3 语义覆盖
+
+| 语义 | 实现 | 组件 emit（可选订阅） |
+|------|------|----------------------|
+| 左键点击 | 原生 `click`（不变） | — |
+| 右键 | `contextmenu` | `secondaryClick` |
+| 长按 | VueUse `onLongPress` | `longPress` |
+| 悬停 / 取消悬停 | `useElementHover` | `hoverChange` |
+| 聚焦 / 失焦 | `focus` / `blur` | `focusChange` |
+| 按下 / 抬起 / 取消 | `pointerdown/up/cancel/leave` | `pressChange` |
+| 滚轮 | `wheel`（passive） | `wheel` |
+| 中键 | `auxclick` button=1 | `auxClick` |
+| 区外 pointer | `domains/item-list/useOutsidePointerCommit`（可逐步换 `onClickOutside`） | — |
+
+`data-ui-hover` / `data-ui-pressed` / `data-ui-focused` 供调试或后续 CSS；**现网样式仍用伪类**，行为不变。
+
+### 12.4 原则
+
+1. **业务 panel 继续 `@click` / `@contextmenu`**，不强制改 emit。  
+2. **domain 不 import Ui\***；列表区外提交仍在 `item-list` 域。  
+3. 新功能需要长按时，监听 `@longPress`，勿在 panel 手写 timer。
