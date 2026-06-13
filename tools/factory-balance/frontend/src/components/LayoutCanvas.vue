@@ -117,6 +117,16 @@ function onEdgeLeave() {
   focus.scheduleLeave();
 }
 
+function onNodeClick({ node }: { node: { id: string } }) {
+  emit("selectEdge", null);
+  focus.pinNode(node.id, `node-click ${node.id}`);
+}
+
+function onEdgeClick({ edge }: { edge: { id: string } }) {
+  emit("selectEdge", edge.id);
+  focus.pinEdge(edge.id, `edge-click ${edge.id}`);
+}
+
 function onPaneClick() {
   emit("selectEdge", null);
   focus.clearFocus("pane-click");
@@ -147,7 +157,8 @@ function onDragStop() {
       :edge-types="edgeTypes"
       :nodes-connectable="false"
       fit-view-on-init
-      @edge-click="({ edge }) => emit('selectEdge', edge.id)"
+      @edge-click="onEdgeClick"
+      @node-click="onNodeClick"
       @node-mouse-enter="onNodeEnter"
       @node-mouse-leave="onNodeLeave"
       @edge-mouse-enter="onEdgeEnter"

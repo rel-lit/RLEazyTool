@@ -11,8 +11,10 @@ import {
   type FocusHighlight,
 } from "./focusModel";
 import {
+  effectiveHighlight,
   focusReducer,
   initialFocusState,
+  phaseForHighlight,
   type FocusMachineState,
   type FocusPhase,
 } from "./focusStateMachine";
@@ -30,12 +32,16 @@ export function useCanvasFocus(ctx: CanvasFocusContext) {
   const machine = ref<FocusMachineState>({ ...initialFocusState });
   let leaveTimer: ReturnType<typeof setTimeout> | null = null;
 
-  const phase = computed<FocusPhase>(() => machine.value.phase);
-  const highlight = computed<FocusHighlight | null>(() => {
-    const { phase: p, highlight: h } = machine.value;
-    if (p === "idle" || p === "dragging") return null;
-    return h;
+  const highlight = computed<FocusHighlight | null>(() =>
+    effectiveHighlight(machine.value)
+  );
+
+  const phase = computed<FocusPhase>(() => {
+    if (machine.value.dragging) return "dragging";
+    return phaseForHighlight(highlight.value);
   });
+
+  const isPinned = computed(() => machine.value.pinnedHighlight != null);
 
   const overlayKey = computed(() => hiddenOverlayKey(highlight.value));
 
@@ -47,7 +53,7 @@ export function useCanvasFocus(ctx: CanvasFocusContext) {
   }
 
   function dispatch(action: Parameters<typeof focusReducer>[1], source: string) {
-    if (machine.value.phase === "dragging" && action.type !== "DRAG_END") {
+    if (machine.value.dragging && action.type !== "DRAG_END") {
       return;
     }
     machine.value = focusReducer(machine.value, action);
@@ -90,8 +96,38 @@ export function useCanvasFocus(ctx: CanvasFocusContext) {
     );
   }
 
+  function pinNode(nodeId: string, source: string) {
+    cancelLeave();
+    dispatch(
+      {
+        type: "PIN_NODE",
+        highlight: focusFromNode(
+          nodeId,
+          ctx.productEdges.value,
+          ctx.hiddenEdges.value,
+          ctx.edges.value,
+          ctx.nodes.value
+        ),
+      },
+      source
+    );
+  }
+
+  function pinEdge(edgeId: string, source: string) {
+    cancelLeave();
+    const le = ctx.edges.value.find((e) => e.id === edgeId);
+    if (!le) return;
+    dispatch(
+      {
+        type: "PIN_EDGE",
+        highlight: focusFromEdge(le, ctx.edges.value),
+      },
+      source
+    );
+  }
+
   function scheduleLeave() {
-    if (machine.value.phase === "dragging") return;
+    if (machine.value.dragging || machine.value.pinnedHighlight) return;
     cancelLeave();
     leaveTimer = setTimeout(() => {
       dispatch({ type: "POINTER_LEAVE" }, "pointer-leave");
@@ -114,15 +150,19 @@ export function useCanvasFocus(ctx: CanvasFocusContext) {
   }
 
   function debugSummary(): string {
-    return focusDebugSummary(highlight.value);
+    const pin = isPinned.value ? " [pinned]" : "";
+    return focusDebugSummary(highlight.value) + pin;
   }
 
   return {
     phase,
     highlight,
+    isPinned,
     overlayKey,
     hoverNode,
     hoverEdge,
+    pinNode,
+    pinEdge,
     scheduleLeave,
     clearFocus,
     dragStart,

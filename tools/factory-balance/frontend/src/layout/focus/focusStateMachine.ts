@@ -1,6 +1,6 @@
 import type { FocusHighlight } from "./focusModel";
 
-/** 画布 focus 相态：交互驱动，单一来源 */
+/** 画布 focus 相态（由 effective highlight 推导，dragging 除外） */
 export type FocusPhase =
   | "idle"
   | "node-subtree"
@@ -9,21 +9,33 @@ export type FocusPhase =
   | "dragging";
 
 export interface FocusMachineState {
-  phase: FocusPhase;
-  highlight: FocusHighlight | null;
+  dragging: boolean;
+  /** 悬停预览（pointer leave 清除；pinned 时不更新） */
+  hoverHighlight: FocusHighlight | null;
+  /** 画布内点击锁定，直至 pane/其它元素点击 */
+  pinnedHighlight: FocusHighlight | null;
 }
 
 export type FocusAction =
   | { type: "HOVER_NODE"; highlight: FocusHighlight }
   | { type: "HOVER_EDGE"; highlight: FocusHighlight }
+  | { type: "PIN_NODE"; highlight: FocusHighlight }
+  | { type: "PIN_EDGE"; highlight: FocusHighlight }
   | { type: "POINTER_LEAVE" }
   | { type: "CLEAR" }
   | { type: "DRAG_START" }
   | { type: "DRAG_END" };
 
-function phaseForEdgeHighlight(h: FocusHighlight): FocusPhase {
-  if (h.mode !== "edge") return "idle";
-  return h.sbtoItem ? "sbto-chain" : "belt-edge";
+export function phaseForHighlight(h: FocusHighlight | null): FocusPhase {
+  if (!h) return "idle";
+  if (h.mode === "node-subtree") return "node-subtree";
+  if (h.mode === "edge") return h.sbtoItem ? "sbto-chain" : "belt-edge";
+  return "idle";
+}
+
+export function effectiveHighlight(state: FocusMachineState): FocusHighlight | null {
+  if (state.dragging) return null;
+  return state.pinnedHighlight ?? state.hoverHighlight;
 }
 
 export function focusReducer(
@@ -32,18 +44,24 @@ export function focusReducer(
 ): FocusMachineState {
   switch (action.type) {
     case "DRAG_START":
-      return { phase: "dragging", highlight: null };
+      return { ...state, dragging: true, hoverHighlight: null };
     case "DRAG_END":
-      return { phase: "idle", highlight: null };
+      return { ...state, dragging: false, hoverHighlight: null };
     case "CLEAR":
+      return { dragging: false, hoverHighlight: null, pinnedHighlight: null };
     case "POINTER_LEAVE":
-      return { phase: "idle", highlight: null };
+      if (state.pinnedHighlight) return { ...state, hoverHighlight: null };
+      return { ...state, hoverHighlight: null };
     case "HOVER_NODE":
-      return { phase: "node-subtree", highlight: action.highlight };
     case "HOVER_EDGE":
+      if (state.pinnedHighlight) return state;
+      return { ...state, hoverHighlight: action.highlight };
+    case "PIN_NODE":
+    case "PIN_EDGE":
       return {
-        phase: phaseForEdgeHighlight(action.highlight),
-        highlight: action.highlight,
+        ...state,
+        pinnedHighlight: action.highlight,
+        hoverHighlight: null,
       };
     default:
       return state;
@@ -51,6 +69,7 @@ export function focusReducer(
 }
 
 export const initialFocusState: FocusMachineState = {
-  phase: "idle",
-  highlight: null,
+  dragging: false,
+  hoverHighlight: null,
+  pinnedHighlight: null,
 };
