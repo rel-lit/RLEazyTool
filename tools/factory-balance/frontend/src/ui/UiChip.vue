@@ -12,7 +12,7 @@ const props = withDefaults(
     size?: "sm" | "md";
     disabled?: boolean;
     type?: "button" | "submit";
-    /** 列表项—布局关联标记；none 不显示右侧镂空圈 */
+    /** 列表项—布局关联标记；none 不显示右侧透孔圆环 */
     layoutMark?: ListLayoutMarkKind;
   }>(),
   {

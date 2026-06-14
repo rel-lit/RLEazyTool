@@ -1,4 +1,4 @@
-/** 列表项—布局关联标记样式（v1 仅镂空球；后续可扩展终端/纯原料/layer 等） */
+/** 列表项—布局关联标记样式（v1 透孔圆环；圈内透出 chip 后方背景） */
 export type ListLayoutMarkKind = "none" | "hollow-sphere";
 
 export interface ListLayoutMark {
