@@ -1,16 +1,27 @@
-/** 列表项—布局关联标记：透孔圆环 + 圈内语义填充色 */
+/** 列表项—布局关联标记：透孔 + 双层（圈内 fill / 外环 rim） */
 export type ListLayoutMarkKind = "none" | "hollow-sphere";
 
 export type ItemListSide = "target" | "supply";
 
-/** 圆环线框变体（细铁环为 default；语义色只在圈内 fill） */
-export type ListLayoutMarkRing = "default" | "demoted" | "forbidden" | "assumed";
+/**
+ * 外环 rim 语义（统一禁止环质感：rim 在 ::after，fill 在 ::before）。
+ * 每种对应 pipeline 的一类判定。
+ */
+export type ListLayoutMarkRing =
+  | "terminal"
+  | "intermediate"
+  | "demoted"
+  | "pure-solid"
+  | "pure-world"
+  | "assumed"
+  | "forbidden"
+  | "extract";
 
 export interface ListLayoutMark {
   kind: ListLayoutMarkKind;
-  /** 圈内填充；transparent 表示空环（如禁止供给） */
+  /** 圈内填充；transparent = 空芯（禁止供给） */
   fill?: string;
-  ring?: ListLayoutMarkRing;
+  ring: ListLayoutMarkRing;
 }
 
-export const LIST_LAYOUT_MARK_NONE: ListLayoutMark = { kind: "none" };
+export const LIST_LAYOUT_MARK_NONE: ListLayoutMark = { kind: "none", ring: "intermediate" };

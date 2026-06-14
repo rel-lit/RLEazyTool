@@ -12,7 +12,6 @@ const props = withDefaults(
     size?: "sm" | "md";
     disabled?: boolean;
     type?: "button" | "submit";
-    /** 列表项—布局关联标记（透孔 + 圈内语义色） */
     layoutMark?: ListLayoutMark;
   }>(),
   {
@@ -21,7 +20,7 @@ const props = withDefaults(
     size: "md",
     disabled: false,
     type: "button",
-    layoutMark: () => ({ kind: "none" }),
+    layoutMark: () => ({ kind: "none", ring: "intermediate" }),
   }
 );
 
@@ -38,8 +37,8 @@ const classes = computed(() => [
 const showLayoutMark = computed(() => props.layoutMark?.kind === "hollow-sphere");
 
 const layoutMarkClasses = computed(() => {
-  const ring = props.layoutMark?.ring ?? "default";
-  return [`ui-chip__layout-mark`, `ui-chip__layout-mark--ring-${ring}`];
+  const ring = props.layoutMark?.ring ?? "intermediate";
+  return ["ui-chip__layout-mark", `ui-chip__layout-mark--${ring}`];
 });
 
 const layoutMarkStyle = computed(() => {

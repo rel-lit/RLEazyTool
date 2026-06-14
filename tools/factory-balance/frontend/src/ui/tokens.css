@@ -56,4 +56,15 @@
   --ui-focus-ring: 2px solid #388bfd;
   --ui-focus-offset: 2px;
   --ui-disabled-opacity: 0.5;
+
+  /* 列表项—布局关联标记：外环 rim（圈内 fill 由 pipeline 语义色单独注入） */
+  --ui-mark-ring-width: 1.5px;
+  --ui-mark-rim-forbidden: hsla(3, 93%, 63%, 0.92);
+  --ui-mark-rim-assumed: hsla(42, 92%, 58%, 0.92);
+  --ui-mark-rim-terminal: hsla(263, 55%, 78%, 0.9);
+  --ui-mark-rim-intermediate: hsla(210, 35%, 72%, 0.82);
+  --ui-mark-rim-demoted: hsla(230, 8%, 68%, 0.38);
+  --ui-mark-rim-pure-solid: hsla(137, 48%, 52%, 0.9);
+  --ui-mark-rim-pure-world: hsla(140, 42%, 46%, 0.78);
+  --ui-mark-rim-extract: hsla(198, 38%, 58%, 0.88);
 }

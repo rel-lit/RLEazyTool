@@ -404,7 +404,7 @@
   padding-right: var(--ui-chip-mark-gap, 7px);
 }
 
-/* 与 pill 右半圆弧同心，直径 1em；细铁环 + 圈内语义 fill */
+/* ── 列表项—布局关联标记（v2：禁止环质感母版，拆为语义 rim 变体） ── */
 .ui-chip__layout-mark {
   position: absolute;
   top: 50%;
@@ -416,37 +416,107 @@
   border-radius: 50%;
   box-sizing: border-box;
   pointer-events: none;
-  background: var(--ui-chip-mark-fill, transparent);
-  border: 1px solid hsla(0, 0%, 100%, 0.62);
-  box-shadow:
-    0 0 0 0.5px hsla(0, 0%, 0%, 0.22),
-    inset 0 0.5px 0 hsla(0, 0%, 100%, 0.12);
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
-.ui-chip--on .ui-chip__layout-mark {
-  border-color: hsla(0, 0%, 100%, 0.88);
-  box-shadow:
-    0 0 0 0.5px hsla(0, 0%, 0%, 0.18),
+/* 内盘：pipeline 语义 fill；chip 底色已在父级 mask 挖穿 */
+.ui-chip__layout-mark::before {
+  content: "";
+  position: absolute;
+  inset: var(--ui-mark-ring-width, 1.5px);
+  border-radius: 50%;
+  background: var(--ui-chip-mark-fill, transparent);
+}
+
+/* 外环：金属 rim（质感参照禁止供给红虚环） */
+.ui-chip__layout-mark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-sizing: border-box;
+  background: transparent;
+  border: var(--ui-mark-ring-width, 1.5px) var(--ui-mark-ring-style, solid)
+    var(--ui-mark-rim-color, hsla(0, 0%, 100%, 0.72));
+  box-shadow: var(--ui-mark-rim-shadow, none);
+  pointer-events: none;
+}
+
+/* 禁止供给：空芯 + 红虚环（母版） */
+.ui-chip__layout-mark--forbidden {
+  --ui-mark-rim-color: var(--ui-mark-rim-forbidden);
+  --ui-mark-ring-style: dashed;
+  --ui-mark-rim-shadow:
+    0 0 0 0.5px hsla(3, 45%, 12%, 0.55),
+    inset 0 0 1.5px hsla(3, 85%, 52%, 0.22);
+}
+
+/* 假定外源：同结构，琥珀虚环 + 橙黄内盘 */
+.ui-chip__layout-mark--assumed {
+  --ui-mark-rim-color: var(--ui-mark-rim-assumed);
+  --ui-mark-ring-style: dashed;
+  --ui-mark-rim-shadow:
+    0 0 0 0.5px hsla(32, 50%, 12%, 0.5),
+    inset 0 0 1.5px hsla(42, 90%, 52%, 0.2);
+}
+
+/* 世界挖掘原料：空芯感更强，绿虚环 */
+.ui-chip__layout-mark--pure-world {
+  --ui-mark-rim-color: var(--ui-mark-rim-pure-world);
+  --ui-mark-ring-style: dashed;
+  --ui-mark-rim-shadow:
+    0 0 0 0.5px hsla(140, 35%, 10%, 0.45),
+    inset 0 0 1px hsla(140, 55%, 38%, 0.18);
+}
+
+/* 终端产出：实线淡紫金属环 */
+.ui-chip__layout-mark--terminal {
+  --ui-mark-rim-color: var(--ui-mark-rim-terminal);
+  --ui-mark-ring-style: solid;
+  --ui-mark-rim-shadow:
+    0 0 0 0.5px hsla(260, 30%, 10%, 0.5),
+    inset 0 0.5px 0 hsla(0, 0%, 100%, 0.32),
+    0 0 2px hsla(263, 55%, 48%, 0.18);
+}
+
+/* 中间物：实线冷灰蓝环 */
+.ui-chip__layout-mark--intermediate {
+  --ui-mark-rim-color: var(--ui-mark-rim-intermediate);
+  --ui-mark-ring-style: solid;
+  --ui-mark-rim-shadow:
+    0 0 0 0.5px hsla(210, 20%, 10%, 0.45),
     inset 0 0.5px 0 hsla(0, 0%, 100%, 0.2);
 }
 
-.ui-chip__layout-mark--ring-demoted {
-  border-color: hsla(0, 0%, 100%, 0.32);
-  box-shadow: none;
+/* 降级产出：实线极淡环，内盘 layer 色不变 */
+.ui-chip__layout-mark--demoted {
+  --ui-mark-rim-color: var(--ui-mark-rim-demoted);
+  --ui-mark-ring-style: solid;
+  --ui-mark-rim-shadow: inset 0 0.5px 0 hsla(0, 0%, 100%, 0.08);
 }
 
-.ui-chip__layout-mark--ring-forbidden {
-  border-color: hsla(3, 93%, 63%, 0.88);
-  border-style: dashed;
-  box-shadow: none;
+/* 玩家指定纯粹原料：实线绿金属环 */
+.ui-chip__layout-mark--pure-solid {
+  --ui-mark-rim-color: var(--ui-mark-rim-pure-solid);
+  --ui-mark-ring-style: solid;
+  --ui-mark-rim-shadow:
+    0 0 0 0.5px hsla(137, 35%, 10%, 0.45),
+    inset 0 0.5px 0 hsla(140, 60%, 70%, 0.18);
 }
 
-.ui-chip__layout-mark--ring-assumed {
-  border-color: hsla(0, 0%, 100%, 0.72);
-  border-style: dashed;
-  box-shadow:
-    0 0 0 0.5px hsla(0, 0%, 0%, 0.18),
-    inset 0 0.5px 0 hsla(0, 0%, 100%, 0.14);
+/* 抽取类中间物：青虚环（对齐画布 extract 边） */
+.ui-chip__layout-mark--extract {
+  --ui-mark-rim-color: var(--ui-mark-rim-extract);
+  --ui-mark-ring-style: dashed;
+  --ui-mark-rim-shadow:
+    0 0 0 0.5px hsla(198, 30%, 12%, 0.45),
+    inset 0 0 1px hsla(198, 50%, 55%, 0.16);
+}
+
+.ui-chip--on .ui-chip__layout-mark::after {
+  filter: brightness(1.08);
 }
 
 /* icon button */
