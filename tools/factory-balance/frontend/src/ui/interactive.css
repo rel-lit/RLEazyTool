@@ -313,19 +313,21 @@
 .ui-chip--has-layout-mark.ui-chip--md {
   --ui-chip-pad-block: 8px;
   --ui-chip-mark-d: 1em;
+  --ui-chip-mark-gap: 7px;
   --ui-chip-mark-center-right: calc(0.5 * (var(--ui-chip-mark-d) + var(--ui-chip-pad-block)));
   --ui-chip-mark-hole-r: calc(0.5 * var(--ui-chip-mark-d));
   --ui-chip-mark-x: calc(100% - var(--ui-chip-mark-center-right));
-  padding-right: calc(var(--ui-chip-mark-center-right) + 0.5 * var(--ui-chip-mark-d) + 3px);
+  padding-right: calc(var(--ui-chip-mark-center-right) + 0.5 * var(--ui-chip-mark-d) + 4px);
 }
 
 .ui-chip--has-layout-mark.ui-chip--sm {
   --ui-chip-pad-block: 6px;
   --ui-chip-mark-d: 1em;
+  --ui-chip-mark-gap: 6px;
   --ui-chip-mark-center-right: calc(0.5 * (var(--ui-chip-mark-d) + var(--ui-chip-pad-block)));
   --ui-chip-mark-hole-r: calc(0.5 * var(--ui-chip-mark-d));
   --ui-chip-mark-x: calc(100% - var(--ui-chip-mark-center-right));
-  padding-right: calc(var(--ui-chip-mark-center-right) + 0.5 * var(--ui-chip-mark-d) + 2px);
+  padding-right: calc(var(--ui-chip-mark-center-right) + 0.5 * var(--ui-chip-mark-d) + 3px);
 }
 
 /* 底色/边框在伪元素上，mask 挖孔 → 圈内透出 chip 后面的面板 */
@@ -398,7 +400,11 @@
   gap: 4px;
 }
 
-/* 与 pill 右半圆弧同心，直径 1em；圈内为语义填充 + 圆环描边 */
+.ui-chip--has-layout-mark .ui-chip__label {
+  padding-right: var(--ui-chip-mark-gap, 7px);
+}
+
+/* 与 pill 右半圆弧同心，直径 1em；细铁环 + 圈内语义 fill */
 .ui-chip__layout-mark {
   position: absolute;
   top: 50%;
@@ -411,8 +417,36 @@
   box-sizing: border-box;
   pointer-events: none;
   background: var(--ui-chip-mark-fill, transparent);
-  border: var(--ui-chip-mark-ring-width, 1px) var(--ui-chip-mark-ring-style, solid)
-    var(--ui-chip-mark-ring-color, currentColor);
+  border: 1px solid hsla(0, 0%, 100%, 0.62);
+  box-shadow:
+    0 0 0 0.5px hsla(0, 0%, 0%, 0.22),
+    inset 0 0.5px 0 hsla(0, 0%, 100%, 0.12);
+}
+
+.ui-chip--on .ui-chip__layout-mark {
+  border-color: hsla(0, 0%, 100%, 0.88);
+  box-shadow:
+    0 0 0 0.5px hsla(0, 0%, 0%, 0.18),
+    inset 0 0.5px 0 hsla(0, 0%, 100%, 0.2);
+}
+
+.ui-chip__layout-mark--ring-demoted {
+  border-color: hsla(0, 0%, 100%, 0.32);
+  box-shadow: none;
+}
+
+.ui-chip__layout-mark--ring-forbidden {
+  border-color: hsla(3, 93%, 63%, 0.88);
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.ui-chip__layout-mark--ring-assumed {
+  border-color: hsla(0, 0%, 100%, 0.72);
+  border-style: dashed;
+  box-shadow:
+    0 0 0 0.5px hsla(0, 0%, 0%, 0.18),
+    inset 0 0.5px 0 hsla(0, 0%, 100%, 0.14);
 }
 
 /* icon button */

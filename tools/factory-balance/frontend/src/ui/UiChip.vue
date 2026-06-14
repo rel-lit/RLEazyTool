@@ -37,14 +37,16 @@ const classes = computed(() => [
 
 const showLayoutMark = computed(() => props.layoutMark?.kind === "hollow-sphere");
 
+const layoutMarkClasses = computed(() => {
+  const ring = props.layoutMark?.ring ?? "default";
+  return [`ui-chip__layout-mark`, `ui-chip__layout-mark--ring-${ring}`];
+});
+
 const layoutMarkStyle = computed(() => {
   const m = props.layoutMark;
   if (!m || m.kind !== "hollow-sphere") return undefined;
   return {
     "--ui-chip-mark-fill": m.fill ?? "transparent",
-    "--ui-chip-mark-ring-color": m.ringColor ?? "currentColor",
-    "--ui-chip-mark-ring-style": m.ringStyle ?? "solid",
-    "--ui-chip-mark-ring-width": m.ringWidth ?? "1px",
   } as Record<string, string>;
 });
 </script>
@@ -60,7 +62,7 @@ const layoutMarkStyle = computed(() => {
     <span class="ui-chip__label"><slot /></span>
     <span
       v-if="showLayoutMark"
-      class="ui-chip__layout-mark"
+      :class="layoutMarkClasses"
       role="presentation"
       aria-hidden="true"
       :style="layoutMarkStyle"

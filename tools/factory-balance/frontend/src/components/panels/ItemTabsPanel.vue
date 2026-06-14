@@ -29,8 +29,8 @@ const tabBarRef = ref<HTMLElement | null>(null);
 const targetViewportRef = ref<{ rootEl: HTMLElement | null; resetScroll: () => void } | null>(null);
 const supplyViewportRef = ref<{ rootEl: HTMLElement | null; resetScroll: () => void } | null>(null);
 
-const targetDisplayOrder = itemList.targetDisplayOrder;
-const supplyDisplayOrder = itemList.supplyDisplayOrder;
+const targetDisplayOrder = computed(() => itemList.targetDisplayOrder);
+const supplyDisplayOrder = computed(() => itemList.supplyDisplayOrder);
 
 function activeRegionRoot(): HTMLElement | null {
   const viewport =
