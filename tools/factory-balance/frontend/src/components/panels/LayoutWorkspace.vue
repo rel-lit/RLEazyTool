@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref, watch } from "vue";
 import type { LayoutEdge, LayoutResponse, TapOrderEntry } from "../../api/client";
 import LayoutCanvas from "../LayoutCanvas.vue";
 import { UiButton } from "../../ui";
 import { useInfoPanelSplit } from "../../ui/interaction/useInfoPanelSplit";
 import type { CanvasRegionTarget } from "../../ui/interaction/canvas/types";
 
-defineProps<{
+const props = defineProps<{
   layout: LayoutResponse | null;
   stale: boolean;
   loading: boolean;
@@ -28,11 +28,25 @@ const stageBodyRef = ref<HTMLElement | null>(null);
 const {
   infoHeight,
   atMax,
+  dragging,
+  closeVisible,
   onHandlePointerDown,
   onHandlePointerMove,
   onHandlePointerUp,
   closeInfo,
 } = useInfoPanelSplit(stageBodyRef);
+
+const handleAtRest = computed(() => infoHeight.value === 0);
+const handleShowClose = computed(
+  () => closeVisible.value && !dragging.value && infoHeight.value > 0
+);
+
+watch(
+  () => props.layout,
+  (layout) => {
+    if (!layout) closeInfo();
+  }
+);
 
 function edgeTypeLabel(type: string): string {
   if (type === "tap_chain") return "SBTO 链";
@@ -67,7 +81,10 @@ function onCanvasPrimary(target: CanvasRegionTarget): void {
       </div>
 
       <div class="canvas-stack" :class="{ 'canvas-stack--at-max-info': atMax }">
-        <div class="canvas-area">
+        <div
+          class="canvas-area"
+          :class="{ 'canvas-area--info-open': layout && infoHeight > 0 }"
+        >
           <LayoutCanvas
             v-if="layout"
             ref="canvasRef"
@@ -80,34 +97,44 @@ function onCanvasPrimary(target: CanvasRegionTarget): void {
             @primary="onCanvasPrimary"
           />
           <div v-else class="placeholder">选择产出目标后点击「计算自平衡布局」</div>
+        </div>
 
-          <div class="handle-anchor">
-            <div
-              class="handle-cluster"
-              :class="{
-                'handle-cluster--expanded': infoHeight > 0,
-                'handle-cluster--at-max': atMax,
-              }"
+        <div
+          v-if="layout"
+          class="drawer-handle-row"
+          :class="{ 'drawer-handle-row--rest': handleAtRest }"
+        >
+          <div
+            class="drawer-handle"
+            :class="{
+              'drawer-handle--with-close': handleShowClose,
+              'drawer-handle--at-max': atMax,
+            }"
+          >
+            <button
+              type="button"
+              class="drawer-handle__pull"
+              :aria-label="infoHeight > 0 ? '拖动调节信息区高度' : '拖动展开信息区'"
+              @pointerdown="onHandlePointerDown"
+              @pointermove="onHandlePointerMove"
+              @pointerup="onHandlePointerUp"
+              @pointercancel="onHandlePointerUp"
             >
-              <button
-                type="button"
-                class="handle-drag"
-                aria-label="拖动调节信息区高度"
-                @pointerdown="onHandlePointerDown"
-                @pointermove="onHandlePointerMove"
-                @pointerup="onHandlePointerUp"
-                @pointercancel="onHandlePointerUp"
-              />
-              <button
-                v-if="infoHeight > 0"
-                type="button"
-                class="handle-close"
-                aria-label="关闭信息区"
-                @click="closeInfo"
-              >
-                ×
-              </button>
-            </div>
+              <span class="drawer-handle__grip" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </span>
+            </button>
+            <button
+              v-if="handleShowClose"
+              type="button"
+              class="drawer-handle__close"
+              aria-label="关闭信息区"
+              @click="closeInfo"
+            >
+              ×
+            </button>
           </div>
         </div>
 
@@ -231,6 +258,7 @@ function onCanvasPrimary(target: CanvasRegionTarget): void {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
 }
 
 .canvas-stack--at-max-info .canvas-area {
@@ -247,6 +275,11 @@ function onCanvasPrimary(target: CanvasRegionTarget): void {
   background: #161b22;
 }
 
+.canvas-area--info-open {
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+}
+
 .placeholder {
   width: 100%;
   height: 100%;
@@ -255,74 +288,100 @@ function onCanvasPrimary(target: CanvasRegionTarget): void {
   color: #8b949e;
 }
 
-.handle-anchor {
-  position: absolute;
-  left: 50%;
-  bottom: 6px;
-  transform: translateX(-50%);
+.drawer-handle-row {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  height: 0;
+  position: relative;
   z-index: 4;
   pointer-events: none;
 }
 
-.handle-cluster {
+.drawer-handle-row--rest {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: auto;
+}
+
+.drawer-handle {
   pointer-events: auto;
   display: flex;
-  align-items: stretch;
+  width: var(--shell-handle-width);
   height: var(--shell-handle-height);
-  border-radius: 999px;
+  border: 1px solid var(--ui-border-hover);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: var(--ui-bg-control);
   overflow: hidden;
-  border: 1px solid #484f58;
-  background: #30363d;
   transition:
     border-color 0.12s ease,
     box-shadow 0.12s ease;
 }
 
-.handle-cluster--expanded {
-  width: 72px;
+.drawer-handle-row:not(.drawer-handle-row--rest) .drawer-handle {
+  margin-top: calc(-1 * var(--shell-handle-height));
 }
 
-.handle-cluster:not(.handle-cluster--expanded) {
-  width: 36px;
+.drawer-handle--with-close {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--shell-handle-close-width);
 }
 
-.handle-cluster--at-max {
-  border-color: #388bfd;
+.drawer-handle--at-max {
+  border-color: var(--ui-border-accent);
   box-shadow: 0 0 0 1px rgba(56, 139, 253, 0.35);
 }
 
-.handle-drag {
-  flex: 3;
-  padding: 0;
+.drawer-handle__pull {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  width: 100%;
+  padding: 0 8px;
   border: none;
   background: transparent;
   cursor: ns-resize;
 }
 
-.handle-drag::after {
-  content: "";
-  display: block;
-  width: 16px;
-  height: 3px;
-  margin: 0 auto;
-  border-radius: 999px;
-  background: #8b949e;
+.drawer-handle--with-close .drawer-handle__pull {
+  border-right: 1px solid var(--ui-border-hover);
 }
 
-.handle-close {
-  flex: 1;
+.drawer-handle__grip {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  width: 72%;
+  max-width: 34px;
   min-width: 0;
+}
+
+.drawer-handle__grip span {
+  display: block;
+  height: 2px;
+  border-radius: 999px;
+  background: #8b949e;
+  width: 100%;
+}
+
+.drawer-handle__close {
+  width: var(--shell-handle-close-width);
   padding: 0;
   border: none;
-  border-left: 1px solid #484f58;
-  background: #21262d;
+  background: #161b22;
   color: #8b949e;
   font-size: 12px;
   line-height: 1;
   cursor: pointer;
 }
 
-.handle-close:hover {
+.drawer-handle__close:hover {
   background: #30363d;
   color: #e6edf3;
 }

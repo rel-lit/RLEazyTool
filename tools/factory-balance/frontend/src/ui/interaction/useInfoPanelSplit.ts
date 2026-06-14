@@ -8,6 +8,7 @@ export function useInfoPanelSplit(stageRef: Ref<HTMLElement | null>) {
   const infoHeight = ref(0);
   const atMax = ref(false);
   const dragging = ref(false);
+  const closeVisible = ref(false);
 
   let dragStartY = 0;
   let dragStartHeight = 0;
@@ -30,6 +31,7 @@ export function useInfoPanelSplit(stageRef: Ref<HTMLElement | null>) {
     const target = event.currentTarget as HTMLElement;
     target.setPointerCapture(event.pointerId);
     dragging.value = true;
+    closeVisible.value = false;
     dragStartY = event.clientY;
     dragStartHeight = infoHeight.value;
     event.preventDefault();
@@ -44,6 +46,7 @@ export function useInfoPanelSplit(stageRef: Ref<HTMLElement | null>) {
   function onHandlePointerUp(event: PointerEvent): void {
     if (!dragging.value) return;
     dragging.value = false;
+    closeVisible.value = infoHeight.value > 0;
     const target = event.currentTarget as HTMLElement;
     if (target.hasPointerCapture(event.pointerId)) {
       target.releasePointerCapture(event.pointerId);
@@ -53,6 +56,12 @@ export function useInfoPanelSplit(stageRef: Ref<HTMLElement | null>) {
   function closeInfo(): void {
     infoHeight.value = 0;
     atMax.value = false;
+    closeVisible.value = false;
+  }
+
+  function openInfoToDefault(): void {
+    infoHeight.value = clampHeight(DEFAULT_INFO_PX);
+    closeVisible.value = true;
   }
 
   onUnmounted(() => {
@@ -63,9 +72,11 @@ export function useInfoPanelSplit(stageRef: Ref<HTMLElement | null>) {
     infoHeight,
     atMax,
     dragging,
+    closeVisible,
     onHandlePointerDown,
     onHandlePointerMove,
     onHandlePointerUp,
     closeInfo,
+    openInfoToDefault,
   };
 }

@@ -30,6 +30,8 @@ export function useLayoutHistory(bus: AppEventBus, persistence: LayoutPersistenc
     loading.value = true;
     error.value = "";
     try {
+      await persistence.saveBeforeHistoryRestore();
+
       const detail = await persistence.loadDetail(id);
       if (detail) {
         bus.emit({

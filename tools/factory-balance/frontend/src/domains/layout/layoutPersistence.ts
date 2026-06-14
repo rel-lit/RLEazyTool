@@ -31,18 +31,26 @@ export function createLayoutPersistence(deps: LayoutPersistenceDeps) {
     });
   }
 
-  async function saveBeforeRecompute(): Promise<boolean> {
+  async function saveCurrentSnapshot(reason: string): Promise<boolean> {
     const snap = currentSnapshot();
     if (!snap) {
       return false;
     }
     try {
       await upsertLayoutSnapshot(snap);
-      deps.bus.emit({ type: "LayoutSnapshotSaved", reason: "before-recompute" });
+      deps.bus.emit({ type: "LayoutSnapshotSaved", reason });
       return true;
     } catch {
       return false;
     }
+  }
+
+  async function saveBeforeRecompute(): Promise<boolean> {
+    return saveCurrentSnapshot("before-recompute");
+  }
+
+  async function saveBeforeHistoryRestore(): Promise<boolean> {
+    return saveCurrentSnapshot("before-history-restore");
   }
 
   function saveOnPageLeave(): void {
@@ -76,7 +84,9 @@ export function createLayoutPersistence(deps: LayoutPersistenceDeps) {
   }
 
   return {
+    saveCurrentSnapshot,
     saveBeforeRecompute,
+    saveBeforeHistoryRestore,
     installPageLeaveHook,
     loadDetail,
     layoutFromDetail,

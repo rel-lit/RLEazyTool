@@ -1,16 +1,32 @@
 /**
- * 应用壳层间距：左侧含竖标签条，故标签→中间 gap 小于中间→右侧，
- * 使列间视觉呼吸感一致。
+
+ * 应用壳层间距与侧栏/抽屉尺寸 token。
+
  */
+
 :root {
+
   --shell-left-content-width: 260px;
-  --shell-tab-rail-width: 36px;
+
+  --shell-tab-rail-width: 32px;
+
+  --shell-sidebar-radius: 8px;
+
   --shell-workspace-width: 300px;
-  /** 竖标签条 → 中间工作区（已含标签条宽度作为左区分隔） */
+
   --shell-gap-after-tabs: 8px;
-  /** 中间工作区 → 右侧演示区 */
+
   --shell-gap-before-result: 16px;
+
   --shell-info-min-canvas: 56px;
+
   --shell-info-top-gap: 10px;
-  --shell-handle-height: 8px;
+
+  --shell-handle-height: 22px;
+
+  --shell-handle-width: 56px;
+
+  --shell-handle-close-width: 18px;
+
 }
+
