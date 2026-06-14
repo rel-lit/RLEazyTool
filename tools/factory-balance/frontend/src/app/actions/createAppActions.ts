@@ -1,12 +1,34 @@
-import type { LayoutRequest, LayoutResponse } from "../api/client";
-import type { AppContext } from "./context";
-import type { ItemListTab } from "../domains/item-list/itemListBundle";
+import type { LayoutRequest, LayoutResponse } from "../../api/client";
+import type { AppContext } from "../context";
+import type { ItemListTab } from "../../domains/item-list/itemListBundle";
+import {
+  createSupplySortKeyResolver,
+  createTargetSortKeyResolver,
+} from "../../domains/layout-analysis";
+import type { ItemSortKeyResolver } from "../../domains/item-list/order";
 
 /**
  * 语义动作层：用业务语言描述「要发生什么」，再调用各业务模块 API。
  * 不含 EventBus 订阅；订阅在 app/wire。
  */
 export function createAppActions(ctx: AppContext) {
+  function sortKeyResolverForTab(
+    tab: ItemListTab,
+    layout: LayoutResponse,
+    request: LayoutRequest
+  ): ItemSortKeyResolver {
+    const snapshot = { layout, request };
+    return tab === "target"
+      ? createTargetSortKeyResolver(snapshot)
+      : createSupplySortKeyResolver(snapshot);
+  }
+
+  function sortKeyResolverFromMark(tab: ItemListTab): ItemSortKeyResolver | undefined {
+    const snap = ctx.listLayoutMark.getLayoutSnapshot();
+    if (!snap) return undefined;
+    return sortKeyResolverForTab(tab, snap.layout, snap.request);
+  }
+
   /** 刷新列表：绑定布局关联标记 + 按分析集参与重排（计算/载入布局后调用） */
   function refreshItemLists(layout: LayoutResponse, request: LayoutRequest): void {
     if (layout.analysis?.impossible) {
@@ -18,8 +40,14 @@ export function createAppActions(ctx: AppContext) {
     );
     const supplyNames = new Set(ctx.catalog.supplyItems.value.map((i) => i.name));
     ctx.listLayoutMark.bindLayoutSnapshot(layout, request, manufactureNames, supplyNames);
-    ctx.itemList.resortTargetTab(ctx.listLayoutMark.getTargetParticipation());
-    ctx.itemList.resortSupplyTab(ctx.listLayoutMark.getSupplyParticipation());
+    ctx.itemList.resortTargetTab(
+      ctx.listLayoutMark.getTargetParticipation(),
+      sortKeyResolverForTab("target", layout, request)
+    );
+    ctx.itemList.resortSupplyTab(
+      ctx.listLayoutMark.getSupplyParticipation(),
+      sortKeyResolverForTab("supply", layout, request)
+    );
   }
 
   /** 提交列表编辑：区外点击 / 切 tab 时，对指定 tab 落盘排序 */
@@ -28,7 +56,7 @@ export function createAppActions(ctx: AppContext) {
       tab === "target"
         ? ctx.listLayoutMark.getTargetParticipation()
         : ctx.listLayoutMark.getSupplyParticipation();
-    ctx.itemList.commitTab(tab, participation);
+    ctx.itemList.commitTab(tab, participation, sortKeyResolverFromMark(tab));
   }
 
   function syncItemListsFromCatalog(): void {
@@ -72,7 +100,10 @@ export function createAppActions(ctx: AppContext) {
       ctx.catalog.manufactureItems.value,
       ctx.selection.selectedTargets.value
     );
-    ctx.itemList.resortTargetTab(ctx.listLayoutMark.getTargetParticipation());
+    ctx.itemList.resortTargetTab(
+      ctx.listLayoutMark.getTargetParticipation(),
+      sortKeyResolverFromMark("target")
+    );
   }
 
   /** 清空供给选择后刷新列表顺序（沿用当前布局参与集） */
@@ -83,7 +114,10 @@ export function createAppActions(ctx: AppContext) {
       ctx.selection.suppliedItems.value,
       ctx.selection.forbiddenItems.value
     );
-    ctx.itemList.resortSupplyTab(ctx.listLayoutMark.getSupplyParticipation());
+    ctx.itemList.resortSupplyTab(
+      ctx.listLayoutMark.getSupplyParticipation(),
+      sortKeyResolverFromMark("supply")
+    );
   }
 
   function setSupplyMode(mode: "raw" | "direct"): void {

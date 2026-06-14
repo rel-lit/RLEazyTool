@@ -1,4 +1,9 @@
 import type { ItemInfo } from "../../api/client";
+import type { ItemListSortKey } from "../layout-analysis";
+import {
+  compareSupplyListSortKeys,
+  compareTargetListSortKeys,
+} from "../layout-analysis";
 
 export function compareItemsByLabel(a: ItemInfo, b: ItemInfo): number {
   const byLabel = a.label.localeCompare(b.label, "zh-CN");
@@ -10,10 +15,27 @@ export function sortBucket(items: readonly ItemInfo[]): ItemInfo[] {
   return [...items].sort(compareItemsByLabel);
 }
 
-/** 桶内：分析集参与物品前置，其余后置；两段各自字典序 */
+export type ItemSortKeyResolver = (item: ItemInfo) => ItemListSortKey;
+
+function sortInsideBucket(
+  items: readonly ItemInfo[],
+  compareKeys: (a: ItemListSortKey, b: ItemListSortKey) => number,
+  sortKeyResolver?: ItemSortKeyResolver
+): ItemInfo[] {
+  if (!sortKeyResolver) {
+    return sortBucket(items);
+  }
+  return [...items].sort((a, b) =>
+    compareKeys(sortKeyResolver(a), sortKeyResolver(b))
+  );
+}
+
+/** 桶内：分析集参与物品前置（按布局 tier/layer/rank），其余后置；段内字典序 */
 export function sortBucketWithAnalysisParticipation(
   items: readonly ItemInfo[],
-  analysisParticipation: ReadonlySet<string>
+  analysisParticipation: ReadonlySet<string>,
+  sortKeyResolver?: ItemSortKeyResolver,
+  compareKeys = compareTargetListSortKeys
 ): ItemInfo[] {
   const inside: ItemInfo[] = [];
   const outside: ItemInfo[] = [];
@@ -21,7 +43,36 @@ export function sortBucketWithAnalysisParticipation(
     if (analysisParticipation.has(item.name)) inside.push(item);
     else outside.push(item);
   }
-  return [...sortBucket(inside), ...sortBucket(outside)];
+  return [
+    ...sortInsideBucket(inside, compareKeys, sortKeyResolver),
+    ...sortBucket(outside),
+  ];
+}
+
+export function sortTargetBucketWithAnalysisParticipation(
+  items: readonly ItemInfo[],
+  analysisParticipation: ReadonlySet<string>,
+  sortKeyResolver?: ItemSortKeyResolver
+): ItemInfo[] {
+  return sortBucketWithAnalysisParticipation(
+    items,
+    analysisParticipation,
+    sortKeyResolver,
+    compareTargetListSortKeys
+  );
+}
+
+export function sortSupplyBucketWithAnalysisParticipation(
+  items: readonly ItemInfo[],
+  analysisParticipation: ReadonlySet<string>,
+  sortKeyResolver?: ItemSortKeyResolver
+): ItemInfo[] {
+  return sortBucketWithAnalysisParticipation(
+    items,
+    analysisParticipation,
+    sortKeyResolver,
+    compareSupplyListSortKeys
+  );
 }
 
 export function flattenTargetBuckets(

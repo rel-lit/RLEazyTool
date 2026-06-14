@@ -148,8 +148,6 @@ def _build_single_tree(
             continue
 
         if item in terminals and item != root:
-            if item in built_items:
-                continue
             try:
                 terminals.remove(item)
             except ValueError:
@@ -158,8 +156,13 @@ def _build_single_tree(
                 f"「{ctx.labels.get(item, item)}」被「{ctx.labels.get(root, root)}」"
                 f"依赖，已从终端列表移除"
             )
-            resolved.add(item)
-            continue
+            if item in built_items:
+                # 另一终端的原始树已并入森林，复用已有子图即可
+                graph.nodes[item].is_terminal = False
+                resolved.add(item)
+                continue
+            # 尚未独立建树：降级后继续按普通节点展开/停叶
+            graph.nodes[item].is_terminal = False
 
         action, leaf_err = _resolve_leaf(item, ctx)
         if leaf_err:
@@ -232,6 +235,8 @@ def build_original_forest(
         built_roots.add(root)
 
     final_terminals = [t for t in terminals if t in forest.nodes]
+    for node in forest.nodes.values():
+        node.is_terminal = False
     for t in final_terminals:
         forest.nodes[t].is_terminal = True
     forest.terminals = final_terminals

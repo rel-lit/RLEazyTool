@@ -1,9 +1,11 @@
-import type { LayoutNode, LayoutRequest, LayoutResponse } from "../../api/client";
+import type { LayoutRequest, LayoutResponse } from "../../api/client";
 import {
   inferNodeKind,
   layoutMaxLayer,
   resolveNodeVisual,
 } from "../../layout/nodeVisual";
+import { normalizeAnalysisSummary } from "../layout-analysis/normalizeAnalysis";
+import { nodeByItem } from "../layout-analysis/nodeLookup";
 import {
   LIST_LAYOUT_MARK_NONE,
   type ListLayoutMark,
@@ -14,26 +16,31 @@ import {
 /** 直接产物模式：假定外源 */
 export const ASSUMED_EXTERNAL_MARK_FILL = "hsla(42, 92%, 56%, 1)";
 
-function nodeByItem(nodes: LayoutNode[], item: string): LayoutNode | undefined {
-  return nodes.find((n) => n.item === item || n.id === item);
-}
+/** 被剔除终端：固定橙色内盘，不用 layer 中间色 */
+export const DEMOTED_OUTPUT_MARK_FILL = "var(--ui-mark-fill-demoted)";
 
 function isExtractRecipe(recipe: string | null | undefined): boolean {
   return !!recipe && recipe.startsWith("fb-extract:");
 }
 
-function ringForIntermediateNode(
-  node: LayoutNode,
-  demoted: boolean
-): ListLayoutMarkRing {
-  if (demoted) return "demoted";
+function ringForIntermediateNode(node: LayoutNodeLike): ListLayoutMarkRing {
   const recipe = node.recipe ?? node.meta?.recipe;
   if (isExtractRecipe(recipe)) return "extract";
   return "intermediate";
 }
 
+function markDemotedOutput(): ListLayoutMark {
+  return {
+    kind: "hollow-sphere",
+    fill: DEMOTED_OUTPUT_MARK_FILL,
+    ring: "demoted",
+  };
+}
+
+type LayoutNodeLike = NonNullable<ReturnType<typeof nodeByItem>>;
+
 function markWithNodeVisual(
-  node: LayoutNode,
+  node: LayoutNodeLike,
   maxLayer: number,
   ring: ListLayoutMarkRing
 ): ListLayoutMark {
@@ -47,7 +54,7 @@ function markWithNodeVisual(
 
 function isTerminalItem(
   itemName: string,
-  node: LayoutNode | undefined,
+  node: LayoutNodeLike | undefined,
   effectiveTerminals: readonly string[]
 ): boolean {
   if (effectiveTerminals.includes(itemName)) return true;
@@ -56,7 +63,7 @@ function isTerminalItem(
 
 function isPseudoSupply(
   itemName: string,
-  node: LayoutNode | undefined,
+  node: LayoutNodeLike | undefined,
   pseudoSources: readonly string[]
 ): boolean {
   if (pseudoSources.includes(itemName)) return true;
@@ -69,30 +76,25 @@ export function resolveListLayoutMark(
   layout: LayoutResponse,
   request: LayoutRequest
 ): ListLayoutMark {
-  const node = nodeByItem(layout.nodes, itemName);
-  const maxLayer = layoutMaxLayer(layout.nodes);
-  const analysis = layout.analysis;
-  if (!analysis) {
+  const analysis = normalizeAnalysisSummary(layout.analysis);
+  if (!analysis || analysis.impossible) {
     return LIST_LAYOUT_MARK_NONE;
   }
 
-  if (side === "target") {
-    const demoted = analysis.demoted_outputs?.includes(itemName) ?? false;
+  const node = nodeByItem(layout.nodes, itemName);
+  const maxLayer = layoutMaxLayer(layout.nodes, analysis.max_layer);
 
-    if (
-      isTerminalItem(itemName, node, analysis.effective_terminals ?? []) &&
-      node &&
-      !demoted
-    ) {
+  if (side === "target") {
+    if (analysis.demoted_outputs.includes(itemName)) {
+      return markDemotedOutput();
+    }
+
+    if (isTerminalItem(itemName, node, analysis.effective_terminals) && node) {
       return markWithNodeVisual(node, maxLayer, "terminal");
     }
 
     if (node && inferNodeKind(node) === "intermediate") {
-      return markWithNodeVisual(
-        node,
-        maxLayer,
-        ringForIntermediateNode(node, demoted)
-      );
+      return markWithNodeVisual(node, maxLayer, ringForIntermediateNode(node));
     }
 
     return LIST_LAYOUT_MARK_NONE;
@@ -101,7 +103,7 @@ export function resolveListLayoutMark(
   if (request.forbidden_items?.includes(itemName)) {
     return {
       kind: "hollow-sphere",
-      fill: "transparent",
+      fill: "var(--ui-bg-panel)",
       ring: "forbidden",
     };
   }
@@ -114,7 +116,7 @@ export function resolveListLayoutMark(
 
   if (
     request.supply_mode === "direct" &&
-    isPseudoSupply(itemName, node, analysis.pseudo_pure_sources ?? [])
+    isPseudoSupply(itemName, node, analysis.pseudo_pure_sources)
   ) {
     return {
       kind: "hollow-sphere",
@@ -134,7 +136,7 @@ export function resolveListLayoutMark(
   }
 
   if (kind === "intermediate") {
-    return markWithNodeVisual(node, maxLayer, ringForIntermediateNode(node, false));
+    return markWithNodeVisual(node, maxLayer, ringForIntermediateNode(node));
   }
 
   return LIST_LAYOUT_MARK_NONE;

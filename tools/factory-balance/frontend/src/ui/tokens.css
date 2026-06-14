@@ -67,4 +67,6 @@
   --ui-mark-rim-pure-solid: #3fb950;
   --ui-mark-rim-pure-world: #238636;
   --ui-mark-rim-extract: #58a6ff;
+  --ui-mark-fill-demoted: hsla(28, 92%, 52%, 1);
+  --ui-mark-rim-demoted: hsla(28, 55%, 38%, 1);
 }

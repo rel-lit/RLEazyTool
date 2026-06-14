@@ -1,8 +1,10 @@
 import type { ItemInfo } from "../../api/client";
+import type { ItemSortKeyResolver } from "./order";
 import {
   flattenSupplyBuckets,
   flattenTargetBuckets,
-  sortBucketWithAnalysisParticipation,
+  sortSupplyBucketWithAnalysisParticipation,
+  sortTargetBucketWithAnalysisParticipation,
 } from "./order";
 import { createItemListSession, type ItemListSession } from "./session";
 import type { ItemListKind, SupplyBuckets, TargetBuckets } from "./types";
@@ -16,22 +18,44 @@ export function createItemListBundle() {
 
   function sortTargetBuckets(
     b: TargetBuckets,
-    participation: ReadonlySet<string>
+    participation: ReadonlySet<string>,
+    sortKeyResolver?: ItemSortKeyResolver
   ): TargetBuckets {
     return {
-      selected: sortBucketWithAnalysisParticipation(b.selected, participation),
-      normal: sortBucketWithAnalysisParticipation(b.normal, participation),
+      selected: sortTargetBucketWithAnalysisParticipation(
+        b.selected,
+        participation,
+        sortKeyResolver
+      ),
+      normal: sortTargetBucketWithAnalysisParticipation(
+        b.normal,
+        participation,
+        sortKeyResolver
+      ),
     };
   }
 
   function sortSupplyBuckets(
     b: SupplyBuckets,
-    participation: ReadonlySet<string>
+    participation: ReadonlySet<string>,
+    sortKeyResolver?: ItemSortKeyResolver
   ): SupplyBuckets {
     return {
-      supplied: sortBucketWithAnalysisParticipation(b.supplied, participation),
-      forbidden: sortBucketWithAnalysisParticipation(b.forbidden, participation),
-      normal: sortBucketWithAnalysisParticipation(b.normal, participation),
+      supplied: sortSupplyBucketWithAnalysisParticipation(
+        b.supplied,
+        participation,
+        sortKeyResolver
+      ),
+      forbidden: sortSupplyBucketWithAnalysisParticipation(
+        b.forbidden,
+        participation,
+        sortKeyResolver
+      ),
+      normal: sortSupplyBucketWithAnalysisParticipation(
+        b.normal,
+        participation,
+        sortKeyResolver
+      ),
     };
   }
 
@@ -39,18 +63,27 @@ export function createItemListBundle() {
     session: ItemListSession,
     kind: ItemListKind,
     force: boolean,
-    participation: ReadonlySet<string>
+    participation: ReadonlySet<string>,
+    sortKeyResolver?: ItemSortKeyResolver
   ): void {
     if (kind === "target") {
       if (!force && !session.dirty.value) return;
-      const sorted = sortTargetBuckets(session.targetBuckets.value, participation);
+      const sorted = sortTargetBuckets(
+        session.targetBuckets.value,
+        participation,
+        sortKeyResolver
+      );
       session.targetBuckets.value = sorted;
       session.displayOrder.value = flattenTargetBuckets(sorted.selected, sorted.normal);
       session.dirty.value = false;
       return;
     }
     if (!force && !session.dirty.value) return;
-    const sorted = sortSupplyBuckets(session.supplyBuckets.value, participation);
+    const sorted = sortSupplyBuckets(
+      session.supplyBuckets.value,
+      participation,
+      sortKeyResolver
+    );
     session.supplyBuckets.value = sorted;
     session.displayOrder.value = flattenSupplyBuckets(
       sorted.supplied,
@@ -60,26 +93,42 @@ export function createItemListBundle() {
     session.dirty.value = false;
   }
 
-  function commitTargetTab(participation: ReadonlySet<string>): void {
-    applySortToSession(targetSession, "target", false, participation);
+  function commitTargetTab(
+    participation: ReadonlySet<string>,
+    sortKeyResolver?: ItemSortKeyResolver
+  ): void {
+    applySortToSession(targetSession, "target", false, participation, sortKeyResolver);
   }
 
-  function commitSupplyTab(participation: ReadonlySet<string>): void {
-    applySortToSession(supplySession, "supply", false, participation);
+  function commitSupplyTab(
+    participation: ReadonlySet<string>,
+    sortKeyResolver?: ItemSortKeyResolver
+  ): void {
+    applySortToSession(supplySession, "supply", false, participation, sortKeyResolver);
   }
 
-  function commitTab(tab: ItemListTab, participation: ReadonlySet<string>): void {
-    if (tab === "target") commitTargetTab(participation);
-    else commitSupplyTab(participation);
+  function commitTab(
+    tab: ItemListTab,
+    participation: ReadonlySet<string>,
+    sortKeyResolver?: ItemSortKeyResolver
+  ): void {
+    if (tab === "target") commitTargetTab(participation, sortKeyResolver);
+    else commitSupplyTab(participation, sortKeyResolver);
   }
 
   /** 布局刷新列表：强制按分析集参与规则重排（无视 dirty） */
-  function resortTargetTab(participation: ReadonlySet<string>): void {
-    applySortToSession(targetSession, "target", true, participation);
+  function resortTargetTab(
+    participation: ReadonlySet<string>,
+    sortKeyResolver?: ItemSortKeyResolver
+  ): void {
+    applySortToSession(targetSession, "target", true, participation, sortKeyResolver);
   }
 
-  function resortSupplyTab(participation: ReadonlySet<string>): void {
-    applySortToSession(supplySession, "supply", true, participation);
+  function resortSupplyTab(
+    participation: ReadonlySet<string>,
+    sortKeyResolver?: ItemSortKeyResolver
+  ): void {
+    applySortToSession(supplySession, "supply", true, participation, sortKeyResolver);
   }
 
   function syncTargetFromCatalog(

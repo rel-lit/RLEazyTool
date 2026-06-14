@@ -346,13 +346,13 @@
     border-color var(--ui-transition);
   -webkit-mask-image: radial-gradient(
     circle at var(--ui-chip-mark-x) 50%,
-    transparent var(--ui-chip-mark-hole-r),
-    #000 calc(var(--ui-chip-mark-hole-r) + 0.5px)
+    transparent calc(var(--ui-chip-mark-hole-r) + 0.5px),
+    #000 calc(var(--ui-chip-mark-hole-r) + 1px)
   );
   mask-image: radial-gradient(
     circle at var(--ui-chip-mark-x) 50%,
-    transparent var(--ui-chip-mark-hole-r),
-    #000 calc(var(--ui-chip-mark-hole-r) + 0.5px)
+    transparent calc(var(--ui-chip-mark-hole-r) + 0.5px),
+    #000 calc(var(--ui-chip-mark-hole-r) + 1px)
   );
 }
 
@@ -404,7 +404,7 @@
   padding-right: var(--ui-chip-mark-gap, 7px);
 }
 
-/* ── 列表项—布局关联标记：外环 + 内盘二分配色 ── */
+/* ── 列表项—布局关联标记：单环（background 内盘 + border 外 rim） ── */
 .ui-chip__layout-mark {
   position: absolute;
   top: 50%;
@@ -416,35 +416,15 @@
   border-radius: 50%;
   box-sizing: border-box;
   pointer-events: none;
-  background: transparent;
-  border: none;
-}
-
-/* 内盘：pipeline 语义 fill */
-.ui-chip__layout-mark::before {
-  content: "";
-  position: absolute;
-  inset: var(--ui-mark-ring-width, 2px);
-  border-radius: 50%;
-  background: var(--ui-chip-mark-fill, transparent);
-}
-
-/* 外环：语义 rim 色，与内盘清晰分界 */
-.ui-chip__layout-mark::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  box-sizing: border-box;
-  background: transparent;
+  background-color: var(--ui-chip-mark-fill, var(--ui-bg-panel));
   border: var(--ui-mark-ring-width, 2px) var(--ui-mark-ring-style, solid)
-    var(--ui-mark-rim-color, #8b949e);
-  pointer-events: none;
+    var(--ui-mark-rim-color, var(--ui-mark-rim-intermediate));
 }
 
 .ui-chip__layout-mark--forbidden {
   --ui-mark-rim-color: var(--ui-mark-rim-forbidden);
   --ui-mark-ring-style: dashed;
+  background-color: var(--ui-bg-panel);
 }
 
 .ui-chip__layout-mark--assumed {
@@ -470,6 +450,7 @@
 .ui-chip__layout-mark--demoted {
   --ui-mark-rim-color: var(--ui-mark-rim-demoted);
   --ui-mark-ring-style: solid;
+  background-color: var(--ui-mark-fill-demoted);
 }
 
 .ui-chip__layout-mark--pure-solid {

@@ -66,13 +66,18 @@ export interface TapOrderEntry {
 
 export interface AnalysisSummary {
   effective_terminals: string[];
+  /** @deprecated 与 effective_terminals 相同；旧快照兼容 */
+  terminals?: string[];
   declared_outputs: string[];
   demoted_outputs: string[];
   pseudo_pure_sources: string[];
+  /** @deprecated 与 pseudo_pure_sources 相同；旧快照兼容 */
+  pseudo_external?: string[];
   true_pure_sources: string[];
   analysis_items: string[];
   recipe_assignments: Record<string, string>;
   impossible: boolean;
+  max_layer?: number;
 }
 
 export interface LayoutResponse {

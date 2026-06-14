@@ -105,6 +105,24 @@ class PipelineIntegrationTest(unittest.TestCase):
         circuit = next(n for n in result.nodes if n.item == "electronic-circuit")
         self.assertEqual(circuit.meta.get("node_kind"), "intermediate")
 
+    def test_demoted_outputs_when_terminal_absorbed(self) -> None:
+        result = compute_layout(
+            LayoutComputeRequest(
+                targets=[
+                    LayoutTarget(item="advanced-circuit"),
+                    LayoutTarget(item="electronic-circuit"),
+                ],
+                layout_options=LayoutOptions(),
+            )
+        )
+        analysis = result.analysis
+        self.assertFalse(analysis.get("impossible"))
+        self.assertIn("advanced-circuit", analysis["declared_outputs"])
+        self.assertIn("advanced-circuit", analysis["effective_terminals"])
+        self.assertIn("electronic-circuit", analysis["demoted_outputs"])
+        self.assertNotIn("electronic-circuit", analysis["effective_terminals"])
+        self.assertIn("electronic-circuit", analysis["analysis_items"])
+
 
 if __name__ == "__main__":
     unittest.main()

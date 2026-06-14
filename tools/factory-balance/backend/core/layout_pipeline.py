@@ -6,6 +6,7 @@ from core.original_tree import TreeBuildContext, build_original_forest
 from core.rank_assigner import assign_ranks
 from core.recipe_loader import RecipeDatabase, merge_analysis_context
 from core.recipe_pick import pick_recipe_assignments
+from core.layout_analysis import build_layout_analysis_meta
 from core.layout_renderer import render_layout
 from core.sbto import chains_to_tap_results, discover_sbto_chains
 from core.tree_layer import build_merged_graph_with_layers
@@ -35,7 +36,14 @@ def run_layout_pipeline(
             edges=[],
             tap_orders=[],
             warnings=["请至少选择一个产出物"],
-            analysis={"impossible": False, "terminals": [], "analysis_items": []},
+            analysis=build_layout_analysis_meta(
+                declared_outputs=[],
+                terminals=[],
+                analysis_items=[],
+                recipe_assignments={},
+                pseudo_external=[],
+                impossible=False,
+            ),
             layout_direction=request.layout_options.primary_direction.value,
         )
 
@@ -71,14 +79,14 @@ def run_layout_pipeline(
     tree_result = build_original_forest(declared, tb_ctx)
     warnings.extend(tree_result.warnings)
 
-    analysis_meta = {
-        "declared_outputs": declared,
-        "terminals": tree_result.terminals,
-        "analysis_items": sorted(tree_result.analysis_items),
-        "recipe_assignments": recipe_assignments,
-        "pseudo_external": sorted(tree_result.pseudo_external),
-        "impossible": tree_result.impossible,
-    }
+    analysis_meta = build_layout_analysis_meta(
+        declared_outputs=declared,
+        terminals=tree_result.terminals,
+        analysis_items=tree_result.analysis_items,
+        recipe_assignments=recipe_assignments,
+        pseudo_external=tree_result.pseudo_external,
+        impossible=tree_result.impossible,
+    )
 
     if tree_result.impossible:
         if any("无法构建" in e or "禁止" in e for e in tree_result.errors):
@@ -106,9 +114,8 @@ def run_layout_pipeline(
 
     graph = build_merged_graph_with_layers(tree_result.graph)
     assign_ranks(graph)
-    analysis_meta["max_layer"] = max(
-        (n.layer for n in graph.nodes.values()), default=0
-    )
+    max_layer = max((n.layer for n in graph.nodes.values()), default=0)
+    analysis_meta["max_layer"] = max_layer
 
     chains = discover_sbto_chains(graph)
     tap_results = chains_to_tap_results(chains, graph, labels)
