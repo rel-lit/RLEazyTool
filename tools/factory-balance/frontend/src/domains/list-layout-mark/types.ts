@@ -4,8 +4,7 @@ export type ListLayoutMarkKind = "none" | "hollow-sphere";
 export type ItemListSide = "target" | "supply";
 
 /**
- * 外环 rim 语义（统一禁止环质感：rim 在 ::after，fill 在 ::before）。
- * 每种对应 pipeline 的一类判定。
+ * 外环 rim 语义色（tokens）；内盘 fill 为画布/node 语义色。二分配色，无阴影。
  */
 export type ListLayoutMarkRing =
   | "terminal"
