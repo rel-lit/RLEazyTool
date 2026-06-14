@@ -6,22 +6,12 @@ import HistoryPanel from "./components/panels/HistoryPanel.vue";
 import LayoutWorkspace from "./components/panels/LayoutWorkspace.vue";
 import ModeToolbar from "./components/panels/ModeToolbar.vue";
 import ProgressPanel from "./components/panels/ProgressPanel.vue";
-import { UiButton } from "./ui";
+import LeftSidebarShell, { type SidebarTab } from "./components/shell/LeftSidebarShell.vue";
 
 const app = useApp();
 provide("appBus", app.bus);
 
-type LeftSidebar = "save" | "history";
-const leftSidebar = ref<LeftSidebar>("save");
-
-function showSave(): void {
-  leftSidebar.value = "save";
-}
-
-function showHistory(): void {
-  leftSidebar.value = "history";
-  void app.layoutHistory.refresh();
-}
+const leftSidebarTab = ref<SidebarTab>("save");
 
 async function restoreHistory(id: number): Promise<void> {
   await app.layoutHistory.loadRecord(id);
@@ -35,6 +25,13 @@ async function clearHistory(): Promise<void> {
   if (!confirm("确定清空全部布局历史？")) return;
   await app.layoutHistory.clearAll();
 }
+
+function onSidebarTabChange(tab: SidebarTab): void {
+  leftSidebarTab.value = tab;
+  if (tab === "history") {
+    void app.layoutHistory.refresh();
+  }
+}
 </script>
 
 <template>
@@ -44,82 +41,64 @@ async function clearHistory(): Promise<void> {
       <p class="sub">纯布局 + SBTO · 存档进度同步 · v0.2</p>
     </header>
 
-    <div class="main">
-      <div class="sidebar-group">
-        <aside class="panel save-panel">
-          <ProgressPanel
-            v-if="leftSidebar === 'save'"
-            :factorio-status="app.session.status"
-            :saves="app.session.saves"
-            :selected-save="app.savePicker.selectedSave"
+    <div class="shell-main">
+      <LeftSidebarShell
+        :active-tab="leftSidebarTab"
+        @update:active-tab="onSidebarTabChange"
+      >
+        <ProgressPanel
+          v-if="leftSidebarTab === 'save'"
+          :factorio-status="app.session.status"
+          :saves="app.session.saves"
+          :selected-save="app.savePicker.selectedSave"
+          :progress-loading="app.importCtrl.loading"
+          :purge-loading="app.purgeCtrl.loading"
+          :progress-msg="app.status.message"
+          :progress-warnings="app.status.warnings"
+          :progress-stale="app.session.progressStale"
+          :active-save-key="app.session.activeSaveKey"
+          @update:selected-save="app.savePicker.selectedSave = $event"
+          @import="app.importCtrl.importFromSave()"
+          @purge="app.purgeCtrl.purge(true)"
+        />
+        <HistoryPanel
+          v-else
+          :entries="app.layoutHistory.entries"
+          :loading="app.layoutHistory.loading"
+          :error="app.layoutHistory.error"
+          :active-save-key="app.session.activeSaveKey"
+          @refresh="app.layoutHistory.refresh()"
+          @restore="restoreHistory($event)"
+          @remove="removeHistory($event)"
+          @clear-all="clearHistory()"
+        />
+      </LeftSidebarShell>
+
+      <aside class="workspace-column panel">
+        <div class="workspace-column__head">
+          <ModeToolbar
+            :catalog-mode="app.catalog.mode"
+            :catalog-loading="app.catalog.loading"
             :progress-loading="app.importCtrl.loading"
-            :purge-loading="app.purgeCtrl.loading"
-            :progress-msg="app.status.message"
-            :progress-warnings="app.status.warnings"
             :progress-stale="app.session.progressStale"
-            :active-save-key="app.session.activeSaveKey"
-            @update:selected-save="app.savePicker.selectedSave = $event"
-            @import="app.importCtrl.importFromSave()"
-            @purge="app.purgeCtrl.purge(true)"
-          />
-          <HistoryPanel
-            v-else
-            :entries="app.layoutHistory.entries"
-            :loading="app.layoutHistory.loading"
-            :error="app.layoutHistory.error"
-            :active-save-key="app.session.activeSaveKey"
-            @refresh="app.layoutHistory.refresh()"
-            @restore="restoreHistory($event)"
-            @remove="removeHistory($event)"
-            @clear-all="clearHistory()"
-          />
-        </aside>
-
-        <aside class="panel item-panel">
-          <div class="item-panel-head">
-            <div class="sidebar-switch">
-              <UiButton
-                variant="toggle"
-                size="sm"
-                :pressed="leftSidebar === 'save'"
-                @primary="showSave"
-              >
-                存档
-              </UiButton>
-              <UiButton
-                variant="toggle"
-                size="sm"
-                :pressed="leftSidebar === 'history'"
-                @primary="showHistory"
-              >
-                历史
-              </UiButton>
-            </div>
-
-            <ModeToolbar
-              :catalog-mode="app.catalog.mode"
-              :catalog-loading="app.catalog.loading"
-              :progress-loading="app.importCtrl.loading"
-              :progress-stale="app.session.progressStale"
-              :supply-mode="app.selection.supplyMode"
+            :supply-mode="app.selection.supplyMode"
             @switch-catalog-mode="app.switchCatalogMode($event)"
             @update:supply-mode="app.actions.setSupplyMode($event)"
           />
-          </div>
+        </div>
 
-          <ItemTabsPanel
-            :target-search-query="app.catalog.targetSearchQuery"
-            :supply-search-query="app.catalog.supplySearchQuery"
-            :selected-targets="app.selection.selectedTargets"
-            :supplied-items="app.selection.suppliedItems"
-            :forbidden-items="app.selection.forbiddenItems"
-            @update:target-search-query="app.catalog.targetSearchQuery = $event"
-            @update:supply-search-query="app.catalog.supplySearchQuery = $event"
-          />
-        </aside>
-      </div>
+        <ItemTabsPanel
+          :target-search-query="app.catalog.targetSearchQuery"
+          :supply-search-query="app.catalog.supplySearchQuery"
+          :selected-targets="app.selection.selectedTargets"
+          :supplied-items="app.selection.suppliedItems"
+          :forbidden-items="app.selection.forbiddenItems"
+          @update:target-search-query="app.catalog.targetSearchQuery = $event"
+          @update:supply-search-query="app.catalog.supplySearchQuery = $event"
+        />
+      </aside>
 
-      <section class="panel result-panel">
+      <section class="result-column panel">
         <LayoutWorkspace
           :layout="app.layout.layout"
           :stale="app.layout.stale"
@@ -157,19 +136,11 @@ async function clearHistory(): Promise<void> {
   font-size: 0.9rem;
 }
 
-.main {
+.shell-main {
   flex: 1;
   min-height: 0;
   display: flex;
-  gap: 12px;
   align-items: stretch;
-}
-
-.sidebar-group {
-  display: flex;
-  gap: 12px;
-  flex-shrink: 0;
-  min-height: 0;
 }
 
 .panel {
@@ -179,47 +150,34 @@ async function clearHistory(): Promise<void> {
   padding: 12px;
 }
 
-.save-panel {
-  width: 260px;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.item-panel {
-  width: 300px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.item-panel-head {
+.workspace-column {
+  width: var(--shell-workspace-width);
   flex-shrink: 0;
+  margin-left: var(--shell-gap-after-tabs);
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.item-panel :deep(.item-tabs) {
+.workspace-column__head {
+  flex-shrink: 0;
+}
+
+.workspace-column :deep(.item-tabs) {
   flex: 1;
   min-height: 0;
 }
 
-.result-panel {
+.result-column {
   flex: 1;
   min-width: 0;
   min-height: 0;
-  overflow-y: auto;
-}
-
-.sidebar-switch {
+  margin-left: var(--shell-gap-before-result);
+  overflow: hidden;
   display: flex;
-  gap: 6px;
-}
-
-.sidebar-switch :deep(.ui-btn) {
-  flex: 1;
-  min-width: 0;
+  flex-direction: column;
+  padding: 12px;
 }
 </style>
