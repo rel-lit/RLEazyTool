@@ -1,20 +1,17 @@
 <script setup lang="ts">
-import { computed, inject, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, toRef } from "vue";
 import type { ItemInfo } from "../../api/client";
-import type { AppEventBus } from "../../app/events";
-import {
-  createItemListSession,
-} from "../../domains/item-list";
-import ItemListViewport from "../item-list/ItemListViewport.vue";
+import { useItemListsOrchestrator } from "../../domains/item-list";
+import UiScrollRegion from "../../ui/primitives/UiScrollRegion.vue";
 import CatalogPanel from "./CatalogPanel.vue";
 import SupplyPanel from "./SupplyPanel.vue";
-import { UiButton, UiIconButton, useRegionOutside } from "../../ui";
+import { UiButton, UiIconButton } from "../../ui";
 
 const props = defineProps<{
   targetSearchQuery: string;
   supplySearchQuery: string;
-  filteredManufactureItems: ItemInfo[];
-  filteredSupplyItems: ItemInfo[];
+  manufactureItems: ItemInfo[];
+  supplyItems: ItemInfo[];
   selectedTargets: string[];
   suppliedItems: string[];
   forbiddenItems: string[];
@@ -30,99 +27,35 @@ const emit = defineEmits<{
   clearSupplySelections: [];
 }>();
 
-type ItemTab = "target" | "supply";
-
-const appBus = inject<AppEventBus | null>("appBus", null);
-const activeTab = ref<ItemTab>("target");
-
-const targetSession = createItemListSession("target");
-const supplySession = createItemListSession("supply");
-
-/** 须顶层引用，模板才能自动解包 ref */
-const targetDisplayOrder = targetSession.displayOrder;
-const supplyDisplayOrder = supplySession.displayOrder;
-
-const tabBarRef = ref<HTMLElement | null>(null);
-const targetViewportRef = ref<InstanceType<typeof ItemListViewport> | null>(null);
-const supplyViewportRef = ref<InstanceType<typeof ItemListViewport> | null>(null);
-
-function activeRegionRoot(): HTMLElement | null {
-  const viewport =
-    activeTab.value === "target" ? targetViewportRef.value : supplyViewportRef.value;
-  return viewport?.rootEl ?? null;
-}
-
-function commitSession(tab: ItemTab): void {
-  if (tab === "target") targetSession.commit();
-  else supplySession.commit();
-}
-
-function resetViewportScroll(tab: ItemTab): void {
-  const viewport =
-    tab === "target" ? targetViewportRef.value : supplyViewportRef.value;
-  viewport?.resetScroll();
-}
-
-function commitActiveSession(): void {
-  commitSession(activeTab.value);
-  resetViewportScroll(activeTab.value);
-}
-
-function switchTab(next: ItemTab): void {
-  if (next === activeTab.value) return;
-  const prev = activeTab.value;
-  activeTab.value = next;
-  resetViewportScroll(prev);
-  commitSession(prev);
-}
-
-useRegionOutside(
-  activeRegionRoot,
-  commitActiveSession,
-  {
-    ignore: (target) => {
-      const bar = tabBarRef.value;
-      return bar != null && target instanceof Node && bar.contains(target);
-    },
-  }
-);
+const {
+  activeTab,
+  targetDisplayOrder,
+  supplyDisplayOrder,
+  tabBarRef,
+  targetViewportRef,
+  supplyViewportRef,
+  switchTab,
+  handleToggleTarget,
+  handleToggleSupplied,
+  handleToggleForbidden,
+  onClearSelection,
+  canClearSelection,
+} = useItemListsOrchestrator({
+  manufactureItems: toRef(props, "manufactureItems"),
+  supplyItems: toRef(props, "supplyItems"),
+  selectedTargets: toRef(props, "selectedTargets"),
+  suppliedItems: toRef(props, "suppliedItems"),
+  forbiddenItems: toRef(props, "forbiddenItems"),
+  onToggleTarget: (name) => emit("toggleTarget", name),
+  onToggleSupplied: (name) => emit("toggleSupplied", name),
+  onToggleForbidden: (name) => emit("toggleForbidden", name),
+  onClearTargets: () => emit("clearTargets"),
+  onClearSupplySelections: () => emit("clearSupplySelections"),
+});
 
 const activeSearchQuery = computed(() =>
   activeTab.value === "target" ? props.targetSearchQuery : props.supplySearchQuery
 );
-
-const canClearSelection = computed(() => {
-  if (activeTab.value === "target") {
-    return props.selectedTargets.length > 0;
-  }
-  return props.suppliedItems.length > 0 || props.forbiddenItems.length > 0;
-});
-
-function syncTargetSessionFromFilter(): void {
-  targetSession.initFromCatalog(props.filteredManufactureItems);
-}
-
-function syncSupplySessionFromFilter(): void {
-  supplySession.initFromCatalog(props.filteredSupplyItems);
-}
-
-function handleToggleTarget(name: string): void {
-  const willSelect = !props.selectedTargets.includes(name);
-  emit("toggleTarget", name);
-  targetSession.applyTargetToggle(name, willSelect);
-}
-
-function handleToggleSupplied(name: string): void {
-  const wasSupplied = props.suppliedItems.includes(name);
-  emit("toggleSupplied", name);
-  supplySession.applySupplyToggle(name, wasSupplied ? "normal" : "supplied");
-}
-
-function handleToggleForbidden(name: string): void {
-  const wasForbidden = props.forbiddenItems.includes(name);
-  emit("toggleForbidden", name);
-  supplySession.applySupplyToggle(name, wasForbidden ? "normal" : "forbidden");
-}
 
 function onSearchInput(event: Event): void {
   const value = (event.target as HTMLInputElement).value;
@@ -140,47 +73,6 @@ function onClearSearch(): void {
     emit("update:supplySearchQuery", "");
   }
 }
-
-async function onClearSelection(): Promise<void> {
-  if (!canClearSelection.value) return;
-  if (activeTab.value === "target") {
-    emit("clearTargets");
-    await nextTick();
-    syncTargetSessionFromFilter();
-  } else {
-    emit("clearSupplySelections");
-    await nextTick();
-    syncSupplySessionFromFilter();
-  }
-}
-
-watch(
-  () => props.filteredManufactureItems,
-  () => syncTargetSessionFromFilter(),
-  { immediate: true }
-);
-
-watch(
-  () => props.filteredSupplyItems,
-  () => syncSupplySessionFromFilter(),
-  { immediate: true }
-);
-
-const busCleanups: (() => void)[] = [];
-
-onMounted(() => {
-  if (!appBus) return;
-  const onCatalogReset = (): void => {
-    syncTargetSessionFromFilter();
-    syncSupplySessionFromFilter();
-  };
-  busCleanups.push(appBus.on("ProgressChanged", onCatalogReset));
-  busCleanups.push(appBus.on("CatalogModeChanged", onCatalogReset));
-});
-
-onUnmounted(() => {
-  for (const off of busCleanups) off();
-});
 </script>
 
 <template>
@@ -227,37 +119,39 @@ onUnmounted(() => {
         variant="danger-soft"
         size="sm"
         :disabled="!canClearSelection"
-        @primary="onClearSelection"
+        @primary="onClearSelection()"
       >
         清空当前选择
       </UiButton>
     </div>
 
-    <ItemListViewport
+    <UiScrollRegion
       v-show="activeTab === 'target'"
       ref="targetViewportRef"
       class="list-viewport-slot"
     >
       <CatalogPanel
-        :filtered-manufacture-items="targetDisplayOrder"
+        :display-order="targetDisplayOrder"
+        :search-query="targetSearchQuery"
         :selected-targets="selectedTargets"
         @toggle-target="handleToggleTarget"
       />
-    </ItemListViewport>
+    </UiScrollRegion>
 
-    <ItemListViewport
+    <UiScrollRegion
       v-show="activeTab === 'supply'"
       ref="supplyViewportRef"
       class="list-viewport-slot"
     >
       <SupplyPanel
-        :filtered-supply-items="supplyDisplayOrder"
+        :display-order="supplyDisplayOrder"
+        :search-query="supplySearchQuery"
         :supplied-items="suppliedItems"
         :forbidden-items="forbiddenItems"
         @toggle-supplied="handleToggleSupplied"
         @toggle-forbidden="handleToggleForbidden"
       />
-    </ItemListViewport>
+    </UiScrollRegion>
   </div>
 </template>
 

@@ -1,22 +1,27 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import type { ItemInfo } from "../../api/client";
+import { applyListMask } from "../../domains/item-list";
 import { UiChip } from "../../ui";
 
-defineProps<{
-  filteredManufactureItems: ItemInfo[];
+const props = defineProps<{
+  displayOrder: ItemInfo[];
+  searchQuery: string;
   selectedTargets: string[];
 }>();
 
 defineEmits<{
   toggleTarget: [name: string];
 }>();
+
+const visibleItems = computed(() => applyListMask(props.displayOrder, props.searchQuery));
 </script>
 
 <template>
   <section>
     <div class="chip-list">
       <UiChip
-        v-for="item in filteredManufactureItems"
+        v-for="item in visibleItems"
         :key="item.name"
         :selected="selectedTargets.includes(item.name)"
         @primary="$emit('toggleTarget', item.name)"

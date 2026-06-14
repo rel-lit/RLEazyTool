@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { useScrollRegion } from "../../ui/interaction";
+import { useScrollRegion } from "../interaction";
 
 const rootEl = ref<HTMLElement | null>(null);
 
@@ -10,13 +10,13 @@ defineExpose({ rootEl, resetScroll });
 </script>
 
 <template>
-  <div ref="rootEl" class="item-list-viewport" tabindex="-1">
+  <div ref="rootEl" class="ui-scroll-region" tabindex="-1">
     <slot />
   </div>
 </template>
 
 <style scoped>
-.item-list-viewport {
+.ui-scroll-region {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -28,7 +28,7 @@ defineExpose({ rootEl, resetScroll });
   background: var(--ui-bg-inset, #0d1117);
 }
 
-.item-list-viewport:focus {
+.ui-scroll-region:focus {
   outline: none;
 }
 </style>

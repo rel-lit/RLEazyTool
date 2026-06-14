@@ -110,8 +110,8 @@ async function clearHistory(): Promise<void> {
           <ItemTabsPanel
             :target-search-query="app.catalog.targetSearchQuery"
             :supply-search-query="app.catalog.supplySearchQuery"
-            :filtered-manufacture-items="app.catalog.filteredManufactureItems"
-            :filtered-supply-items="app.catalog.filteredSupplyItems"
+            :manufacture-items="app.catalog.manufactureItems"
+            :supply-items="app.catalog.supplyItems"
             :selected-targets="app.selection.selectedTargets"
             :supplied-items="app.selection.suppliedItems"
             :forbidden-items="app.selection.forbiddenItems"

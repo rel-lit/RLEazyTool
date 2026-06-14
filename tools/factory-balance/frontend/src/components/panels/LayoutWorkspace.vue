@@ -3,6 +3,7 @@ import { ref } from "vue";
 import type { LayoutEdge, LayoutResponse, TapOrderEntry } from "../../api/client";
 import LayoutCanvas from "../LayoutCanvas.vue";
 import { UiButton } from "../../ui";
+import type { CanvasRegionTarget } from "../../ui/interaction/canvas/types";
 
 defineProps<{
   layout: LayoutResponse | null;
@@ -25,6 +26,15 @@ const canvasRef = ref<InstanceType<typeof LayoutCanvas> | null>(null);
 function edgeTypeLabel(type: string): string {
   if (type === "tap_chain") return "SBTO 链";
   return "传送带";
+}
+
+/** 画布 UI primary → 布局业务：边详情选中 */
+function onCanvasPrimary(target: CanvasRegionTarget): void {
+  if (target.kind === "edge") {
+    emit("selectEdge", target.id);
+    return;
+  }
+  emit("selectEdge", null);
 }
 </script>
 
@@ -53,7 +63,7 @@ function edgeTypeLabel(type: string): string {
         :hidden-edges="layout.hidden_edges ?? []"
         :layout-direction="layout.layout_direction ?? 'left-to-right'"
         :selected-edge-id="selectedEdgeId"
-        @select-edge="emit('selectEdge', $event)"
+        @primary="onCanvasPrimary"
       />
       <div v-else class="placeholder">选择产出目标后点击「计算自平衡布局」</div>
     </div>

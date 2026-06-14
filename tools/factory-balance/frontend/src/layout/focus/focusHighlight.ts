@@ -1,7 +1,7 @@
 import type { FocusHighlight } from "./focusModel";
 import { isHiddenEdge, isSbtoEdge } from "./focusModel";
 import type { LayoutEdge } from "../../api/client";
-import type { FocusPhase } from "./focusStateMachine";
+import type { FocusPhase } from "./focusPhase";
 
 export function isNodeHighlighted(
   nodeId: string,

@@ -13,7 +13,7 @@ import {
   focusDebugLog,
   isFocusDebugEnabled,
 } from "../layout/focusDebug";
-import { useCanvasFocus } from "../layout/focus";
+import { useLayoutCanvasRegion } from "../layout/useLayoutCanvasRegion";
 import { useCanvasLayout } from "../layout/useCanvasLayout";
 import {
   registerCanvasPositionReader,
@@ -24,6 +24,7 @@ import {
   type LayoutDirection,
 } from "../layout/layoutTypes";
 import { layoutMaxLayer } from "../layout/nodeVisual";
+import type { CanvasRegionTarget } from "../ui/interaction/canvas/types";
 
 const props = defineProps<{
   nodes: LayoutNode[];
@@ -34,7 +35,9 @@ const props = defineProps<{
   layoutDirection?: LayoutDirection;
 }>();
 
-const emit = defineEmits<{ selectEdge: [id: string | null] }>();
+const emit = defineEmits<{
+  primary: [target: CanvasRegionTarget];
+}>();
 
 const appBus = inject<AppEventBus | null>("appBus", null);
 
@@ -46,21 +49,24 @@ provide("layoutDirection", direction);
 const maxLayer = computed(() => layoutMaxLayer(props.nodes));
 provide("layoutMaxLayer", maxLayer);
 
-const focus = useCanvasFocus({
-  nodes: toRef(props, "nodes"),
-  edges: toRef(props, "edges"),
-  productEdges: toRef(props, "productEdges"),
-  hiddenEdges: toRef(props, "hiddenEdges"),
+const region = useLayoutCanvasRegion({
+  ctx: {
+    nodes: toRef(props, "nodes"),
+    edges: toRef(props, "edges"),
+    productEdges: toRef(props, "productEdges"),
+    hiddenEdges: toRef(props, "hiddenEdges"),
+  },
+  onPrimary: (target) => emit("primary", target),
 });
 
 provide(
   "canvasFocusState",
   computed(() => ({
-    phase: focus.phase.value,
-    highlight: focus.highlight.value,
+    phase: region.phase.value,
+    highlight: region.highlight.value,
   }))
 );
-provide("canvasFocus", focus.highlight);
+provide("canvasFocus", region.highlight);
 
 const canvasLayout = useCanvasLayout(
   {
@@ -68,13 +74,14 @@ const canvasLayout = useCanvasLayout(
     edges: toRef(props, "edges"),
     hiddenEdges: toRef(props, "hiddenEdges"),
     selectedEdgeId: toRef(props, "selectedEdgeId"),
-    highlight: focus.highlight,
-    overlayKey: focus.overlayKey,
+    highlight: region.highlight,
+    overlayKey: region.overlayKey,
   },
   appBus
 );
 
 const { flowNodes, flowEdges, rebuildFlowEdges, getNodePositions } = canvasLayout;
+const { handlers } = region;
 
 const debugOn = ref(false);
 const debugLastEvent = ref("—");
@@ -96,49 +103,53 @@ const edgeTypes = { sbto: SbtoEdge, belt: BeltEdge };
 function onNodeEnter({ node }: { node: { id: string } }) {
   focusDebugLog({ kind: "node-enter", id: node.id });
   debugLastEvent.value = `节点 ${node.id}`;
-  focus.hoverNode(node.id, debugLastEvent.value);
+  handlers.onNodeEnter(node.id);
 }
 
 function onNodeLeave() {
   focusDebugLog({ kind: "node-leave" });
   debugLastEvent.value = "node-leave";
-  focus.scheduleLeave();
+  handlers.onNodeLeave();
 }
 
 function onEdgeEnter({ edge }: { edge: { id: string } }) {
   focusDebugLog({ kind: "edge-enter", id: edge.id });
   debugLastEvent.value = `边 ${edge.id}`;
-  focus.hoverEdge(edge.id, debugLastEvent.value);
+  handlers.onEdgeEnter(edge.id);
 }
 
 function onEdgeLeave() {
   focusDebugLog({ kind: "edge-leave" });
   debugLastEvent.value = "edge-leave";
-  focus.scheduleLeave();
+  handlers.onEdgeLeave();
 }
 
 function onNodeClick({ node }: { node: { id: string } }) {
-  emit("selectEdge", null);
-  focus.pinNode(node.id, `node-click ${node.id}`);
+  handlers.onNodeClick(node.id);
 }
 
 function onEdgeClick({ edge }: { edge: { id: string } }) {
-  emit("selectEdge", edge.id);
-  focus.pinEdge(edge.id, `edge-click ${edge.id}`);
+  handlers.onEdgeClick(edge.id);
 }
 
 function onPaneClick() {
-  emit("selectEdge", null);
-  focus.clearFocus("pane-click");
+  handlers.onPaneClick();
 }
 
 function onDragStart() {
-  focus.dragStart();
+  handlers.onDragStart();
   rebuildFlowEdges();
 }
 
 function onDragStop() {
-  focus.dragEnd();
+  handlers.onDragStop();
+}
+
+function debugSummary(): string {
+  const pin = region.isPinned.value ? " [pinned]" : "";
+  const h = region.highlight.value;
+  if (!h) return "—" + pin;
+  return `${h.mode}${pin}`;
 }
 </script>
 
@@ -147,8 +158,8 @@ function onDragStop() {
     <div v-if="debugOn" class="focus-debug-hud">
       <div><strong>Focus 调试</strong>（localStorage fb-debug-focus=1）</div>
       <div>事件: {{ debugLastEvent }}</div>
-      <div>相态: {{ focus.phase }}</div>
-      <div>高亮: {{ focus.debugSummary() }}</div>
+      <div>相态: {{ region.phase }}</div>
+      <div>高亮: {{ debugSummary() }}</div>
     </div>
     <VueFlow
       v-model:nodes="flowNodes"

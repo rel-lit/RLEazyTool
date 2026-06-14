@@ -12,6 +12,5 @@ export {
   isNodeHighlighted,
   sbtoFlowActive,
 } from "./focusHighlight";
-export type { FocusPhase, FocusMachineState, FocusAction } from "./focusStateMachine";
-export { focusReducer, initialFocusState } from "./focusStateMachine";
-export { useCanvasFocus, type CanvasFocusController } from "./useCanvasFocus";
+export type { FocusPhase } from "./focusPhase";
+export { phaseForHighlight } from "./focusPhase";

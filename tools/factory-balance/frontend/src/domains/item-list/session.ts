@@ -7,6 +7,17 @@ import {
 } from "./order";
 import type { ItemListKind, SupplyBuckets, TargetBuckets } from "./types";
 
+export interface TargetCatalogSelection {
+  selectedNames: readonly string[];
+}
+
+export interface SupplyCatalogSelection {
+  suppliedNames: readonly string[];
+  forbiddenNames: readonly string[];
+}
+
+export type CatalogSelection = TargetCatalogSelection | SupplyCatalogSelection;
+
 function itemMap(items: readonly ItemInfo[]): Map<string, ItemInfo> {
   return new Map(items.map((i) => [i.name, i]));
 }
@@ -42,15 +53,40 @@ export function createItemListSession(kind: ItemListKind) {
   const targetBuckets = ref<TargetBuckets>({ selected: [], normal: [] });
   const supplyBuckets = ref<SupplyBuckets>({ supplied: [], forbidden: [], normal: [] });
 
-  function initFromCatalog(items: readonly ItemInfo[]): void {
+  function initFromCatalog(
+    items: readonly ItemInfo[],
+    selection?: CatalogSelection
+  ): void {
     catalogIndex.value = [...items];
-    displayOrder.value = [...items];
     dirty.value = false;
+
     if (kind === "target") {
-      targetBuckets.value = { selected: [], normal: [...items] };
-    } else {
-      supplyBuckets.value = { supplied: [], forbidden: [], normal: [...items] };
+      const sel = selection as TargetCatalogSelection | undefined;
+      const selectedSet = new Set(sel?.selectedNames ?? []);
+      const selected: ItemInfo[] = [];
+      const normal: ItemInfo[] = [];
+      for (const item of items) {
+        if (selectedSet.has(item.name)) selected.push(item);
+        else normal.push(item);
+      }
+      targetBuckets.value = { selected, normal };
+      displayOrder.value = flattenTargetBuckets(selected, normal);
+      return;
     }
+
+    const sel = selection as SupplyCatalogSelection | undefined;
+    const suppliedSet = new Set(sel?.suppliedNames ?? []);
+    const forbiddenSet = new Set(sel?.forbiddenNames ?? []);
+    const supplied: ItemInfo[] = [];
+    const forbidden: ItemInfo[] = [];
+    const normal: ItemInfo[] = [];
+    for (const item of items) {
+      if (suppliedSet.has(item.name)) supplied.push(item);
+      else if (forbiddenSet.has(item.name)) forbidden.push(item);
+      else normal.push(item);
+    }
+    supplyBuckets.value = { supplied, forbidden, normal };
+    displayOrder.value = flattenSupplyBuckets(supplied, forbidden, normal);
   }
 
   function applyTargetToggle(name: string, isSelected: boolean): void {
