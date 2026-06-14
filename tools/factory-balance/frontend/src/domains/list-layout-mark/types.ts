@@ -5,7 +5,7 @@ export type ItemListSide = "target" | "supply";
 
 export interface ListLayoutMark {
   kind: ListLayoutMarkKind;
-  /** 圈内填充（与画布节点底色同源或专用规则） */
+  /** 圈内填充；transparent 表示空环（如禁止供给） */
   fill?: string;
   ringColor?: string;
   ringStyle?: "solid" | "dashed";
