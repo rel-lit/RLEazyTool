@@ -12,7 +12,7 @@ const props = withDefaults(
     size?: "sm" | "md";
     disabled?: boolean;
     type?: "button" | "submit";
-    /** 列表项—布局关联标记样式；none 不显示 */
+    /** 列表项—布局关联标记；none 不显示右侧镂空圈 */
     layoutMark?: ListLayoutMarkKind;
   }>(),
   {
@@ -34,6 +34,8 @@ const classes = computed(() => [
     "ui-chip--has-layout-mark": props.layoutMark !== "none",
   },
 ]);
+
+const showLayoutMark = computed(() => props.layoutMark === "hollow-sphere");
 </script>
 
 <template>
@@ -46,8 +48,9 @@ const classes = computed(() => [
   >
     <span class="ui-chip__label"><slot /></span>
     <span
-      v-if="layoutMark === 'hollow-sphere'"
-      class="ui-chip__layout-mark ui-chip__layout-mark--hollow-sphere"
+      v-if="showLayoutMark"
+      class="ui-chip__layout-mark"
+      role="presentation"
       aria-hidden="true"
     />
   </UiControl>

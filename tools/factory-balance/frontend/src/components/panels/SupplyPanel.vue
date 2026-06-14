@@ -25,7 +25,7 @@ const markRevision = computed(() => listLayoutMark.revision.value);
 
 function layoutMarkFor(name: string) {
   void markRevision.value;
-  return listLayoutMark.getListLayoutMark(name);
+  return listLayoutMark.getListLayoutMark(name, "supply");
 }
 </script>
 

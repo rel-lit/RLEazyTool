@@ -2,31 +2,65 @@ import { ref } from "vue";
 import type { LayoutRequest, LayoutResponse } from "../../api/client";
 import { LIST_LAYOUT_MARK_NONE, type ListLayoutMark } from "./types";
 
+export type ItemListSide = "target" | "supply";
+
 /**
- * 列表项—布局关联标记：由布局快照推导 chip 右侧是否显示镂空球等样式。
- * 不耦合列表排序、选中状态或 UI 组件。
+ * 列表项—布局关联标记：由布局快照推导 chip 右侧镂空球等样式。
+ * 产出 / 供给各自读取，互不共用参与集合；不写入列表 session 或排序状态。
  */
 export function createListLayoutMark() {
   let boundLayout: LayoutResponse | null = null;
+  let targetCatalogNames = new Set<string>();
+  let supplyCatalogNames = new Set<string>();
   /** 递增以驱动 UI 重绘 */
   const revision = ref(0);
 
-  function bindLayoutSnapshot(layout: LayoutResponse, _request: LayoutRequest): void {
+  function bindLayoutSnapshot(
+    layout: LayoutResponse,
+    _request: LayoutRequest,
+    manufactureItemNames: ReadonlySet<string>,
+    supplyItemNames: ReadonlySet<string>
+  ): void {
     boundLayout = layout;
+    targetCatalogNames = new Set(manufactureItemNames);
+    supplyCatalogNames = new Set(supplyItemNames);
     revision.value += 1;
   }
 
   function clearLayoutSnapshot(): void {
     boundLayout = null;
+    targetCatalogNames = new Set();
+    supplyCatalogNames = new Set();
     revision.value += 1;
   }
 
-  function getListLayoutMark(itemName: string): ListLayoutMark {
-    if (!boundLayout || boundLayout.analysis?.impossible) {
-      return LIST_LAYOUT_MARK_NONE;
+  function analysisItems(): readonly string[] {
+    if (!boundLayout || boundLayout.analysis?.impossible) return [];
+    return boundLayout.analysis?.analysis_items ?? [];
+  }
+
+  /** 产出列表：分析集 ∩ 当前产出 catalog（只读，供排序时传入） */
+  function getTargetParticipation(): ReadonlySet<string> {
+    const out = new Set<string>();
+    for (const name of analysisItems()) {
+      if (targetCatalogNames.has(name)) out.add(name);
     }
-    const items = boundLayout.analysis?.analysis_items ?? [];
-    if (!items.includes(itemName)) {
+    return out;
+  }
+
+  /** 供给列表：分析集 ∩ 当前供给 catalog（只读，供排序时传入） */
+  function getSupplyParticipation(): ReadonlySet<string> {
+    const out = new Set<string>();
+    for (const name of analysisItems()) {
+      if (supplyCatalogNames.has(name)) out.add(name);
+    }
+    return out;
+  }
+
+  function getListLayoutMark(itemName: string, side: ItemListSide): ListLayoutMark {
+    const participation =
+      side === "target" ? getTargetParticipation() : getSupplyParticipation();
+    if (!participation.has(itemName)) {
       return LIST_LAYOUT_MARK_NONE;
     }
     return { kind: "hollow-sphere" };
@@ -36,6 +70,8 @@ export function createListLayoutMark() {
     revision,
     bindLayoutSnapshot,
     clearLayoutSnapshot,
+    getTargetParticipation,
+    getSupplyParticipation,
     getListLayoutMark,
   };
 }

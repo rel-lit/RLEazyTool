@@ -13,15 +13,22 @@ export function createAppActions(ctx: AppContext) {
       ctx.listLayoutMark.clearLayoutSnapshot();
       return;
     }
-    const participation = layout.analysis?.analysis_items ?? [];
-    ctx.listLayoutMark.bindLayoutSnapshot(layout, request);
-    ctx.itemList.setAnalysisParticipation(participation);
-    ctx.itemList.resortAllTabs();
+    const manufactureNames = new Set(
+      ctx.catalog.manufactureItems.value.map((i) => i.name)
+    );
+    const supplyNames = new Set(ctx.catalog.supplyItems.value.map((i) => i.name));
+    ctx.listLayoutMark.bindLayoutSnapshot(layout, request, manufactureNames, supplyNames);
+    ctx.itemList.resortTargetTab(ctx.listLayoutMark.getTargetParticipation());
+    ctx.itemList.resortSupplyTab(ctx.listLayoutMark.getSupplyParticipation());
   }
 
   /** 提交列表编辑：区外点击 / 切 tab 时，对指定 tab 落盘排序 */
   function commitItemListTab(tab: ItemListTab): void {
-    ctx.itemList.commitTab(tab);
+    const participation =
+      tab === "target"
+        ? ctx.listLayoutMark.getTargetParticipation()
+        : ctx.listLayoutMark.getSupplyParticipation();
+    ctx.itemList.commitTab(tab, participation);
   }
 
   function syncItemListsFromCatalog(): void {
@@ -58,14 +65,17 @@ export function createAppActions(ctx: AppContext) {
     );
   }
 
+  /** 清空产出选择后刷新列表顺序（沿用当前布局参与集） */
   function clearTargetListSelection(): void {
     ctx.selection.clearTargets();
     ctx.itemList.syncTargetFromCatalog(
       ctx.catalog.manufactureItems.value,
       ctx.selection.selectedTargets.value
     );
+    ctx.itemList.resortTargetTab(ctx.listLayoutMark.getTargetParticipation());
   }
 
+  /** 清空供给选择后刷新列表顺序（沿用当前布局参与集） */
   function clearSupplyListSelection(): void {
     ctx.selection.clearSupplySelections();
     ctx.itemList.syncSupplyFromCatalog(
@@ -73,6 +83,7 @@ export function createAppActions(ctx: AppContext) {
       ctx.selection.suppliedItems.value,
       ctx.selection.forbiddenItems.value
     );
+    ctx.itemList.resortSupplyTab(ctx.listLayoutMark.getSupplyParticipation());
   }
 
   function setSupplyMode(mode: "raw" | "direct"): void {

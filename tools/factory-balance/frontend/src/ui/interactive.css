@@ -226,9 +226,11 @@
 
 /* chip */
 .ui-chip {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  justify-content: flex-start;
+  gap: 0;
   background: var(--ui-bg-control);
   border: 1px solid var(--ui-border);
   color: inherit;
@@ -306,16 +308,32 @@
 
 .ui-chip__label {
   min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.ui-chip__layout-mark--hollow-sphere {
+/* 文字右侧、椭圆内的空心圆（非字符，独立 UI 节点） */
+.ui-chip__layout-mark {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  transform: translateY(-50%);
   flex-shrink: 0;
   width: 8px;
   height: 8px;
   border-radius: 50%;
   border: 1.5px solid currentColor;
   background: transparent;
-  opacity: 0.9;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.ui-chip--sm .ui-chip__layout-mark {
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-width: 1.25px;
 }
 
 /* icon button */

@@ -1,4 +1,3 @@
-import { ref, type Ref } from "vue";
 import type { ItemInfo } from "../../api/client";
 import {
   flattenSupplyBuckets,
@@ -10,48 +9,48 @@ import type { ItemListKind, SupplyBuckets, TargetBuckets } from "./types";
 
 export type ItemListTab = "target" | "supply";
 
-/** 双列表编辑会话 + 当前分析集参与名（供排序规则读取） */
+/** 双列表编辑会话；排序规则在 commit/resort 时由调用方传入参与集（只读） */
 export function createItemListBundle() {
   const targetSession = createItemListSession("target");
   const supplySession = createItemListSession("supply");
-  const analysisParticipation = ref<ReadonlySet<string>>(new Set());
 
-  function setAnalysisParticipation(items: readonly string[]): void {
-    analysisParticipation.value = new Set(items);
-  }
-
-  function sortTargetBuckets(b: TargetBuckets): TargetBuckets {
-    const p = analysisParticipation.value;
+  function sortTargetBuckets(
+    b: TargetBuckets,
+    participation: ReadonlySet<string>
+  ): TargetBuckets {
     return {
-      selected: sortBucketWithAnalysisParticipation(b.selected, p),
-      normal: sortBucketWithAnalysisParticipation(b.normal, p),
+      selected: sortBucketWithAnalysisParticipation(b.selected, participation),
+      normal: sortBucketWithAnalysisParticipation(b.normal, participation),
     };
   }
 
-  function sortSupplyBuckets(b: SupplyBuckets): SupplyBuckets {
-    const p = analysisParticipation.value;
+  function sortSupplyBuckets(
+    b: SupplyBuckets,
+    participation: ReadonlySet<string>
+  ): SupplyBuckets {
     return {
-      supplied: sortBucketWithAnalysisParticipation(b.supplied, p),
-      forbidden: sortBucketWithAnalysisParticipation(b.forbidden, p),
-      normal: sortBucketWithAnalysisParticipation(b.normal, p),
+      supplied: sortBucketWithAnalysisParticipation(b.supplied, participation),
+      forbidden: sortBucketWithAnalysisParticipation(b.forbidden, participation),
+      normal: sortBucketWithAnalysisParticipation(b.normal, participation),
     };
   }
 
   function applySortToSession(
     session: ItemListSession,
     kind: ItemListKind,
-    force: boolean
+    force: boolean,
+    participation: ReadonlySet<string>
   ): void {
     if (kind === "target") {
       if (!force && !session.dirty.value) return;
-      const sorted = sortTargetBuckets(session.targetBuckets.value);
+      const sorted = sortTargetBuckets(session.targetBuckets.value, participation);
       session.targetBuckets.value = sorted;
       session.displayOrder.value = flattenTargetBuckets(sorted.selected, sorted.normal);
       session.dirty.value = false;
       return;
     }
     if (!force && !session.dirty.value) return;
-    const sorted = sortSupplyBuckets(session.supplyBuckets.value);
+    const sorted = sortSupplyBuckets(session.supplyBuckets.value, participation);
     session.supplyBuckets.value = sorted;
     session.displayOrder.value = flattenSupplyBuckets(
       sorted.supplied,
@@ -61,31 +60,26 @@ export function createItemListBundle() {
     session.dirty.value = false;
   }
 
-  function commitTargetTab(): void {
-    applySortToSession(targetSession, "target", false);
+  function commitTargetTab(participation: ReadonlySet<string>): void {
+    applySortToSession(targetSession, "target", false, participation);
   }
 
-  function commitSupplyTab(): void {
-    applySortToSession(supplySession, "supply", false);
+  function commitSupplyTab(participation: ReadonlySet<string>): void {
+    applySortToSession(supplySession, "supply", false, participation);
   }
 
-  function commitTab(tab: ItemListTab): void {
-    if (tab === "target") commitTargetTab();
-    else commitSupplyTab();
+  function commitTab(tab: ItemListTab, participation: ReadonlySet<string>): void {
+    if (tab === "target") commitTargetTab(participation);
+    else commitSupplyTab(participation);
   }
 
   /** 布局刷新列表：强制按分析集参与规则重排（无视 dirty） */
-  function resortTargetTab(): void {
-    applySortToSession(targetSession, "target", true);
+  function resortTargetTab(participation: ReadonlySet<string>): void {
+    applySortToSession(targetSession, "target", true, participation);
   }
 
-  function resortSupplyTab(): void {
-    applySortToSession(supplySession, "supply", true);
-  }
-
-  function resortAllTabs(): void {
-    resortTargetTab();
-    resortSupplyTab();
+  function resortSupplyTab(participation: ReadonlySet<string>): void {
+    applySortToSession(supplySession, "supply", true, participation);
   }
 
   function syncTargetFromCatalog(
@@ -122,14 +116,11 @@ export function createItemListBundle() {
     supplyDisplayOrder: supplySession.displayOrder,
     targetSession,
     supplySession,
-    analysisParticipation,
-    setAnalysisParticipation,
     commitTargetTab,
     commitSupplyTab,
     commitTab,
     resortTargetTab,
     resortSupplyTab,
-    resortAllTabs,
     syncTargetFromCatalog,
     syncSupplyFromCatalog,
     syncAllFromCatalog,
