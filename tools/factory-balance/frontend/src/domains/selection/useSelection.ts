@@ -15,6 +15,18 @@ export function useSelection(bus: AppEventBus) {
     forbiddenItems.value = [];
   }
 
+  function bindSaveAndReset(saveKey: string): void {
+    boundSaveKey.value = saveKey;
+    reset();
+    bus.emit({ type: "SelectionChanged", reason: "reset" });
+  }
+
+  function clearSaveBindingAndReset(): void {
+    boundSaveKey.value = null;
+    reset();
+    bus.emit({ type: "SelectionChanged", reason: "reset" });
+  }
+
   function pruneGhost(manufacture: ItemInfo[], supply: ItemInfo[]): void {
     const m = new Set(manufacture.map((i) => i.name));
     const s = new Set(supply.map((i) => i.name));
@@ -71,18 +83,6 @@ export function useSelection(bus: AppEventBus) {
     bus.emit({ type: "SelectionChanged", reason: "user-clear" });
   }
 
-  bus.on("ProgressChanged", (e) => {
-    boundSaveKey.value = e.saveKey;
-    reset();
-    bus.emit({ type: "SelectionChanged", reason: "reset" });
-  });
-
-  bus.on("ProgressCleared", () => {
-    boundSaveKey.value = null;
-    reset();
-    bus.emit({ type: "SelectionChanged", reason: "reset" });
-  });
-
   return {
     selectedTargets,
     suppliedItems,
@@ -90,6 +90,8 @@ export function useSelection(bus: AppEventBus) {
     supplyMode,
     boundSaveKey,
     reset,
+    bindSaveAndReset,
+    clearSaveBindingAndReset,
     pruneGhost,
     toggleTarget,
     toggleSupplied,

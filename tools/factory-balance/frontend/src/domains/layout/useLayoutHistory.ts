@@ -57,10 +57,6 @@ export function useLayoutHistory(bus: AppEventBus, persistence: LayoutPersistenc
     entries.value = [];
   }
 
-  bus.on("LayoutSnapshotSaved", () => {
-    void refresh();
-  });
-
   return {
     entries,
     loading,

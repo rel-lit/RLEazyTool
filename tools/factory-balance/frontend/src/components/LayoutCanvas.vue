@@ -2,7 +2,7 @@
 import { computed, inject, onMounted, onUnmounted, provide, ref, toRef } from "vue";
 import { VueFlow } from "@vue-flow/core";
 import type { LayoutEdge, LayoutNode } from "../api/client";
-import type { AppEventBus } from "../app/events";
+import { canvasLayoutHooksKey } from "../app/useApp";
 import { Background } from "@vue-flow/background";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
@@ -39,7 +39,7 @@ const emit = defineEmits<{
   primary: [target: CanvasRegionTarget];
 }>();
 
-const appBus = inject<AppEventBus | null>("appBus", null);
+const canvasHooks = inject(canvasLayoutHooksKey)!;
 
 const direction = computed(
   () => props.layoutDirection ?? DEFAULT_LAYOUT_DIRECTION
@@ -68,19 +68,17 @@ provide(
 );
 provide("canvasFocus", region.highlight);
 
-const canvasLayout = useCanvasLayout(
-  {
-    nodes: toRef(props, "nodes"),
-    edges: toRef(props, "edges"),
-    hiddenEdges: toRef(props, "hiddenEdges"),
-    selectedEdgeId: toRef(props, "selectedEdgeId"),
-    highlight: region.highlight,
-    overlayKey: region.overlayKey,
-  },
-  appBus
-);
+const canvasLayout = useCanvasLayout({
+  nodes: toRef(props, "nodes"),
+  edges: toRef(props, "edges"),
+  hiddenEdges: toRef(props, "hiddenEdges"),
+  selectedEdgeId: toRef(props, "selectedEdgeId"),
+  highlight: region.highlight,
+  overlayKey: region.overlayKey,
+});
 
-const { flowNodes, flowEdges, rebuildFlowEdges, getNodePositions } = canvasLayout;
+const { flowNodes, flowEdges, rebuildFlowEdges, getNodePositions, prepareForNewLayout } =
+  canvasLayout;
 const { handlers } = region;
 
 const debugOn = ref(false);
@@ -89,6 +87,7 @@ const debugLastEvent = ref("—");
 onMounted(() => {
   debugOn.value = isFocusDebugEnabled();
   registerCanvasPositionReader(getNodePositions);
+  canvasHooks.prepareForNewLayout = prepareForNewLayout;
 });
 
 onUnmounted(() => {

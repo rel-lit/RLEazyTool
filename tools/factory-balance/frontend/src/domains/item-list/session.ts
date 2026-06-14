@@ -3,7 +3,6 @@ import type { ItemInfo } from "../../api/client";
 import {
   flattenSupplyBuckets,
   flattenTargetBuckets,
-  sortBucket,
 } from "./order";
 import type { ItemListKind, SupplyBuckets, TargetBuckets } from "./types";
 
@@ -42,11 +41,9 @@ function takeFromSupplyBuckets(buckets: SupplyBuckets, name: string): ItemInfo |
 
 /**
  * 物品列表「编辑会话」：桶状态 + 冻结的 displayOrder。
- * 与 selection 域、DOM 焦点、commit 触发器均无耦合。
  */
 export function createItemListSession(kind: ItemListKind) {
   const catalogIndex = ref<ItemInfo[]>([]);
-  /** 渲染顺序；会话内点击只改桶与 selection 样式，不改此列，直到 commit */
   const displayOrder = ref<ItemInfo[]>([]);
   const dirty = ref(false);
 
@@ -113,42 +110,15 @@ export function createItemListSession(kind: ItemListKind) {
     dirty.value = true;
   }
 
-  /** 区外 pointer 提交：桶内字典序 → displayOrder */
-  function commit(): void {
-    if (!dirty.value) return;
-
-    if (kind === "target") {
-      const b = targetBuckets.value;
-      const sorted: TargetBuckets = {
-        selected: sortBucket(b.selected),
-        normal: sortBucket(b.normal),
-      };
-      targetBuckets.value = sorted;
-      displayOrder.value = flattenTargetBuckets(sorted.selected, sorted.normal);
-    } else {
-      const b = supplyBuckets.value;
-      const sorted: SupplyBuckets = {
-        supplied: sortBucket(b.supplied),
-        forbidden: sortBucket(b.forbidden),
-        normal: sortBucket(b.normal),
-      };
-      supplyBuckets.value = sorted;
-      displayOrder.value = flattenSupplyBuckets(
-        sorted.supplied,
-        sorted.forbidden,
-        sorted.normal
-      );
-    }
-    dirty.value = false;
-  }
-
   return {
+    kind,
     displayOrder,
     dirty,
+    targetBuckets,
+    supplyBuckets,
     initFromCatalog,
     applyTargetToggle,
     applySupplyToggle,
-    commit,
   };
 }
 

@@ -1,6 +1,5 @@
 import { ref, watch, type Ref } from "vue";
 import type { Edge, Node } from "@vue-flow/core";
-import type { AppEventBus } from "../app/events";
 import type { LayoutEdge, LayoutNode } from "../api/client";
 import { buildFlowEdges, mergeLayoutNodes, applyConnectedHandlesToNodes } from "./flowGraph";
 import type { FocusHighlight } from "./focus";
@@ -14,10 +13,7 @@ export interface CanvasLayoutProps {
   overlayKey: Ref<string>;
 }
 
-export function useCanvasLayout(
-  props: CanvasLayoutProps,
-  appBus: AppEventBus | null
-) {
+export function useCanvasLayout(props: CanvasLayoutProps) {
   const flowNodes = ref<Node[]>(mergeLayoutNodes(props.nodes.value, [], false));
   const flowEdges = ref<Edge[]>([]);
   const preserveNodePositions = ref(true);
@@ -46,13 +42,8 @@ export function useCanvasLayout(
 
   rebuildFlowEdges();
 
-  if (appBus) {
-    appBus.on("LayoutComputeStarted", (e) => {
-      if (e.resetPositions) preserveNodePositions.value = false;
-    });
-    appBus.on("LayoutRestoredFromHistory", () => {
-      preserveNodePositions.value = false;
-    });
+  function prepareForNewLayout(): void {
+    preserveNodePositions.value = false;
   }
 
   watch(
@@ -93,5 +84,6 @@ export function useCanvasLayout(
     flowEdges,
     rebuildFlowEdges,
     getNodePositions,
+    prepareForNewLayout,
   };
 }

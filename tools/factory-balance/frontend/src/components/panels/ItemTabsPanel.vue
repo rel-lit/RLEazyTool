@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, toRef } from "vue";
-import type { ItemInfo } from "../../api/client";
-import { useItemListsOrchestrator } from "../../domains/item-list";
+import { computed, inject, ref } from "vue";
+import { appActionsKey, itemListKey } from "../../app/useApp";
+import type { ItemListTab } from "../../domains/item-list/itemListBundle";
+import { useRegionOutside } from "../../ui";
 import UiScrollRegion from "../../ui/primitives/UiScrollRegion.vue";
 import CatalogPanel from "./CatalogPanel.vue";
 import SupplyPanel from "./SupplyPanel.vue";
@@ -10,8 +11,6 @@ import { UiButton, UiIconButton } from "../../ui";
 const props = defineProps<{
   targetSearchQuery: string;
   supplySearchQuery: string;
-  manufactureItems: ItemInfo[];
-  supplyItems: ItemInfo[];
   selectedTargets: string[];
   suppliedItems: string[];
   forbiddenItems: string[];
@@ -20,42 +19,61 @@ const props = defineProps<{
 const emit = defineEmits<{
   "update:targetSearchQuery": [value: string];
   "update:supplySearchQuery": [value: string];
-  toggleTarget: [name: string];
-  toggleSupplied: [name: string];
-  toggleForbidden: [name: string];
-  clearTargets: [];
-  clearSupplySelections: [];
 }>();
 
-const {
-  activeTab,
-  targetDisplayOrder,
-  supplyDisplayOrder,
-  tabBarRef,
-  targetViewportRef,
-  supplyViewportRef,
-  switchTab,
-  handleToggleTarget,
-  handleToggleSupplied,
-  handleToggleForbidden,
-  onClearSelection,
-  canClearSelection,
-} = useItemListsOrchestrator({
-  manufactureItems: toRef(props, "manufactureItems"),
-  supplyItems: toRef(props, "supplyItems"),
-  selectedTargets: toRef(props, "selectedTargets"),
-  suppliedItems: toRef(props, "suppliedItems"),
-  forbiddenItems: toRef(props, "forbiddenItems"),
-  onToggleTarget: (name) => emit("toggleTarget", name),
-  onToggleSupplied: (name) => emit("toggleSupplied", name),
-  onToggleForbidden: (name) => emit("toggleForbidden", name),
-  onClearTargets: () => emit("clearTargets"),
-  onClearSupplySelections: () => emit("clearSupplySelections"),
+const actions = inject(appActionsKey)!;
+const itemList = inject(itemListKey)!;
+
+const activeTab = ref<ItemListTab>("target");
+const tabBarRef = ref<HTMLElement | null>(null);
+const targetViewportRef = ref<{ rootEl: HTMLElement | null; resetScroll: () => void } | null>(null);
+const supplyViewportRef = ref<{ rootEl: HTMLElement | null; resetScroll: () => void } | null>(null);
+
+const targetDisplayOrder = itemList.targetDisplayOrder;
+const supplyDisplayOrder = itemList.supplyDisplayOrder;
+
+function activeRegionRoot(): HTMLElement | null {
+  const viewport =
+    activeTab.value === "target" ? targetViewportRef.value : supplyViewportRef.value;
+  return viewport?.rootEl ?? null;
+}
+
+function resetViewportScroll(tab: ItemListTab): void {
+  const viewport =
+    tab === "target" ? targetViewportRef.value : supplyViewportRef.value;
+  viewport?.resetScroll();
+}
+
+function commitActiveTab(): void {
+  actions.commitItemListTab(activeTab.value);
+  resetViewportScroll(activeTab.value);
+}
+
+function switchTab(next: ItemListTab): void {
+  if (next === activeTab.value) return;
+  const prev = activeTab.value;
+  activeTab.value = next;
+  resetViewportScroll(prev);
+  actions.commitItemListTab(prev);
+}
+
+useRegionOutside(activeRegionRoot, commitActiveTab, {
+  ignore: (target) => {
+    const bar = tabBarRef.value;
+    return bar != null && target instanceof Node && bar.contains(target);
+  },
 });
 
 const activeSearchQuery = computed(() =>
   activeTab.value === "target" ? props.targetSearchQuery : props.supplySearchQuery
 );
+
+const canClearSelection = computed(() => {
+  if (activeTab.value === "target") {
+    return props.selectedTargets.length > 0;
+  }
+  return props.suppliedItems.length > 0 || props.forbiddenItems.length > 0;
+});
 
 function onSearchInput(event: Event): void {
   const value = (event.target as HTMLInputElement).value;
@@ -71,6 +89,15 @@ function onClearSearch(): void {
     emit("update:targetSearchQuery", "");
   } else {
     emit("update:supplySearchQuery", "");
+  }
+}
+
+function onClearSelection(): void {
+  if (!canClearSelection.value) return;
+  if (activeTab.value === "target") {
+    actions.clearTargetListSelection();
+  } else {
+    actions.clearSupplyListSelection();
   }
 }
 </script>
@@ -134,7 +161,7 @@ function onClearSearch(): void {
         :display-order="targetDisplayOrder"
         :search-query="targetSearchQuery"
         :selected-targets="selectedTargets"
-        @toggle-target="handleToggleTarget"
+        @toggle-target="actions.tapTargetChip($event)"
       />
     </UiScrollRegion>
 
@@ -148,8 +175,8 @@ function onClearSearch(): void {
         :search-query="supplySearchQuery"
         :supplied-items="suppliedItems"
         :forbidden-items="forbiddenItems"
-        @toggle-supplied="handleToggleSupplied"
-        @toggle-forbidden="handleToggleForbidden"
+        @toggle-supplied="actions.tapSuppliedChip($event)"
+        @toggle-forbidden="actions.tapForbiddenChip($event)"
       />
     </UiScrollRegion>
   </div>

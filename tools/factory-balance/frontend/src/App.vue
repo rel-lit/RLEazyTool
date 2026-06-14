@@ -102,26 +102,19 @@ async function clearHistory(): Promise<void> {
               :progress-loading="app.importCtrl.loading"
               :progress-stale="app.session.progressStale"
               :supply-mode="app.selection.supplyMode"
-              @switch-catalog-mode="app.switchCatalogMode($event)"
-              @update:supply-mode="app.selection.supplyMode = $event"
-            />
+            @switch-catalog-mode="app.switchCatalogMode($event)"
+            @update:supply-mode="app.actions.setSupplyMode($event)"
+          />
           </div>
 
           <ItemTabsPanel
             :target-search-query="app.catalog.targetSearchQuery"
             :supply-search-query="app.catalog.supplySearchQuery"
-            :manufacture-items="app.catalog.manufactureItems"
-            :supply-items="app.catalog.supplyItems"
             :selected-targets="app.selection.selectedTargets"
             :supplied-items="app.selection.suppliedItems"
             :forbidden-items="app.selection.forbiddenItems"
             @update:target-search-query="app.catalog.targetSearchQuery = $event"
             @update:supply-search-query="app.catalog.supplySearchQuery = $event"
-            @toggle-target="app.selection.toggleTarget($event)"
-            @toggle-supplied="app.selection.toggleSupplied($event)"
-            @toggle-forbidden="app.selection.toggleForbidden($event)"
-            @clear-targets="app.selection.clearTargets()"
-            @clear-supply-selections="app.selection.clearSupplySelections()"
           />
         </aside>
       </div>

@@ -10,6 +10,20 @@ export function sortBucket(items: readonly ItemInfo[]): ItemInfo[] {
   return [...items].sort(compareItemsByLabel);
 }
 
+/** 桶内：分析集参与物品前置，其余后置；两段各自字典序 */
+export function sortBucketWithAnalysisParticipation(
+  items: readonly ItemInfo[],
+  analysisParticipation: ReadonlySet<string>
+): ItemInfo[] {
+  const inside: ItemInfo[] = [];
+  const outside: ItemInfo[] = [];
+  for (const item of items) {
+    if (analysisParticipation.has(item.name)) inside.push(item);
+    else outside.push(item);
+  }
+  return [...sortBucket(inside), ...sortBucket(outside)];
+}
+
 export function flattenTargetBuckets(
   selected: readonly ItemInfo[],
   normal: readonly ItemInfo[]

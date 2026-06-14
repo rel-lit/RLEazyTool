@@ -5,6 +5,5 @@ export type {
   TargetCatalogSelection,
 } from "./session";
 export { applyListMask } from "./mask";
-export { useItemListsOrchestrator } from "./useItemListsOrchestrator";
-export type { ItemListTab } from "./useItemListsOrchestrator";
+export { createItemListBundle, type ItemListBundle, type ItemListTab } from "./itemListBundle";
 export type { ItemListKind } from "./types";

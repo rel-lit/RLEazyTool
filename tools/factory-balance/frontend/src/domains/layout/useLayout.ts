@@ -27,6 +27,8 @@ export function useLayout(
   const error = ref("");
   const stale = ref(false);
 
+  const boundRequest = boundRequestRef;
+
   const selectedEdge = computed<LayoutEdge | null>(
     () => layout.value?.edges.find((e) => e.id === selectedEdgeId.value) ?? null
   );
@@ -67,7 +69,6 @@ export function useLayout(
     selectedEdgeId.value = null;
     stale.value = false;
 
-    // 仅持久化「当前画布上的旧布局」；新 layout_key 在计算成功后才绑定，且不立刻写历史
     await persistence.saveBeforeRecompute();
 
     bus.emit({ type: "LayoutComputeStarted", resetPositions: true });
@@ -110,17 +111,9 @@ export function useLayout(
     }
   }
 
-  bus.on("ProgressChanged", () => reset());
-  bus.on("ProgressCleared", () => reset());
-  bus.on("SelectionChanged", () => invalidate("selection-changed"));
-  bus.on("LayoutRestoredFromHistory", (e) => {
-    if (e.type === "LayoutRestoredFromHistory") {
-      applyLayout(e.layout, e.request);
-    }
-  });
-
   return {
     layout,
+    boundRequest,
     selectedEdgeId,
     loading,
     error,

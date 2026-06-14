@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, inject } from "vue";
 import type { ItemInfo } from "../../api/client";
+import { listLayoutMarkKey } from "../../app/useApp";
 import { applyListMask } from "../../domains/item-list";
 import { UiChip } from "../../ui";
 
@@ -14,7 +15,16 @@ defineEmits<{
   toggleTarget: [name: string];
 }>();
 
+const listLayoutMark = inject(listLayoutMarkKey)!;
+
 const visibleItems = computed(() => applyListMask(props.displayOrder, props.searchQuery));
+
+const markRevision = computed(() => listLayoutMark.revision.value);
+
+function layoutMarkFor(name: string) {
+  void markRevision.value;
+  return listLayoutMark.getListLayoutMark(name);
+}
 </script>
 
 <template>
@@ -24,6 +34,7 @@ const visibleItems = computed(() => applyListMask(props.displayOrder, props.sear
         v-for="item in visibleItems"
         :key="item.name"
         :selected="selectedTargets.includes(item.name)"
+        :layout-mark="layoutMarkFor(item.name).kind"
         @primary="$emit('toggleTarget', item.name)"
       >
         {{ item.label }}

@@ -1,9 +1,8 @@
 import { ref } from "vue";
 import type { SaveInfo } from "../../api/client";
-import type { AppEventBus } from "../../app/events";
 import type { useSession } from "../session/useSession";
 
-export function useSavePicker(bus: AppEventBus, session: ReturnType<typeof useSession>) {
+export function useSavePicker(session: ReturnType<typeof useSession>) {
   const selectedSave = ref("");
 
   function initDefault(): void {
@@ -17,21 +16,9 @@ export function useSavePicker(bus: AppEventBus, session: ReturnType<typeof useSe
       "";
   }
 
-  function syncAfterSessionRefresh(): void {
-    initDefault();
-  }
-
   function syncActiveSave(saveKey: string): void {
     selectedSave.value = saveKey;
   }
-
-  bus.on("SessionRefreshed", () => {
-    syncAfterSessionRefresh();
-  });
-
-  bus.on("ProgressChanged", (e) => {
-    syncActiveSave(e.saveKey);
-  });
 
   return {
     selectedSave,

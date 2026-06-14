@@ -1,6 +1,6 @@
 import { computed, ref } from "vue";
 import type { ItemInfo } from "../../api/client";
-import type { AppEventBus, CatalogPayload } from "../../app/events";
+import type { CatalogPayload } from "../../app/events";
 
 function filterItems(list: ItemInfo[], q: string): ItemInfo[] {
   const needle = q.trim().toLowerCase();
@@ -10,7 +10,7 @@ function filterItems(list: ItemInfo[], q: string): ItemInfo[] {
   );
 }
 
-export function useCatalog(bus: AppEventBus) {
+export function useCatalog() {
   const mode = ref<"progress" | "full">("progress");
   const manufactureItems = ref<ItemInfo[]>([]);
   const supplyItems = ref<ItemInfo[]>([]);
@@ -31,6 +31,17 @@ export function useCatalog(bus: AppEventBus) {
     supplyItems.value = catalog.supply_items;
   }
 
+  function applyProgressCatalog(catalog: CatalogPayload): void {
+    mode.value = "progress";
+    applyPayload(catalog);
+    clearSearch();
+  }
+
+  function clearCatalog(): void {
+    manufactureItems.value = [];
+    supplyItems.value = [];
+  }
+
   function setMode(next: "progress" | "full"): void {
     mode.value = next;
   }
@@ -39,17 +50,6 @@ export function useCatalog(bus: AppEventBus) {
     targetSearchQuery.value = "";
     supplySearchQuery.value = "";
   }
-
-  bus.on("ProgressChanged", (e) => {
-    setMode("progress");
-    applyPayload(e.catalog);
-    clearSearch();
-  });
-
-  bus.on("ProgressCleared", () => {
-    manufactureItems.value = [];
-    supplyItems.value = [];
-  });
 
   return {
     mode,
@@ -61,6 +61,8 @@ export function useCatalog(bus: AppEventBus) {
     filteredManufactureItems,
     filteredSupplyItems,
     applyPayload,
+    applyProgressCatalog,
+    clearCatalog,
     setMode,
     clearSearch,
   };
