@@ -52,6 +52,10 @@ export function useApp() {
   const importCtrl = useImportController(bus, savePicker);
   const purgeCtrl = usePurgeController(bus, session, catalog);
 
+  const canvasHooks: CanvasLayoutHooks = {
+    prepareForNewLayout: () => {},
+  };
+
   const ctx: AppContext = {
     bus,
     session,
@@ -68,10 +72,6 @@ export function useApp() {
   };
 
   const actions = createAppActions(ctx);
-
-  const canvasHooks: CanvasLayoutHooks = {
-    prepareForNewLayout: () => {},
-  };
 
   let unwired: (() => void) | null = null;
 
