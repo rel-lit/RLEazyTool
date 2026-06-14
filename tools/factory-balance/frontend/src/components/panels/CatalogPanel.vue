@@ -1,29 +1,36 @@
 <script setup lang="ts">
-import { computed, inject } from "vue";
+import { computed } from "vue";
 import type { ItemInfo } from "../../api/client";
-import { listLayoutMarkKey } from "../../app/useApp";
+import type { ListLayoutMark } from "../../domains/list-layout-mark";
+import { LIST_LAYOUT_MARK_NONE } from "../../domains/list-layout-mark";
 import { applyListMask } from "../../domains/item-list";
 import { UiChip } from "../../ui";
 
-const props = defineProps<{
-  displayOrder: ItemInfo[];
-  searchQuery: string;
-  selectedTargets: string[];
-}>();
+const props = withDefaults(
+  defineProps<{
+    displayOrder: ItemInfo[];
+    searchQuery: string;
+    selectedTargets: string[];
+    /** 由编排层注入；缺省不显示关联标记 */
+    resolveLayoutMark?: (itemName: string) => ListLayoutMark;
+  }>(),
+  {
+    resolveLayoutMark: () => () => LIST_LAYOUT_MARK_NONE,
+  }
+);
 
 defineEmits<{
   toggleTarget: [name: string];
 }>();
 
-const listLayoutMark = inject(listLayoutMarkKey)!;
-
 const visibleItems = computed(() => applyListMask(props.displayOrder, props.searchQuery));
 
-const markRevision = computed(() => listLayoutMark.revision.value);
-
-function layoutMarkFor(name: string) {
-  void markRevision.value;
-  return listLayoutMark.getListLayoutMark(name, "target");
+function layoutMarkFor(name: string): ListLayoutMark {
+  try {
+    return props.resolveLayoutMark(name);
+  } catch {
+    return LIST_LAYOUT_MARK_NONE;
+  }
 }
 </script>
 

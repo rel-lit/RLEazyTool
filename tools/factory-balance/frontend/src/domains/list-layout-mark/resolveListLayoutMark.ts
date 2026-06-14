@@ -72,11 +72,18 @@ export function resolveListLayoutMark(
   const node = nodeByItem(layout.nodes, itemName);
   const maxLayer = layoutMaxLayer(layout.nodes);
   const analysis = layout.analysis;
+  if (!analysis) {
+    return LIST_LAYOUT_MARK_NONE;
+  }
 
   if (side === "target") {
-    const demoted = analysis.demoted_outputs.includes(itemName);
+    const demoted = analysis.demoted_outputs?.includes(itemName) ?? false;
 
-    if (isTerminalItem(itemName, node, analysis.effective_terminals) && node && !demoted) {
+    if (
+      isTerminalItem(itemName, node, analysis.effective_terminals ?? []) &&
+      node &&
+      !demoted
+    ) {
       return markWithFill(node, maxLayer);
     }
 
@@ -87,7 +94,7 @@ export function resolveListLayoutMark(
     return LIST_LAYOUT_MARK_NONE;
   }
 
-  if (request.forbidden_items.includes(itemName)) {
+  if (request.forbidden_items?.includes(itemName)) {
     return {
       kind: "hollow-sphere",
       fill: "transparent",
@@ -103,7 +110,7 @@ export function resolveListLayoutMark(
 
   if (
     request.supply_mode === "direct" &&
-    isPseudoSupply(itemName, node, analysis.pseudo_pure_sources)
+    isPseudoSupply(itemName, node, analysis.pseudo_pure_sources ?? [])
   ) {
     return {
       kind: "hollow-sphere",

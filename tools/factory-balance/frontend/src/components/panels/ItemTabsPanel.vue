@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, ref } from "vue";
-import { appActionsKey, itemListKey } from "../../app/useApp";
+import { appActionsKey, itemListKey, listLayoutMarkKey } from "../../app/useApp";
 import type { ItemListTab } from "../../domains/item-list/itemListBundle";
 import { useRegionOutside } from "../../ui";
 import UiScrollRegion from "../../ui/primitives/UiScrollRegion.vue";
@@ -23,14 +23,22 @@ const emit = defineEmits<{
 
 const actions = inject(appActionsKey)!;
 const itemList = inject(itemListKey)!;
+const listLayoutMark = inject(listLayoutMarkKey)!;
 
 const activeTab = ref<ItemListTab>("target");
 const tabBarRef = ref<HTMLElement | null>(null);
 const targetViewportRef = ref<{ rootEl: HTMLElement | null; resetScroll: () => void } | null>(null);
 const supplyViewportRef = ref<{ rootEl: HTMLElement | null; resetScroll: () => void } | null>(null);
 
-const targetDisplayOrder = computed(() => itemList.targetDisplayOrder);
-const supplyDisplayOrder = computed(() => itemList.supplyDisplayOrder);
+function resolveTargetLayoutMark(name: string) {
+  void listLayoutMark.revision.value;
+  return listLayoutMark.getListLayoutMark(name, "target");
+}
+
+function resolveSupplyLayoutMark(name: string) {
+  void listLayoutMark.revision.value;
+  return listLayoutMark.getListLayoutMark(name, "supply");
+}
 
 function activeRegionRoot(): HTMLElement | null {
   const viewport =
@@ -68,13 +76,6 @@ const activeSearchQuery = computed(() =>
   activeTab.value === "target" ? props.targetSearchQuery : props.supplySearchQuery
 );
 
-const canClearSelection = computed(() => {
-  if (activeTab.value === "target") {
-    return props.selectedTargets.length > 0;
-  }
-  return props.suppliedItems.length > 0 || props.forbiddenItems.length > 0;
-});
-
 function onSearchInput(event: Event): void {
   const value = (event.target as HTMLInputElement).value;
   if (activeTab.value === "target") {
@@ -91,6 +92,13 @@ function onClearSearch(): void {
     emit("update:supplySearchQuery", "");
   }
 }
+
+const canClearSelection = computed(() => {
+  if (activeTab.value === "target") {
+    return props.selectedTargets.length > 0;
+  }
+  return props.suppliedItems.length > 0 || props.forbiddenItems.length > 0;
+});
 
 function onClearSelection(): void {
   if (!canClearSelection.value) return;
@@ -158,9 +166,10 @@ function onClearSelection(): void {
       class="list-viewport-slot"
     >
       <CatalogPanel
-        :display-order="targetDisplayOrder"
+        :display-order="itemList.targetDisplayOrder"
         :search-query="targetSearchQuery"
         :selected-targets="selectedTargets"
+        :resolve-layout-mark="resolveTargetLayoutMark"
         @toggle-target="actions.tapTargetChip($event)"
       />
     </UiScrollRegion>
@@ -171,10 +180,11 @@ function onClearSelection(): void {
       class="list-viewport-slot"
     >
       <SupplyPanel
-        :display-order="supplyDisplayOrder"
+        :display-order="itemList.supplyDisplayOrder"
         :search-query="supplySearchQuery"
         :supplied-items="suppliedItems"
         :forbidden-items="forbiddenItems"
+        :resolve-layout-mark="resolveSupplyLayoutMark"
         @toggle-supplied="actions.tapSuppliedChip($event)"
         @toggle-forbidden="actions.tapForbiddenChip($event)"
       />

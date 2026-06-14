@@ -92,7 +92,7 @@ export function useApp() {
   });
 
   provide(appActionsKey, actions);
-  provide(itemListKey, itemList);
+  provide(itemListKey, reactive(itemList));
   provide(listLayoutMarkKey, listLayoutMark);
   provide(canvasLayoutHooksKey, canvasHooks);
 
