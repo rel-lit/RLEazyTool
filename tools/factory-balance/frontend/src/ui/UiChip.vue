@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import UiControl from "./primitives/UiControl.vue";
-import type { ListLayoutMarkKind } from "../domains/list-layout-mark";
+import type { ListLayoutMark } from "../domains/list-layout-mark";
 
 defineOptions({ inheritAttrs: false });
 
@@ -12,8 +12,8 @@ const props = withDefaults(
     size?: "sm" | "md";
     disabled?: boolean;
     type?: "button" | "submit";
-    /** 列表项—布局关联标记；none 不显示右侧透孔圆环 */
-    layoutMark?: ListLayoutMarkKind;
+    /** 列表项—布局关联标记（透孔 + 圈内语义色） */
+    layoutMark?: ListLayoutMark;
   }>(),
   {
     selected: false,
@@ -21,7 +21,7 @@ const props = withDefaults(
     size: "md",
     disabled: false,
     type: "button",
-    layoutMark: "none",
+    layoutMark: () => ({ kind: "none" }),
   }
 );
 
@@ -31,11 +31,22 @@ const classes = computed(() => [
   {
     "ui-chip--on": props.selected && !props.forbidden,
     "ui-chip--forbidden": props.forbidden,
-    "ui-chip--has-layout-mark": props.layoutMark !== "none",
+    "ui-chip--has-layout-mark": props.layoutMark?.kind === "hollow-sphere",
   },
 ]);
 
-const showLayoutMark = computed(() => props.layoutMark === "hollow-sphere");
+const showLayoutMark = computed(() => props.layoutMark?.kind === "hollow-sphere");
+
+const layoutMarkStyle = computed(() => {
+  const m = props.layoutMark;
+  if (!m || m.kind !== "hollow-sphere") return undefined;
+  return {
+    "--ui-chip-mark-fill": m.fill ?? "transparent",
+    "--ui-chip-mark-ring-color": m.ringColor ?? "currentColor",
+    "--ui-chip-mark-ring-style": m.ringStyle ?? "solid",
+    "--ui-chip-mark-ring-width": m.ringWidth ?? "1px",
+  } as Record<string, string>;
+});
 </script>
 
 <template>
@@ -52,6 +63,7 @@ const showLayoutMark = computed(() => props.layoutMark === "hollow-sphere");
       class="ui-chip__layout-mark"
       role="presentation"
       aria-hidden="true"
+      :style="layoutMarkStyle"
     />
   </UiControl>
 </template>

@@ -39,7 +39,7 @@ function layoutMarkFor(name: string) {
         size="sm"
         :selected="suppliedItems.includes(item.name)"
         :forbidden="forbiddenItems.includes(item.name)"
-        :layout-mark="layoutMarkFor(item.name).kind"
+        :layout-mark="layoutMarkFor(item.name)"
         @primary="$emit('toggleSupplied', item.name)"
         @secondary="$emit('toggleForbidden', item.name)"
       >

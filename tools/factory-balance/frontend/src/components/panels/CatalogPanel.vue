@@ -34,7 +34,7 @@ function layoutMarkFor(name: string) {
         v-for="item in visibleItems"
         :key="item.name"
         :selected="selectedTargets.includes(item.name)"
-        :layout-mark="layoutMarkFor(item.name).kind"
+        :layout-mark="layoutMarkFor(item.name)"
         @primary="$emit('toggleTarget', item.name)"
       >
         {{ item.label }}

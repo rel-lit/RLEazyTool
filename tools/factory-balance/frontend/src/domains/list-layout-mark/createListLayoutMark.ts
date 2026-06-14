@@ -1,15 +1,17 @@
 import { ref } from "vue";
 import type { LayoutRequest, LayoutResponse } from "../../api/client";
-import { LIST_LAYOUT_MARK_NONE, type ListLayoutMark } from "./types";
+import { LIST_LAYOUT_MARK_NONE, type ListLayoutMark, type ItemListSide } from "./types";
+import { resolveListLayoutMark } from "./resolveListLayoutMark";
 
-export type ItemListSide = "target" | "supply";
+export type { ItemListSide } from "./types";
 
 /**
- * 列表项—布局关联标记：由布局快照推导 chip 右侧镂空球等样式。
- * 产出 / 供给各自读取，互不共用参与集合；不写入列表 session 或排序状态。
+ * 列表项—布局关联标记：由布局快照推导 chip 右侧透孔圆环及圈内配色。
+ * 产出 / 供给各自读取；不写入列表 session 或排序状态。
  */
 export function createListLayoutMark() {
   let boundLayout: LayoutResponse | null = null;
+  let boundRequest: LayoutRequest | null = null;
   let targetCatalogNames = new Set<string>();
   let supplyCatalogNames = new Set<string>();
   /** 递增以驱动 UI 重绘 */
@@ -17,11 +19,12 @@ export function createListLayoutMark() {
 
   function bindLayoutSnapshot(
     layout: LayoutResponse,
-    _request: LayoutRequest,
+    request: LayoutRequest,
     manufactureItemNames: ReadonlySet<string>,
     supplyItemNames: ReadonlySet<string>
   ): void {
     boundLayout = layout;
+    boundRequest = request;
     targetCatalogNames = new Set(manufactureItemNames);
     supplyCatalogNames = new Set(supplyItemNames);
     revision.value += 1;
@@ -29,6 +32,7 @@ export function createListLayoutMark() {
 
   function clearLayoutSnapshot(): void {
     boundLayout = null;
+    boundRequest = null;
     targetCatalogNames = new Set();
     supplyCatalogNames = new Set();
     revision.value += 1;
@@ -60,10 +64,10 @@ export function createListLayoutMark() {
   function getListLayoutMark(itemName: string, side: ItemListSide): ListLayoutMark {
     const participation =
       side === "target" ? getTargetParticipation() : getSupplyParticipation();
-    if (!participation.has(itemName)) {
+    if (!participation.has(itemName) || !boundLayout || !boundRequest) {
       return LIST_LAYOUT_MARK_NONE;
     }
-    return { kind: "hollow-sphere" };
+    return resolveListLayoutMark(itemName, side, boundLayout, boundRequest);
   }
 
   return {

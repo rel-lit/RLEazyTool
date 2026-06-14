@@ -311,15 +311,21 @@
 }
 
 .ui-chip--has-layout-mark.ui-chip--md {
-  padding-right: 22px;
-  --ui-chip-mark-x: calc(100% - 11px);
-  --ui-chip-mark-hole-r: 2.5px;
+  --ui-chip-pad-block: 8px;
+  --ui-chip-mark-d: 1em;
+  --ui-chip-mark-center-right: calc(0.5 * (var(--ui-chip-mark-d) + var(--ui-chip-pad-block)));
+  --ui-chip-mark-hole-r: calc(0.5 * var(--ui-chip-mark-d));
+  --ui-chip-mark-x: calc(100% - var(--ui-chip-mark-center-right));
+  padding-right: calc(var(--ui-chip-mark-center-right) + 0.5 * var(--ui-chip-mark-d) + 3px);
 }
 
 .ui-chip--has-layout-mark.ui-chip--sm {
-  padding-right: 18px;
-  --ui-chip-mark-x: calc(100% - 9.5px);
-  --ui-chip-mark-hole-r: 2.25px;
+  --ui-chip-pad-block: 6px;
+  --ui-chip-mark-d: 1em;
+  --ui-chip-mark-center-right: calc(0.5 * (var(--ui-chip-mark-d) + var(--ui-chip-pad-block)));
+  --ui-chip-mark-hole-r: calc(0.5 * var(--ui-chip-mark-d));
+  --ui-chip-mark-x: calc(100% - var(--ui-chip-mark-center-right));
+  padding-right: calc(var(--ui-chip-mark-center-right) + 0.5 * var(--ui-chip-mark-d) + 2px);
 }
 
 /* 底色/边框在伪元素上，mask 挖孔 → 圈内透出 chip 后面的面板 */
@@ -392,27 +398,21 @@
   gap: 4px;
 }
 
-/* 圆环描边叠在透孔上；圈内无 chip 底色，可见后方面板 */
+/* 与 pill 右半圆弧同心，直径 1em；圈内为语义填充 + 圆环描边 */
 .ui-chip__layout-mark {
   position: absolute;
   top: 50%;
-  right: 7px;
+  right: var(--ui-chip-mark-center-right);
   z-index: 2;
-  transform: translateY(-50%);
-  width: 8px;
-  height: 8px;
+  transform: translate(50%, -50%);
+  width: var(--ui-chip-mark-d, 1em);
+  height: var(--ui-chip-mark-d, 1em);
   border-radius: 50%;
-  border: 1.5px solid currentColor;
-  background: transparent;
   box-sizing: border-box;
   pointer-events: none;
-}
-
-.ui-chip--sm .ui-chip__layout-mark {
-  right: 6px;
-  width: 7px;
-  height: 7px;
-  border-width: 1.25px;
+  background: var(--ui-chip-mark-fill, transparent);
+  border: var(--ui-chip-mark-ring-width, 1px) var(--ui-chip-mark-ring-style, solid)
+    var(--ui-chip-mark-ring-color, currentColor);
 }
 
 /* icon button */
