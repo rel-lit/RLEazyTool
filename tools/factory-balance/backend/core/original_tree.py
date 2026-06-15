@@ -31,8 +31,7 @@ class TreeBuildContext:
     data_source: set[str]
     expandable: set[str]
     pure_supply: set[str]
-    recipe_assignments: dict[str, str]
-    user_recipe_assignments: set[str]
+    recipe_assignments: dict[str, str]   # item -> recipe_name，覆盖模式默认
     user_supplied: set[str]
     forbidden: set[str]
     supply_mode: SupplyMode
@@ -40,20 +39,40 @@ class TreeBuildContext:
 
 
 def _can_expand(item: str, ctx: TreeBuildContext) -> bool:
-    if item not in ctx.data_source:
+    return item in ctx.expandable
+
+
+def _is_world_leaf(item: str, ctx: TreeBuildContext) -> bool:
+    """RAW 模式下可作为世界供给叶子的物品：基线可抽取但当前无法展开。"""
+    if not ctx.db.is_world_obtainable(item):
         return False
-    rname = ctx.recipe_assignments.get(item)
-    if rname and rname in ctx.db.recipes:
+    if item in ctx.pure_supply:
         return True
-    return bool(ctx.db.primary_recipe_names_for(item))
-
-
-def _world_leaf(item: str, ctx: TreeBuildContext) -> bool:
-    if ctx.db.is_baseline_supply(item):
-        return True
-    if item in ctx.pure_supply and item not in ctx.expandable:
+    if ctx.db.is_baseline_supply(item) and item not in ctx.expandable:
         return True
     return False
+
+
+def _choose_recipe(product: str, ctx: TreeBuildContext) -> str | None:
+    """按优先级为 item 选一个展开配方。"""
+    # P2：用户显式指定 recipe
+    if product in ctx.recipe_assignments:
+        return ctx.recipe_assignments[product]
+
+    # P5：RAW 模式优先用 extraction recipe
+    if ctx.supply_mode == SupplyMode.RAW:
+        ext = ctx.db.default_extraction_recipe_for(product)
+        if ext:
+            return ext.name
+
+    # P6：默认 primary recipe（manufacturing 优先）
+    names = ctx.db.primary_manufacturing_recipe_names_for(product)
+    if names:
+        return names[0]
+
+    # fallback：任意 primary（理论上不会走到，因为 extraction 已处理）
+    names = ctx.db.primary_recipe_names_for(product)
+    return names[0] if names else None
 
 
 def _expand_product(
@@ -67,12 +86,9 @@ def _expand_product(
     if product not in ctx.expandable:
         return f"当前进度下不可制造: {ctx.labels.get(product, product)}"
 
-    rname = ctx.recipe_assignments.get(product)
-    if not rname:
-        names = ctx.db.primary_recipe_names_for(product)
-        if not names:
-            return f"无可用 primary 配方: {ctx.labels.get(product, product)}"
-        rname = names[0]
+    rname = _choose_recipe(product, ctx)
+    if rname is None:
+        return f"无可用 primary 配方: {ctx.labels.get(product, product)}"
     recipe = ctx.db.recipes.get(rname)
     if recipe is None:
         return f"配方不存在: {rname}"
@@ -90,6 +106,7 @@ def _resolve_leaf(
     item: str,
     ctx: TreeBuildContext,
 ) -> tuple[str, str | None]:
+    # P1：forbidden 物品必须展开
     if item in ctx.forbidden:
         if _can_expand(item, ctx):
             return "expand", None
@@ -98,29 +115,25 @@ def _resolve_leaf(
             f"无法构建树：「{ctx.labels.get(item, item)}」已禁止作为外源且无法通过配方展开",
         )
 
+    # P0：用户供给 = 外部叶子
     if item in ctx.user_supplied:
         return "stop_true", None
 
-    # 用户显式指定了非抽取配方：优先按配方展开（覆盖 RAW 模式下的 world_leaf 行为）
-    if item in ctx.user_recipe_assignments:
-        assigned = ctx.recipe_assignments.get(item, "")
-        if assigned and not assigned.startswith("fb-extract:") and _can_expand(item, ctx):
-            return "expand", None
+    # P2：用户显式指定了 recipe，按 recipe 展开（覆盖模式默认）
+    if item in ctx.recipe_assignments and _can_expand(item, ctx):
+        return "expand", None
 
-    if ctx.supply_mode == SupplyMode.DIRECT:
-        return "stop_pseudo", None
-
-    if item in ctx.expandable and _can_expand(item, ctx):
-        if _world_leaf(item, ctx):
+    # P5/P6：模式默认
+    if _can_expand(item, ctx):
+        if ctx.supply_mode == SupplyMode.RAW and _is_world_leaf(item, ctx):
             return "stop_true", None
         return "expand", None
 
-    if _world_leaf(item, ctx):
-        return "stop_true", None
+    # DIRECT 模式下无法展开的未供给中间产物 = 伪外部供给
+    if ctx.supply_mode == SupplyMode.DIRECT:
+        return "stop_pseudo", None
 
-    if _can_expand(item, ctx):
-        return "expand", None
-
+    # RAW 模式下无配方也无世界来源 = 世界供给叶子（或 impossible 后续处理）
     return "stop_true", None
 
 

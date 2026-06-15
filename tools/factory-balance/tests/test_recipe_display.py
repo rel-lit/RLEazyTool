@@ -63,10 +63,25 @@ class RecipeDisplayTests(unittest.TestCase):
         self.assertIn("铁矿", details["iron-ore"]["line"])
 
     def test_build_recipe_details_extract(self) -> None:
-        db = RecipeDatabase(items={"crude-oil": ItemDef("crude-oil", "原油")}, recipes={})
-        details = build_recipe_details({"crude-oil": "fb-extract:crude-oil"}, db)
-        self.assertEqual(details["crude-oil"]["kind"], "extract")
-        self.assertIn("世界抽取", details["crude-oil"]["line"])
+        db = RecipeDatabase(
+            items={"crude-oil": ItemDef("crude-oil", "原油")},
+            recipes={
+                "extract:crude-oil": Recipe(
+                    name="extract:crude-oil",
+                    category="pumping",
+                    recipe_type="extraction",
+                    source_type="fluid_well",
+                    extractor_entity="pumpjack",
+                    energy=1,
+                    ingredients=[],
+                    products=[ItemStack("crude-oil", 1, "fluid")],
+                    label="抽油机抽取:原油",
+                )
+            },
+        )
+        details = build_recipe_details({"crude-oil": "extract:crude-oil"}, db)
+        self.assertEqual(details["crude-oil"]["kind"], "extraction")
+        self.assertIn("世界获取", details["crude-oil"]["line"])
 
 
 if __name__ == "__main__":

@@ -50,7 +50,7 @@ class RecipeOption(BaseModel):
     recipe_name: str
     label: str
     line: str
-    kind: str  # craft | extract
+    kind: str  # extraction | manufacturing | smelting | chemistry | refining | logistics | energy
 
 
 class RecipeAssignmentPreview(BaseModel):
@@ -78,6 +78,7 @@ class LayoutNode(BaseModel):
     layer: int
     position: Position
     recipe: str | None = None
+    recipe_type: str | None = None  # extraction | manufacturing | smelting | chemistry | refining | logistics | energy
     meta: dict[str, Any] = Field(default_factory=dict)
 
 

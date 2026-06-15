@@ -1,6 +1,20 @@
 <script setup lang="ts">
 import { reactive, watch } from "vue";
-import type { RecipeAssignmentPreview } from "../../api/client";
+import type { RecipeAssignmentPreview, RecipeKind } from "../../api/client";
+
+const kindLabels: Record<RecipeKind, string> = {
+  extraction: "世界抽取",
+  manufacturing: "制造配方",
+  smelting: "冶炼配方",
+  chemistry: "化工配方",
+  refining: "炼油配方",
+  logistics: "物流配方",
+  energy: "能源配方",
+};
+
+function kindLabel(kind: RecipeKind): string {
+  return kindLabels[kind] ?? kind;
+}
 
 const props = defineProps<{
   items: RecipeAssignmentPreview[];
@@ -53,7 +67,7 @@ function cancel(): void {
                 :value="opt.recipe_name"
               />
               <span class="recipe-option-kind" :class="`kind-${opt.kind}`">
-                {{ opt.kind === "extract" ? "世界抽取" : "配方" }}
+                {{ kindLabel(opt.kind) }}
               </span>
               <span class="recipe-option-label">{{ opt.label }}</span>
               <span class="recipe-option-line">{{ opt.line }}</span>

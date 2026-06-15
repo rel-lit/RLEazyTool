@@ -24,8 +24,8 @@ function hsla(h: number, s: number, l: number, a: number): string {
   return `hsla(${h}, ${s}%, ${l}%, ${a})`;
 }
 
-function isExtractRecipe(recipe: string | null | undefined): boolean {
-  return !!recipe && recipe.startsWith("fb-extract:");
+function isExtractRecipe(node: LayoutNode): boolean {
+  return node.recipe_type === "extraction";
 }
 
 export function inferNodeKind(node: LayoutNode): NodeKind {
@@ -56,8 +56,7 @@ export function resolveNodeVisual(
   maxLayer: number
 ): NodeVisual {
   const kind = inferNodeKind(node);
-  const recipe = node.recipe ?? node.meta?.recipe;
-  const extract = isExtractRecipe(recipe);
+  const extract = isExtractRecipe(node);
   const pseudo = !!node.meta?.pseudo_external;
   const worldBaseline = node.meta?.supply_kind === "world_baseline";
 

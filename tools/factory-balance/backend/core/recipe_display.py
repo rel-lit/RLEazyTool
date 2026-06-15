@@ -4,9 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from core.recipe_loader import Recipe, RecipeDatabase
-
-EXTRACT_PREFIX = "fb-extract:"
+from core.recipe_loader import Recipe, RecipeDatabase, RecipeType
 
 
 def _fmt_amount(amount: float) -> str:
@@ -16,6 +14,12 @@ def _fmt_amount(amount: float) -> str:
 
 
 def format_recipe_line(recipe: Recipe, labels: dict[str, str]) -> str:
+    if recipe.recipe_type == RecipeType.EXTRACTION:
+        prod = next((p for p in recipe.products if p.type in ("item", "fluid")), None)
+        if prod:
+            return f"世界获取 → {labels.get(prod.name, prod.name)}"
+        return recipe.label or recipe.name
+
     ing_parts: list[str] = []
     for ing in recipe.ingredients:
         if ing.type not in ("item", "fluid"):
@@ -51,15 +55,6 @@ def build_recipe_details(
         item_label = labels.get(item, item)
         recipe = db.recipes.get(rname)
 
-        if rname.startswith(EXTRACT_PREFIX):
-            details[item] = {
-                "recipe_name": rname,
-                "label": item_label,
-                "line": f"世界抽取 → {item_label}",
-                "kind": "extract",
-            }
-            continue
-
         if recipe is None:
             details[item] = {
                 "recipe_name": rname,
@@ -69,11 +64,12 @@ def build_recipe_details(
             }
             continue
 
+        kind = recipe.recipe_type.value
         details[item] = {
             "recipe_name": rname,
             "label": recipe.label or item_label,
             "line": format_recipe_line(recipe, labels),
-            "kind": "craft",
+            "kind": kind,
         }
 
     # 分析集内、无制造指派的外源叶子 → 世界开采（铁矿/铜矿/煤等 baseline）

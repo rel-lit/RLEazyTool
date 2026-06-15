@@ -141,11 +141,13 @@ class FinalSchemaTest(unittest.TestCase):
 
         db = load_recipe_database(env_key, save_key="test-save")
         self.assertIn("advanced-circuit", db.recipes)
-        self.assertIn("fb-extract:crude-oil", db.recipes)
+        # save 模式下 pumpjack 未解锁，不应加载 crude-oil 的 extraction recipe
+        self.assertNotIn("extract:crude-oil", db.recipes)
         self.assertNotIn("quantum-processor", db.recipes)
 
         full_db = load_recipe_database(env_key, save_key=None)
         self.assertIn("basic-oil-processing", full_db.recipes)
+        self.assertIn("extract:crude-oil", full_db.recipes)
 
     def test_world_extraction_tags(self) -> None:
         snapshot_id, env_key = self._ingest_mini()

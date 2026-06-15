@@ -25,8 +25,7 @@ function fallbackKindLabel(node: LayoutNode): string {
   const kind = inferNodeKind(node);
   if (kind === "terminal") return NODE_RING_LABELS.terminal;
   if (kind === "pure_source") return NODE_RING_LABELS["pure-solid"];
-  const recipe = node.recipe ?? node.meta?.recipe;
-  if (recipe?.startsWith("fb-extract:")) return NODE_RING_LABELS.extract;
+  if (node.recipe_type === "extraction") return NODE_RING_LABELS.extract;
   return NODE_RING_LABELS.intermediate;
 }
 

@@ -53,8 +53,12 @@ def render_layout(
             meta["role"] = "terminal"
         else:
             meta["node_kind"] = "intermediate"
+        recipe_type = None
         if node.recipe_name:
             meta["recipe"] = node.recipe_name
+            recipe_obj = db.recipes.get(node.recipe_name)
+            if recipe_obj:
+                recipe_type = recipe_obj.recipe_type.value
 
         nodes.append(
             LayoutNode(
@@ -65,6 +69,7 @@ def render_layout(
                 layer=node.layer,
                 position=pos,
                 recipe=node.recipe_name,
+                recipe_type=recipe_type,
                 meta=meta,
             )
         )

@@ -20,11 +20,20 @@ export interface LayoutRequest {
   recipe_assignments?: Record<string, string> | null;
 }
 
+export type RecipeKind =
+  | "extraction"
+  | "manufacturing"
+  | "smelting"
+  | "chemistry"
+  | "refining"
+  | "logistics"
+  | "energy";
+
 export interface RecipeOption {
   recipe_name: string;
   label: string;
   line: string;
-  kind: "craft" | "extract";
+  kind: RecipeKind;
 }
 
 export interface RecipeAssignmentPreview {
@@ -47,6 +56,7 @@ export interface LayoutNode {
   layer: number;
   position: { x: number; y: number };
   recipe?: string | null;
+  recipe_type?: RecipeKind | null;
   meta?: {
     node_kind?: "pure_source" | "terminal" | "intermediate";
     role?: string;
@@ -88,7 +98,7 @@ export interface RecipeDetailSummary {
   recipe_name: string;
   label?: string;
   line: string;
-  kind: "craft" | "extract" | "unknown" | "world-supply";
+  kind: RecipeKind | "unknown" | "world-supply";
 }
 
 export interface AnalysisSummary {

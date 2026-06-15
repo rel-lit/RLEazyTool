@@ -88,6 +88,16 @@ CREATE TABLE snap_recipe (
     snapshot_id     INTEGER NOT NULL REFERENCES game_snapshot(id) ON DELETE CASCADE,
     name            TEXT NOT NULL,
     category        TEXT NOT NULL,
+    -- 配方语义类型；extraction 表示世界来源，不由 category 启发式推断
+    recipe_type     TEXT NOT NULL DEFAULT 'manufacturing'
+        CHECK (recipe_type IN ('extraction','manufacturing','smelting','chemistry','refining','logistics','energy')),
+    -- 仅 extraction 类型有效：世界来源的具体形态
+    source_type     TEXT
+        CHECK (source_type IN ('map_resource','fluid_well','offshore_pump','catch','tree_harvest','enemy_drop','space_platform')),
+    extractor_entity TEXT,             -- 开采/抽取设施，如 electric-mining-drill/offshore-pump
+    resource_category TEXT,            -- 资源分类，如 basic-solid/basic-fluid
+    location        TEXT,              -- 星球/地点（Space Age）
+    base_rate       REAL,              -- 基础产出速率（items/sec 或 fluid/sec）
     energy          REAL NOT NULL DEFAULT 0.5,
     hidden          INTEGER NOT NULL DEFAULT 0,
     expansion       TEXT NOT NULL DEFAULT 'base',
@@ -422,12 +432,13 @@ GROUP BY e.env_key;
 -- =============================================================================
 --
 -- ETL 后 intrinsic：
---   extraction_etl → snap_map_resource / snap_extractor / snap_resource_extraction / fb-extract:* 配方
+--   extraction_etl → snap_map_resource / snap_extractor / snap_resource_extraction / extraction recipe
+--                    extraction recipe 的 recipe_type='extraction'，并带 source_type/extractor_entity 元数据
 --   ResourceIntrinsicClassifier → snap_resource_intrinsic_tag, is_raw
 --   RecipeIntrinsicClassifier   → snap_recipe_intrinsic_tag, snap_recipe_closure_role
 --
 -- Context（gate = save_recipe_gate 或全 snap_recipe）：
---   primary_out(M)     = M 是 enabled primary 配方的产物
+--   primary_out(M)     = M 是 enabled primary 配方的产物（含 recipe_type=extraction）
 --   extractable_out    = 抽取建筑已解锁 ∧ snap_resource_extraction 产出 M
 --   closure_expandable = primary_out ∪ extractable_out
 --   baseline_supply    = ir.extractable（来自地图实体，非手写名单）
@@ -435,10 +446,10 @@ GROUP BY e.env_key;
 --   used_as_input      = gate 内 in 流
 --   terminal           = closure_expandable ∧ ¬used_as_input
 --   intermediate       = closure_expandable ∧ used_as_input
---   manufacture        = closure_expandable ∧ ¬ir.container.barrel
+--   manufacture        = closure_expandable ∧ recipe_type≠extraction ∧ ¬ir.container.barrel
 --   supply             = (baseline ∨ used_as_input ∨ pure_supply) ∧ ¬terminal
 --
--- 分析闭包仅使用 closure_role=primary 的配方。
+-- 分析闭包仅使用 closure_role=primary 的配方；extraction recipe 是 primary 的一种。
 --
 -- =============================================================================
 

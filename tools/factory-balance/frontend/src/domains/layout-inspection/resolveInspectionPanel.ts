@@ -68,13 +68,13 @@ function recipeDetailForItem(
   if (details[item]) return details[item];
   const rname = assignments[item] ?? node?.recipe ?? node?.meta?.recipe;
   if (!rname) return worldSupplyDetail(item, node);
-  if (typeof rname === "string" && rname.startsWith("fb-extract:")) {
+  if (node?.recipe_type === "extraction") {
     const label = node?.label ?? item;
     return {
-      recipe_name: rname,
+      recipe_name: String(rname),
       label,
-      line: `世界抽取 → ${label}`,
-      kind: "extract",
+      line: `世界获取 → ${label}`,
+      kind: "extraction",
     };
   }
   return {

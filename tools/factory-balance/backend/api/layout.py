@@ -39,7 +39,7 @@ def recipe_preview(body: LayoutComputeRequest) -> RecipeAssignmentPreviewRespons
     """
     from core.layout_engine import _resolve_layout_context
 
-    db = _resolve_layout_context()
+    db = _resolve_layout_context(body.catalog_mode)
     return preview_layout_recipes(body, db)
 
 

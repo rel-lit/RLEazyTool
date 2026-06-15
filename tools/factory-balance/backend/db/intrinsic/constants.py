@@ -37,10 +37,4 @@ CRAFT_CATEGORIES: frozenset[str] = frozenset(
     {"crafting", "advanced-crafting", "crafting-with-fluid", "electronics", "electronics-machine"}
 )
 
-EXTRACT_RECIPE_NAME_HINTS: frozenset[str] = frozenset(
-    {
-        "fb-extract:",
-        "pumpjack",
-        "offshore-pump",
-    }
-)
+

@@ -6,18 +6,27 @@ import itertools
 
 from typing import Any
 
-from core.recipe_loader import RecipeDatabase
+from core.recipe_loader import RecipeDatabase, RecipeType
+from models.schemas import SupplyMode
 
 
 def _ingredient_names(recipe) -> list[str]:
     return [i.name for i in recipe.ingredients if i.type in ("item", "fluid")]
 
 
-def _default_primary(product: str, db: RecipeDatabase) -> str:
+def _default_primary(product: str, db: RecipeDatabase, supply_mode: SupplyMode) -> str:
+    """按 supply_mode 选择默认 primary recipe。"""
+    if supply_mode == SupplyMode.RAW:
+        ext = db.default_extraction_recipe_for(product)
+        if ext:
+            return ext.name
+    names = db.primary_manufacturing_recipe_names_for(product)
+    if names:
+        return names[0]
     names = db.primary_recipe_names_for(product)
-    if not names:
-        raise KeyError(product)
-    return names[0]
+    if names:
+        return names[0]
+    raise KeyError(product)
 
 
 def _closure_products(
@@ -26,6 +35,7 @@ def _closure_products(
     db: RecipeDatabase,
     data_source: set[str],
     expandable: set[str],
+    supply_mode: SupplyMode,
 ) -> set[str]:
     seen: set[str] = set()
     queue = [r for r in roots if r in data_source]
@@ -36,7 +46,7 @@ def _closure_products(
         seen.add(product)
         if product not in expandable:
             continue
-        rname = recipe_pick.get(product) or _default_primary(product, db)
+        rname = recipe_pick.get(product) or _default_primary(product, db, supply_mode)
         if rname not in db.recipes:
             continue
         for ing in _ingredient_names(db.recipes[rname]):
@@ -50,6 +60,7 @@ def pick_recipe_assignments(
     db: RecipeDatabase,
     data_source: set[str],
     expandable: set[str],
+    supply_mode: SupplyMode,
     *,
     max_combos: int = 8192,
     user_assignments: dict[str, str] | None = None,
@@ -73,7 +84,7 @@ def pick_recipe_assignments(
         rname = user_assignments.get(p)
         if rname is None:
             try:
-                rname = _default_primary(p, db)
+                rname = _default_primary(p, db, supply_mode)
             except KeyError:
                 continue
         products.add(p)
@@ -82,7 +93,7 @@ def pick_recipe_assignments(
                 queue.append(ing)
 
     base = {
-        p: user_assignments.get(p) or _default_primary(p, db)
+        p: user_assignments.get(p) or _default_primary(p, db, supply_mode)
         for p in products
         if db.primary_recipe_names_for(p)
     }
@@ -110,13 +121,13 @@ def pick_recipe_assignments(
         return base, warnings
 
     best_pick = base
-    best_size = len(_closure_products(roots, base, db, data_source, expandable))
+    best_size = len(_closure_products(roots, base, db, data_source, expandable, supply_mode))
 
     for combo in itertools.product(*option_lists):
         pick = dict(base)
         for k, rname in zip(keys, combo):
             pick[k] = rname
-        size = len(_closure_products(roots, pick, db, data_source, expandable))
+        size = len(_closure_products(roots, pick, db, data_source, expandable, supply_mode))
         if size < best_size:
             best_size = size
             best_pick = pick
@@ -129,6 +140,7 @@ def preview_recipe_choices(
     db: RecipeDatabase,
     data_source: set[str],
     expandable: set[str],
+    supply_mode: SupplyMode,
     labels: dict[str, str],
     *,
     user_supplied: set[str] | None = None,
@@ -156,7 +168,7 @@ def preview_recipe_choices(
         rname = user_assignments.get(p)
         if rname is None:
             try:
-                rname = _default_primary(p, db)
+                rname = _default_primary(p, db, supply_mode)
             except KeyError:
                 continue
         products.add(p)
@@ -169,13 +181,13 @@ def preview_recipe_choices(
         names = db.primary_recipe_names_for(p)
         if len(names) <= 1:
             continue
-        default_rname = names[0]
+        default_rname = _default_primary(p, db, supply_mode)
         options: list[dict[str, Any]] = []
         for rname in names:
             recipe = db.recipes.get(rname)
             if recipe is None:
                 continue
-            kind = "extract" if rname.startswith("fb-extract:") else "craft"
+            kind = recipe.recipe_type.value
             option_label = recipe.label or rname
             options.append({
                 "recipe_name": rname,
@@ -198,6 +210,12 @@ def _format_recipe_line(recipe, labels: dict[str, str]) -> str:
         if abs(amount - round(amount)) < 1e-6:
             return str(int(round(amount)))
         return f"{amount:g}"
+
+    if recipe.recipe_type == RecipeType.EXTRACTION:
+        prod = next((p for p in recipe.products if p.type in ("item", "fluid")), None)
+        if prod:
+            return f"世界获取 → {labels.get(prod.name, prod.name)}"
+        return recipe.label or recipe.name
 
     ing_parts = [
         f"{labels.get(ing.name, ing.name)}×{fmt(ing.amount)}"

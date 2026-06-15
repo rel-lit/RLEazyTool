@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from core.icon_store import icon_slug_from_path
 from core.recipe_loader import ItemDef, ItemStack, Recipe, RecipeDatabase, _finalize_database
-from db.extraction_etl import EXTRACT_RECIPE_PREFIX
 from db.connection import get_connection
 
 from db.intrinsic.constants import CLOSURE_PRIMARY
@@ -147,7 +146,9 @@ def load_recipe_database(
 
         recipe_query = """
 
-            SELECT r.id, r.name, r.category, r.energy, r.expansion, rt.label
+            SELECT r.id, r.name, r.category, r.recipe_type, r.source_type,
+                   r.extractor_entity, r.resource_category, r.location, r.base_rate,
+                   r.energy, r.expansion, rt.label
 
             FROM snap_recipe r
 
@@ -167,11 +168,18 @@ def load_recipe_database(
 
             placeholders = ",".join("?" * len(enabled_recipe_names))
 
-            recipe_query += f" AND (r.name IN ({placeholders}) OR r.name LIKE ?)"
+            # 普通配方按名称 gate；extraction 配方按 extractor_entity gate
+            recipe_query += f"""
+                AND (
+                    (r.recipe_type != 'extraction' AND r.name IN ({placeholders}))
+                    OR (r.recipe_type = 'extraction'
+                        AND (r.extractor_entity IS NULL OR r.extractor_entity IN ({placeholders})))
+                )
+            """
 
-            params.extend(sorted(enabled_recipe_names))
-
-            params.append(f"{EXTRACT_RECIPE_PREFIX}%")
+            sorted_names = sorted(enabled_recipe_names)
+            params.extend(sorted_names)
+            params.extend(sorted_names)
 
 
 
@@ -238,6 +246,18 @@ def load_recipe_database(
                 name=rname,
 
                 category=rr["category"],
+
+                recipe_type=rr["recipe_type"] or "manufacturing",
+
+                source_type=rr["source_type"],
+
+                extractor_entity=rr["extractor_entity"],
+
+                resource_category=rr["resource_category"],
+
+                location=rr["location"],
+
+                base_rate=float(rr["base_rate"]) if rr["base_rate"] is not None else None,
 
                 energy=float(rr["energy"]),
 

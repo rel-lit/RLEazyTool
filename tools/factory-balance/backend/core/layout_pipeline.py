@@ -70,18 +70,17 @@ def run_layout_pipeline(
         db,
         data_source,
         expandable,
+        request.supply_mode,
         user_assignments=request.recipe_assignments or None,
     )
     warnings.extend(pick_warnings)
 
-    user_recipe_assignments = set(request.recipe_assignments or {})
     tb_ctx = TreeBuildContext(
         db=db,
         data_source=data_source,
         expandable=expandable,
         pure_supply=pure_supply,
         recipe_assignments=recipe_assignments,
-        user_recipe_assignments=user_recipe_assignments,
         user_supplied=u_sup,
         forbidden=u_forbid,
         supply_mode=request.supply_mode,
@@ -181,6 +180,7 @@ def preview_layout_recipes(
         db,
         data_source,
         expandable,
+        request.supply_mode,
         labels,
         user_supplied=u_sup,
         user_assignments=request.recipe_assignments or None,

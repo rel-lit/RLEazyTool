@@ -19,13 +19,12 @@ export const ASSUMED_EXTERNAL_MARK_FILL = "hsla(42, 92%, 56%, 1)";
 /** 被剔除终端：固定橙色内盘，不用 layer 中间色 */
 export const DEMOTED_OUTPUT_MARK_FILL = "var(--ui-mark-fill-demoted)";
 
-function isExtractRecipe(recipe: string | null | undefined): boolean {
-  return !!recipe && recipe.startsWith("fb-extract:");
+function isExtractRecipe(node: LayoutNodeLike): boolean {
+  return node.recipe_type === "extraction";
 }
 
 function ringForIntermediateNode(node: LayoutNodeLike): ListLayoutMarkRing {
-  const recipe = node.recipe ?? node.meta?.recipe;
-  if (isExtractRecipe(recipe)) return "extract";
+  if (isExtractRecipe(node)) return "extract";
   return "intermediate";
 }
 

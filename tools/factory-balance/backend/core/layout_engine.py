@@ -6,12 +6,15 @@ from models.schemas import LayoutComputeRequest, LayoutComputeResponse
 from core.layout_pipeline import run_layout_pipeline
 
 
-def _resolve_layout_context():
+def _resolve_layout_context(catalog_mode: str = "progress"):
     from core.game_session import SESSION
     from db.environment_store import list_environments
     from db.recipe_loader_db import load_recipe_database
 
     if SESSION.env_key and SESSION.active_save_key and SESSION.progress_loaded:
+        # progress 模式用 save gate；full 模式用 environment gate（不传 save_key）
+        if catalog_mode == "full":
+            return load_recipe_database(SESSION.env_key, save_key=None)
         return load_recipe_database(SESSION.env_key, save_key=SESSION.active_save_key)
 
     envs = list_environments()
@@ -25,5 +28,5 @@ def _resolve_layout_context():
 
 
 def compute_layout(request: LayoutComputeRequest) -> LayoutComputeResponse:
-    db = _resolve_layout_context()
+    db = _resolve_layout_context(request.catalog_mode)
     return run_layout_pipeline(request, db)

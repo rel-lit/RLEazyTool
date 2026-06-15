@@ -62,7 +62,7 @@ def apply_intrinsic_tags(conn, snapshot_id: int, raw: dict | None = None) -> Non
             )
 
     recipes = conn.execute(
-        "SELECT id, name, category FROM snap_recipe WHERE snapshot_id = ?",
+        "SELECT id, name, category, recipe_type FROM snap_recipe WHERE snapshot_id = ?",
         (snapshot_id,),
     ).fetchall()
 
@@ -83,6 +83,7 @@ def apply_intrinsic_tags(conn, snapshot_id: int, raw: dict | None = None) -> Non
         tags, closure_role = classify_recipe(
             name=recipe["name"],
             category=recipe["category"],
+            recipe_type=recipe["recipe_type"],
             flows=flows,
         )
         conn.execute(

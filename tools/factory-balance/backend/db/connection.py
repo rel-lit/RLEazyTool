@@ -10,7 +10,7 @@ from pathlib import Path
 DB_PATH = Path(__file__).resolve().parent.parent / "data" / "factory-balance.db"
 SCHEMA_FILE = Path(__file__).resolve().parent / "schema_final.sql"
 MIGRATIONS_DIR = Path(__file__).resolve().parent / "migrations"
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 
 def get_connection() -> sqlite3.Connection:

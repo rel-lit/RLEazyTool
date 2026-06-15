@@ -63,7 +63,7 @@ class IntrinsicClassifierTest(unittest.TestCase):
             FlowStack("water", "fluid", "out"),
             FlowStack("empty-barrel", "item", "out"),
         ]
-        tags, role = classify_recipe(name="empty-water-barrel", category="crafting-with-fluid", flows=flows)
+        tags, role = classify_recipe(name="empty-water-barrel", category="crafting-with-fluid", recipe_type="manufacturing", flows=flows)
         self.assertIn("ip.barrel.empty", tags)
         self.assertEqual(role, "logistics")
 
@@ -83,6 +83,9 @@ class WaterClosureTest(unittest.TestCase):
             recipes["offshore-pump-water"] = Recipe(
                 name="offshore-pump-water",
                 category="pumping",
+                recipe_type="extraction",
+                source_type="offshore_pump",
+                extractor_entity="offshore-pump",
                 energy=1,
                 ingredients=[],
                 products=[ItemStack("water", 1200, "fluid")],
@@ -92,6 +95,7 @@ class WaterClosureTest(unittest.TestCase):
                 "empty-water-barrel": Recipe(
                     name="empty-water-barrel",
                     category="crafting-with-fluid",
+                    recipe_type="manufacturing",
                     energy=0.2,
                     ingredients=[ItemStack("water-barrel", 1, "item")],
                     products=[
@@ -102,6 +106,7 @@ class WaterClosureTest(unittest.TestCase):
                 "fill-water-barrel": Recipe(
                     name="fill-water-barrel",
                     category="crafting-with-fluid",
+                    recipe_type="manufacturing",
                     energy=0.2,
                     ingredients=[
                         ItemStack("empty-barrel", 1, "item"),
@@ -112,6 +117,7 @@ class WaterClosureTest(unittest.TestCase):
                 "copper-cable": Recipe(
                     name="copper-cable",
                     category="crafting",
+                    recipe_type="manufacturing",
                     energy=0.5,
                     ingredients=[ItemStack("copper-plate", 1, "item")],
                     products=[ItemStack("copper-cable", 2, "item")],
@@ -119,6 +125,7 @@ class WaterClosureTest(unittest.TestCase):
                 "electronic-circuit": Recipe(
                     name="electronic-circuit",
                     category="crafting",
+                    recipe_type="manufacturing",
                     energy=0.5,
                     ingredients=[
                         ItemStack("copper-cable", 3, "item"),
@@ -135,7 +142,9 @@ class WaterClosureTest(unittest.TestCase):
                 flows.append(FlowStack(ing.name, ing.type, "in"))
             for prod in recipe.products:
                 flows.append(FlowStack(prod.name, prod.type, "out"))
-            _, roles[name] = classify_recipe(name=name, category=recipe.category, flows=flows)
+            _, roles[name] = classify_recipe(
+                name=name, category=recipe.category, recipe_type=recipe.recipe_type.value, flows=flows
+            )
 
         db = _finalize_database(items, recipes, {}, roles)
         return db
@@ -144,14 +153,13 @@ class WaterClosureTest(unittest.TestCase):
         db = self._mini_db()
         d = set(db.items.keys())
         expandable = {"electronic-circuit", "copper-cable"}
-        pick, _ = pick_recipe_assignments(["electronic-circuit"], db, d, expandable)
+        pick, _ = pick_recipe_assignments(["electronic-circuit"], db, d, expandable, SupplyMode.RAW)
         ctx = TreeBuildContext(
             db=db,
             data_source=d,
             expandable=expandable,
             pure_supply={"water"},
             recipe_assignments=pick,
-            user_recipe_assignments=set(),
             user_supplied=set(),
             forbidden=set(),
             supply_mode=SupplyMode.RAW,
@@ -166,14 +174,13 @@ class WaterClosureTest(unittest.TestCase):
         db = self._mini_db(include_pump=True)
         d = set(db.items.keys())
         expandable = {"electronic-circuit", "copper-cable", "water"}
-        pick, _ = pick_recipe_assignments(["electronic-circuit"], db, d, expandable)
+        pick, _ = pick_recipe_assignments(["electronic-circuit"], db, d, expandable, SupplyMode.RAW)
         ctx = TreeBuildContext(
             db=db,
             data_source=d,
             expandable=expandable,
             pure_supply=set(),
             recipe_assignments=pick,
-            user_recipe_assignments=set(),
             user_supplied=set(),
             forbidden=set(),
             supply_mode=SupplyMode.RAW,
@@ -201,6 +208,9 @@ class PetroleumGasClosureTest(unittest.TestCase):
             "pumpjack-crude-oil": Recipe(
                 name="pumpjack-crude-oil",
                 category="pumping",
+                recipe_type="extraction",
+                source_type="fluid_well",
+                extractor_entity="pumpjack",
                 energy=1,
                 ingredients=[],
                 products=[ItemStack("crude-oil", 100, "fluid")],
@@ -208,6 +218,7 @@ class PetroleumGasClosureTest(unittest.TestCase):
             "basic-oil-processing": Recipe(
                 name="basic-oil-processing",
                 category="oil-processing",
+                recipe_type="refining",
                 energy=5,
                 ingredients=[ItemStack("crude-oil", 100, "fluid")],
                 products=[
@@ -219,6 +230,7 @@ class PetroleumGasClosureTest(unittest.TestCase):
             "plastic-bar": Recipe(
                 name="plastic-bar",
                 category="chemistry",
+                recipe_type="chemistry",
                 energy=1,
                 ingredients=[
                     ItemStack("petroleum-gas", 20, "fluid"),
@@ -234,7 +246,9 @@ class PetroleumGasClosureTest(unittest.TestCase):
                 flows.append(FlowStack(ing.name, ing.type, "in"))
             for prod in recipe.products:
                 flows.append(FlowStack(prod.name, prod.type, "out"))
-            _, roles[name] = classify_recipe(name=name, category=recipe.category, flows=flows)
+            _, roles[name] = classify_recipe(
+                name=name, category=recipe.category, recipe_type=recipe.recipe_type.value, flows=flows
+            )
 
         return _finalize_database(items, recipes, {}, roles)
 
@@ -242,14 +256,13 @@ class PetroleumGasClosureTest(unittest.TestCase):
         db = self._oil_db()
         d = set(db.items.keys())
         expandable = {"plastic-bar", "petroleum-gas", "crude-oil"}
-        pick, _ = pick_recipe_assignments(["plastic-bar"], db, d, expandable)
+        pick, _ = pick_recipe_assignments(["plastic-bar"], db, d, expandable, SupplyMode.RAW)
         ctx = TreeBuildContext(
             db=db,
             data_source=d,
             expandable=expandable,
             pure_supply=set(),
             recipe_assignments=pick,
-            user_recipe_assignments=set(),
             user_supplied=set(),
             forbidden=set(),
             supply_mode=SupplyMode.RAW,
