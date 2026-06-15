@@ -32,6 +32,7 @@ class TreeBuildContext:
     expandable: set[str]
     pure_supply: set[str]
     recipe_assignments: dict[str, str]
+    user_recipe_assignments: set[str]
     user_supplied: set[str]
     forbidden: set[str]
     supply_mode: SupplyMode
@@ -99,6 +100,12 @@ def _resolve_leaf(
 
     if item in ctx.user_supplied:
         return "stop_true", None
+
+    # 用户显式指定了非抽取配方：优先按配方展开（覆盖 RAW 模式下的 world_leaf 行为）
+    if item in ctx.user_recipe_assignments:
+        assigned = ctx.recipe_assignments.get(item, "")
+        if assigned and not assigned.startswith("fb-extract:") and _can_expand(item, ctx):
+            return "expand", None
 
     if ctx.supply_mode == SupplyMode.DIRECT:
         return "stop_pseudo", None

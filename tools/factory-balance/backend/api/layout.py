@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 
 from core.layout_engine import compute_layout
+from core.layout_pipeline import preview_layout_recipes
 from db.layout_snapshot_store import (
     clear_layout_snapshots,
     delete_layout_snapshot,
@@ -18,6 +19,7 @@ from models.schemas import (
     LayoutSnapshotEntry,
     LayoutSnapshotUpsert,
     LayoutSnapshotUpsertResult,
+    RecipeAssignmentPreviewResponse,
 )
 
 router = APIRouter(tags=["layout"])
@@ -27,6 +29,18 @@ router = APIRouter(tags=["layout"])
 def compute(body: LayoutComputeRequest) -> LayoutComputeResponse:
     """阶段 1→6 布局计算；不写入快照（由 Layer P PUT /layout/snapshot 负责）。"""
     return compute_layout(body)
+
+
+@router.post("/layout/recipe-preview", response_model=RecipeAssignmentPreviewResponse)
+def recipe_preview(body: LayoutComputeRequest) -> RecipeAssignmentPreviewResponse:
+    """阶段 0：预览本次布局中需要用户确认的配方/来源歧义项。
+
+    前端应在用户确认 recipe_assignments 后再调用 /layout/compute。
+    """
+    from core.layout_engine import _resolve_layout_context
+
+    db = _resolve_layout_context()
+    return preview_layout_recipes(body, db)
 
 
 @router.put("/layout/snapshot", response_model=LayoutSnapshotUpsertResult)

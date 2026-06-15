@@ -2,8 +2,10 @@ import { computed, ref, type Ref } from "vue";
 import axios from "axios";
 import {
   computeLayout,
+  previewLayoutRecipes,
   type LayoutRequest,
   type LayoutResponse,
+  type RecipeAssignmentPreview,
 } from "../../api/client";
 import type { AppEventBus } from "../../app/events";
 import type { LayoutPersistence } from "./layoutPersistence";
@@ -11,6 +13,12 @@ import type { SelectionModule } from "../selection/useSelection";
 import { buildLayoutRequest } from "./layoutSnapshot";
 
 export type NodePositionMap = Record<string, { x: number; y: number }>;
+
+export interface PendingRecipePreview {
+  request: LayoutRequest;
+  items: RecipeAssignmentPreview[];
+  confirmedAssignments: Record<string, string>;
+}
 
 export function useLayout(
   bus: AppEventBus,
@@ -23,6 +31,7 @@ export function useLayout(
   const loading = ref(false);
   const error = ref("");
   const stale = ref(false);
+  const pendingRecipePreview = ref<PendingRecipePreview | null>(null);
 
   const boundRequest = boundRequestRef;
 
@@ -33,6 +42,7 @@ export function useLayout(
     error.value = "";
     stale.value = false;
     boundRequestRef.value = null;
+    pendingRecipePreview.value = null;
   }
 
   function invalidate(reason: string): void {
@@ -41,7 +51,7 @@ export function useLayout(
     bus.emit({ type: "LayoutInvalidated", reason });
   }
 
-  async function compute(): Promise<void> {
+  async function compute(recipeAssignments?: Record<string, string>): Promise<void> {
     if (!selection.selectedTargets.value.length) {
       error.value = "请至少选择一个产出物";
       return;
@@ -49,14 +59,37 @@ export function useLayout(
     loading.value = true;
     error.value = "";
     stale.value = false;
+    pendingRecipePreview.value = null;
 
     await persistence.saveBeforeRecompute();
 
     bus.emit({ type: "LayoutComputeStarted", resetPositions: true });
 
     const body: LayoutRequest = buildLayoutRequest(selection, catalogMode.value);
+    const assignments = recipeAssignments || {};
+    if (Object.keys(assignments).length > 0) {
+      body.recipe_assignments = assignments;
+    }
 
+    await resolveAndCompute(body, assignments);
+  }
+
+  async function resolveAndCompute(
+    body: LayoutRequest,
+    confirmedAssignments: Record<string, string>
+  ): Promise<void> {
     try {
+      const preview = await previewLayoutRecipes(body);
+      if (preview.ambiguous_items.length > 0) {
+        pendingRecipePreview.value = {
+          request: body,
+          items: preview.ambiguous_items,
+          confirmedAssignments,
+        };
+        loading.value = false;
+        return;
+      }
+
       layout.value = await computeLayout(body);
       if (layout.value.analysis?.impossible) {
         error.value = "当前约束下无法实现所选产出";
@@ -79,10 +112,29 @@ export function useLayout(
     }
   }
 
+  function confirmRecipeAssignments(assignments: Record<string, string>): void {
+    const preview = pendingRecipePreview.value;
+    if (!preview) return;
+    const merged = { ...preview.confirmedAssignments, ...assignments };
+    const body = { ...preview.request };
+    body.recipe_assignments = merged;
+    pendingRecipePreview.value = null;
+    loading.value = true;
+    void resolveAndCompute(body, merged);
+  }
+
+  function cancelRecipePreview(): void {
+    pendingRecipePreview.value = null;
+    loading.value = false;
+    stale.value = false;
+    bus.emit({ type: "LayoutComputeCancelled" });
+  }
+
   function applyLayout(data: LayoutResponse, request?: LayoutRequest): void {
     layout.value = data;
     error.value = "";
     stale.value = false;
+    pendingRecipePreview.value = null;
     if (request) {
       boundRequestRef.value = request;
     }
@@ -98,9 +150,12 @@ export function useLayout(
     error,
     stale,
     analysisWarnings,
+    pendingRecipePreview,
     reset,
     invalidate,
     compute,
+    confirmRecipeAssignments,
+    cancelRecipePreview,
     applyLayout,
   };
 }

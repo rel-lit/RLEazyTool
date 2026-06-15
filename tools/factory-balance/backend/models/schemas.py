@@ -40,6 +40,29 @@ class LayoutComputeRequest(BaseModel):
     forbidden_items: list[str] = Field(default_factory=list)
     catalog_mode: str = Field(default="progress", description="progress | full，与 UI 列表 scope 一致")
     layout_options: LayoutOptions = Field(default_factory=LayoutOptions)
+    recipe_assignments: dict[str, str] | None = Field(
+        default=None,
+        description="用户确认的配方指派：item_name -> recipe_name；未覆盖的仍由系统自动选择",
+    )
+
+
+class RecipeOption(BaseModel):
+    recipe_name: str
+    label: str
+    line: str
+    kind: str  # craft | extract
+
+
+class RecipeAssignmentPreview(BaseModel):
+    item: str
+    label: str
+    default_recipe: str
+    options: list[RecipeOption]
+
+
+class RecipeAssignmentPreviewResponse(BaseModel):
+    ambiguous_items: list[RecipeAssignmentPreview]
+    warnings: list[str]
 
 
 class Position(BaseModel):

@@ -17,6 +17,26 @@ export interface LayoutRequest {
     primary_direction: "left-to-right" | "top-to-bottom";
   buffer_recommendation: boolean;
   };
+  recipe_assignments?: Record<string, string> | null;
+}
+
+export interface RecipeOption {
+  recipe_name: string;
+  label: string;
+  line: string;
+  kind: "craft" | "extract";
+}
+
+export interface RecipeAssignmentPreview {
+  item: string;
+  label: string;
+  default_recipe: string;
+  options: RecipeOption[];
+}
+
+export interface RecipeAssignmentPreviewResponse {
+  ambiguous_items: RecipeAssignmentPreview[];
+  warnings: string[];
 }
 
 export interface LayoutNode {
@@ -214,6 +234,13 @@ export async function searchItems(q = "", craftableOnly = false): Promise<ItemIn
 
 export async function computeLayout(body: LayoutRequest): Promise<LayoutResponse> {
   const { data } = await client.post("/layout/compute", body, { timeout: 120_000 });
+  return data;
+}
+
+export async function previewLayoutRecipes(
+  body: LayoutRequest
+): Promise<RecipeAssignmentPreviewResponse> {
+  const { data } = await client.post("/layout/recipe-preview", body, { timeout: 30_000 });
   return data;
 }
 

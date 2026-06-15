@@ -6,13 +6,18 @@ from core.original_tree import TreeBuildContext, build_original_forest
 from core.rank_assigner import assign_ranks
 from core.recipe_display import build_recipe_details
 from core.recipe_loader import RecipeDatabase, merge_analysis_context
-from core.recipe_pick import pick_recipe_assignments
+from core.recipe_pick import pick_recipe_assignments, preview_recipe_choices
 from core.layout_analysis import build_layout_analysis_meta
 from core.layout_renderer import render_layout
 from core.sbto import chains_to_tap_results, discover_sbto_chains
 from core.tree_layer import build_merged_graph_with_layers
 from db.data_source import get_data_source_context
-from models.schemas import LayoutComputeRequest, LayoutComputeResponse, SupplyMode
+from models.schemas import (
+    LayoutComputeRequest,
+    LayoutComputeResponse,
+    RecipeAssignmentPreviewResponse,
+    SupplyMode,
+)
 
 
 def run_layout_pipeline(
@@ -61,16 +66,22 @@ def run_layout_pipeline(
             )
 
     recipe_assignments, pick_warnings = pick_recipe_assignments(
-        declared, db, data_source, expandable
+        declared,
+        db,
+        data_source,
+        expandable,
+        user_assignments=request.recipe_assignments or None,
     )
     warnings.extend(pick_warnings)
 
+    user_recipe_assignments = set(request.recipe_assignments or {})
     tb_ctx = TreeBuildContext(
         db=db,
         data_source=data_source,
         expandable=expandable,
         pure_supply=pure_supply,
         recipe_assignments=recipe_assignments,
+        user_recipe_assignments=user_recipe_assignments,
         user_supplied=u_sup,
         forbidden=u_forbid,
         supply_mode=request.supply_mode,
@@ -141,4 +152,40 @@ def run_layout_pipeline(
         warnings=warnings,
         analysis=analysis_meta,
         layout_direction=request.layout_options.primary_direction.value,
+    )
+
+
+def preview_layout_recipes(
+    request: LayoutComputeRequest,
+    db: RecipeDatabase,
+) -> RecipeAssignmentPreviewResponse:
+    """阶段 0：返回本次布局中需要用户确认的配方/来源歧义项。"""
+    ctx_ds = get_data_source_context(catalog_mode=request.catalog_mode)
+    db = merge_analysis_context(db, ctx_ds)
+    data_source = ctx_ds.data_source or set(db.items.keys())
+    expandable = set(ctx_ds.closure_expandable) & data_source
+    if not expandable:
+        expandable = {p for p in data_source if db.primary_recipe_names_for(p)}
+
+    labels = {k: v.label for k, v in db.items.items()}
+    declared = [t.item for t in request.targets]
+    warnings: list[str] = []
+
+    if not declared:
+        return RecipeAssignmentPreviewResponse(ambiguous_items=[], warnings=[])
+
+    u_sup = set(request.supplied_items) - set(request.forbidden_items)
+
+    ambiguous = preview_recipe_choices(
+        declared,
+        db,
+        data_source,
+        expandable,
+        labels,
+        user_supplied=u_sup,
+        user_assignments=request.recipe_assignments or None,
+    )
+    return RecipeAssignmentPreviewResponse(
+        ambiguous_items=ambiguous,
+        warnings=warnings,
     )

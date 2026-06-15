@@ -37,6 +37,7 @@ export type AppEvent =
   | { type: "LayoutComputed"; layout: LayoutResponse }
   | { type: "LayoutRestoredFromHistory"; layout: LayoutResponse; request: LayoutRequest }
   | { type: "LayoutComputeFailed"; message: string }
+  | { type: "LayoutComputeCancelled" }
   | { type: "LayoutSnapshotSaved"; reason: string }
   | { type: "CachePurgeStarted" }
   | { type: "CachePurged"; result: PurgeCacheResponse; progressStillLoaded: boolean };

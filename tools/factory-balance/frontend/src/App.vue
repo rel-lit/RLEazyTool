@@ -6,6 +6,7 @@ import HistoryPanel from "./components/panels/HistoryPanel.vue";
 import LayoutWorkspace from "./components/panels/LayoutWorkspace.vue";
 import ModeToolbar from "./components/panels/ModeToolbar.vue";
 import ProgressPanel from "./components/panels/ProgressPanel.vue";
+import RecipeAssignmentModal from "./components/modals/RecipeAssignmentModal.vue";
 import LeftSidebarShell, { type SidebarTab } from "./components/shell/LeftSidebarShell.vue";
 
 const app = useApp();
@@ -109,6 +110,13 @@ function onSidebarTabChange(tab: SidebarTab): void {
         />
       </section>
     </div>
+
+    <RecipeAssignmentModal
+      v-if="app.layout.pendingRecipePreview"
+      :items="app.layout.pendingRecipePreview.items"
+      @confirm="app.layout.confirmRecipeAssignments($event)"
+      @cancel="app.layout.cancelRecipePreview()"
+    />
   </div>
 </template>
 
