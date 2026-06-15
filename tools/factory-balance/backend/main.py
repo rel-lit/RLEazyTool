@@ -28,7 +28,6 @@ async def lifespan(_app: FastAPI):
 
     from core.icon_assets import ensure_icons_extracted_from_db
 
-    ICONS_DIR.mkdir(parents=True, exist_ok=True)
     extracted = ensure_icons_extracted_from_db(ICONS_DIR)
     if extracted:
         print(f"  已补充提取 {extracted} 个物品图标。")
@@ -56,10 +55,10 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
-if FRONTEND_DIST.is_dir():
-    app.mount("/", StaticFiles(directory=str(FRONTEND_DIST), html=True), name="frontend")
-
 ICONS_DIR = Path(__file__).resolve().parent / "data" / "icons"
 ICONS_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/api/v1/static/icons", StaticFiles(directory=str(ICONS_DIR)), name="icons")
+
+FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+if FRONTEND_DIST.is_dir():
+    app.mount("/", StaticFiles(directory=str(FRONTEND_DIST), html=True), name="frontend")
