@@ -121,3 +121,35 @@ def resolve_data_dir_from_exe(exe_path: Path | None) -> Path | None:
     install_dir = exe_path.parent.parent.parent
     data_dir = install_dir / "data"
     return data_dir if data_dir.is_dir() else None
+
+
+def ensure_icons_extracted_from_db(icons_dir: Path) -> int:
+    """扫描数据库中所有 snap_resource.icon 路径，补充提取缺失的图标 PNG。
+
+    仅在 Factorio 可执行文件可用时生效；若 Factorio 未安装则静默跳过。
+
+    Returns:
+        成功提取的图标数量。
+    """
+    from db.connection import get_connection
+    from .factorio_paths import load_paths
+
+    data_dir = resolve_data_dir_from_exe(load_paths().executable)
+    if not data_dir:
+        return 0
+
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT DISTINCT icon FROM snap_resource WHERE icon IS NOT NULL AND icon != ''"
+        ).fetchall()
+    finally:
+        conn.close()
+
+    count = 0
+    for row in rows:
+        icon_path = str(row["icon"])
+        slug = extract_icon(icon_path, data_dir, icons_dir)
+        if slug:
+            count += 1
+    return count

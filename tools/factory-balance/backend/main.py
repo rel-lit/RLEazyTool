@@ -25,6 +25,14 @@ async def lifespan(_app: FastAPI):
 
     init_db(reset=False)
     SESSION.restore()
+
+    from core.icon_assets import ensure_icons_extracted_from_db
+
+    ICONS_DIR.mkdir(parents=True, exist_ok=True)
+    extracted = ensure_icons_extracted_from_db(ICONS_DIR)
+    if extracted:
+        print(f"  已补充提取 {extracted} 个物品图标。")
+
     yield
 
 
