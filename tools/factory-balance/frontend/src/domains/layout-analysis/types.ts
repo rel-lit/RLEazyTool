@@ -4,7 +4,7 @@ export type RecipeDetailSummary = {
   readonly recipe_name: string;
   readonly label?: string;
   readonly line: string;
-  readonly kind: "craft" | "extract" | "unknown";
+  readonly kind: "craft" | "extract" | "unknown" | "world-supply";
 };
 
 /** 与后端 build_layout_analysis_meta 对齐的只读分析视图 */

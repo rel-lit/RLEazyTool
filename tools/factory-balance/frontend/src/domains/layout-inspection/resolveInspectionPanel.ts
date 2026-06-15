@@ -1,5 +1,5 @@
 import type { LayoutEdge, LayoutNode, LayoutRequest, LayoutResponse } from "../../api/client";
-import { layoutMaxLayer } from "../../layout/nodeVisual";
+import { inferNodeKind } from "../../layout/nodeVisual";
 import { normalizeAnalysisSummary } from "../layout-analysis/normalizeAnalysis";
 import type { RecipeDetailSummary } from "../layout-analysis/types";
 import { nodeByItem } from "../layout-analysis/nodeLookup";
@@ -30,6 +30,35 @@ function endpointLine(
   return `${label} · layer ${layer} · ${role}`;
 }
 
+function worldSupplyDetail(item: string, node: LayoutNode | undefined): RecipeDetailSummary | null {
+  if (!node) return null;
+  const label = node.label ?? item;
+  const isPure = inferNodeKind(node) === "pure_source" || node.meta?.external_leaf;
+  if (!isPure) return null;
+  if (node.meta?.pseudo_external) {
+    return {
+      recipe_name: "",
+      label,
+      line: `假定外源 → ${label}`,
+      kind: "world-supply",
+    };
+  }
+  if (node.meta?.supply_kind === "world_baseline" || node.meta?.external_leaf) {
+    return {
+      recipe_name: "",
+      label,
+      line: `世界开采 → ${label}`,
+      kind: "world-supply",
+    };
+  }
+  return {
+    recipe_name: "",
+    label,
+    line: `外部供给 → ${label}`,
+    kind: "world-supply",
+  };
+}
+
 function recipeDetailForItem(
   item: string,
   node: LayoutNode | undefined,
@@ -38,7 +67,7 @@ function recipeDetailForItem(
 ): RecipeDetailSummary | null {
   if (details[item]) return details[item];
   const rname = assignments[item] ?? node?.recipe ?? node?.meta?.recipe;
-  if (!rname) return null;
+  if (!rname) return worldSupplyDetail(item, node);
   if (typeof rname === "string" && rname.startsWith("fb-extract:")) {
     const label = node?.label ?? item;
     return {

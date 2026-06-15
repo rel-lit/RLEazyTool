@@ -93,7 +93,8 @@ app/wire + actions
   集成电路：…
   …
   原油：世界抽取 → 原油
-  煤矿：无制造配方
+  煤矿：世界开采 → 煤矿
+  铁矿：世界开采 → 铁矿
 ```
 
 **节点类型标签（与镂空环 rim 对应）**
@@ -185,8 +186,10 @@ SBTO边                       ← badge
 }
 ```
 
-- `kind`: `craft` | `extract` | `unknown`
-- 旧快照无 `recipe_details` 时，前端显示内部标识并提示重算布局。
+- `kind`: `craft` | `extract` | `world-supply` | `unknown`
+- **extract**：闭包内展开的 `fb-extract:*` 配方（如原油）
+- **world-supply**：分析集内外源 baseline 叶子（如铁矿/铜矿/煤），无 `recipe_assignments` 条目
+- 旧快照无 `recipe_details` 时，前端按节点 `external_leaf` / `world_baseline` 回退「世界开采」
 
 实现：`backend/core/recipe_display.py`。
 

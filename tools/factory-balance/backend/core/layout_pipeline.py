@@ -87,7 +87,9 @@ def run_layout_pipeline(
         recipe_assignments=recipe_assignments,
         pseudo_external=tree_result.pseudo_external,
         impossible=tree_result.impossible,
-        recipe_details=build_recipe_details(recipe_assignments, db),
+        recipe_details=build_recipe_details(
+            recipe_assignments, db, tree_result.analysis_items
+        ),
     )
 
     if tree_result.impossible:

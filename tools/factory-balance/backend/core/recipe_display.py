@@ -42,6 +42,7 @@ def format_recipe_line(recipe: Recipe, labels: dict[str, str]) -> str:
 def build_recipe_details(
     recipe_assignments: dict[str, str],
     db: RecipeDatabase,
+    analysis_items: set[str] | list[str] | None = None,
 ) -> dict[str, dict[str, Any]]:
     labels = {k: v.label for k, v in db.items.items()}
     details: dict[str, dict[str, Any]] = {}
@@ -74,5 +75,23 @@ def build_recipe_details(
             "line": format_recipe_line(recipe, labels),
             "kind": "craft",
         }
+
+    # 分析集内、无制造指派的外源叶子 → 世界开采（铁矿/铜矿/煤等 baseline）
+    if analysis_items:
+        assigned = set(recipe_assignments.keys())
+        for item in analysis_items:
+            if item in details:
+                continue
+            if item in assigned:
+                continue
+            if not (db.is_baseline_supply(item) or db.is_pure_supply_default(item)):
+                continue
+            item_label = labels.get(item, item)
+            details[item] = {
+                "recipe_name": "",
+                "label": item_label,
+                "line": f"世界开采 → {item_label}",
+                "kind": "world-supply",
+            }
 
     return details

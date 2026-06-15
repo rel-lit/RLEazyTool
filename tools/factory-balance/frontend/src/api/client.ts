@@ -68,7 +68,7 @@ export interface RecipeDetailSummary {
   recipe_name: string;
   label?: string;
   line: string;
-  kind: "craft" | "extract" | "unknown";
+  kind: "craft" | "extract" | "unknown" | "world-supply";
 }
 
 export interface AnalysisSummary {
