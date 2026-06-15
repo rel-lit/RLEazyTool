@@ -26,20 +26,26 @@ async def lifespan(_app: FastAPI):
     init_db(reset=False)
     SESSION.restore()
 
-    from core.icon_assets import ensure_icons_extracted_from_db
+    from core.icon_assets import ensure_icons_extracted_from_db, fix_existing_icons
 
-    stats = ensure_icons_extracted_from_db(ICONS_DIR)
-    total = sum(stats.values())
+    db_stats = ensure_icons_extracted_from_db(ICONS_DIR)
+    local_stats = fix_existing_icons(ICONS_DIR)
+    total = sum(db_stats.values()) + sum(local_stats.values())
     if total:
         parts = []
-        if stats.get("cropped"):
-            parts.append(f"已裁剪 {stats['cropped']} 个 mipmap 条带")
-        if stats.get("new"):
-            parts.append(f"新增 {stats['new']} 个")
-        if stats.get("needs_pil"):
-            parts.append(f"{stats['needs_pil']} 个需 Pillow 裁剪")
+        total_cropped = db_stats.get("cropped", 0) + local_stats.get("cropped", 0)
+        total_new = db_stats.get("new", 0)
+        total_needs_pil = db_stats.get("needs_pil", 0) + local_stats.get("needs_pil", 0)
+        if total_cropped:
+            parts.append(f"已裁剪 {total_cropped} 个 mipmap 条带")
+        if total_new:
+            parts.append(f"新增 {total_new} 个")
+        if total_needs_pil:
+            parts.append(f"{total_needs_pil} 个需 Pillow 裁剪")
         if parts:
             print(f"  图标: {', '.join(parts)}（共 {total} 个）")
+        else:
+            print(f"  图标: {total} 个文件已就绪")
 
     yield
 

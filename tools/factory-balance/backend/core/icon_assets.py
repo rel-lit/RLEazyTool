@@ -43,7 +43,7 @@ def _read_png_size(filepath: Path) -> tuple[int, int] | None:
         with open(filepath, "rb") as f:
             if f.read(8) != _PNG_SIG:
                 return None
-            chunk_len = struct.unpack(">I", f.read(4))[0]
+            _ = struct.unpack(">I", f.read(4))[0]
             if f.read(4) != b"IHDR":
                 return None
             w = struct.unpack(">I", f.read(4))[0]
@@ -77,15 +77,34 @@ def _png_is_mipmap_strip(path: Path) -> bool:
     return size is not None and size[0] > size[1]
 
 
-def _crop_first_mipmap(src: Path, dest: Path) -> bool:
-    """用 Pillow 裁剪 mipmap 条带。若 Pillow 不可用则不做任何事。"""
+def _crop_png_to_first_mipmap(path: Path) -> bool:
+    """将 mipmap 条带文件原地裁剪到第一个 mipmap。需要 Pillow。"""
     if not _HAS_PIL:
         return False
     try:
-        img = Image.open(src)
-        w, h = img.size
-        if w <= h:
+        size = _read_png_size(path)
+        if size is None or size[0] <= size[1]:
             return False
+        img = Image.open(path)
+        _, h = img.size
+        cropped = img.crop((0, 0, h, h))
+        cropped.save(path, format="PNG")
+        return True
+    except Exception:
+        return False
+
+
+def _crop_from_source(src: Path, dest: Path) -> bool:
+    """从 Factorio 源文件复制并裁剪。需要 Pillow。"""
+    if not _HAS_PIL:
+        return False
+    try:
+        size = _read_png_size(src)
+        if size is None or size[0] <= size[1]:
+            shutil.copy2(src, dest)
+            return False
+        img = Image.open(src)
+        _, h = img.size
         cropped = img.crop((0, 0, h, h))
         dest.parent.mkdir(parents=True, exist_ok=True)
         cropped.save(dest, format="PNG")
@@ -96,10 +115,9 @@ def _crop_first_mipmap(src: Path, dest: Path) -> bool:
 
 def extract_icon(
     icon_path: str,
-    data_dir: Path,
+    data_dir: Path | None,
     dest_dir: Path,
     *,
-    force: bool = False,
     warn_fn: Callable[[str], None] | None = None,
 ) -> tuple[str | None, str]:
     """提取单个图标。
@@ -107,33 +125,45 @@ def extract_icon(
     Returns:
         (icon_slug, status) — status 为 "new" / "ok" / "cropped" / "needs_pil" / "missing"
     """
-    src = resolve_icon_file(icon_path, data_dir)
-    if not src:
-        return None, "missing"
     slug = icon_slug_from_path(icon_path)
     dest = dest_dir / f"{slug}.png"
+    src = resolve_icon_file(icon_path, data_dir) if data_dir else None
 
-    if dest.is_file():
-        if _png_is_mipmap_strip(dest):
-            if _crop_first_mipmap(src, dest):
-                return slug, "cropped"
-            else:
+    if src:
+        if dest.is_file():
+            if _png_is_mipmap_strip(dest):
+                if _crop_from_source(src, dest):
+                    return slug, "cropped"
                 if warn_fn:
-                    warn_fn(f"图标 {slug} 是 mipmap 条带但裁剪失败（需安装 Pillow）")
+                    warn_fn(f"{slug}: 检测到 mipmap 条带但无法从源文件裁剪（Pillow 未安装？）")
                 return slug, "needs_pil"
-        return slug, "ok"
+            return slug, "ok"
+        else:
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            if _png_is_mipmap_strip(src):
+                if _crop_from_source(src, dest):
+                    return slug, "new"
+                if warn_fn:
+                    warn_fn(f"{slug}: 源文件是 mipmap 条带但无法裁剪（Pillow 未安装？）")
+                return slug, "needs_pil"
+            shutil.copy2(src, dest)
+            return slug, "new"
+    else:
+        # Factorio 源不可用：尝试修复本地已有的 mipmap 条带
+        if dest.is_file():
+            if _png_is_mipmap_strip(dest):
+                if _crop_png_to_first_mipmap(dest):
+                    return slug, "cropped"
+                if warn_fn:
+                    warn_fn(f"{slug}: 本地图标是 mipmap 条带但无法裁剪（Pillow 未安装？）")
+                return slug, "needs_pil"
+            return slug, "ok"
+        if warn_fn:
+            warn_fn(f"{slug}: 找不到源文件且本地无缓存")
+        return slug, "missing"
 
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(src, dest)
-    if _png_is_mipmap_strip(src):
-        if _crop_first_mipmap(src, dest):
-            return slug, "cropped"
-        elif warn_fn:
-            warn_fn(f"图标 {slug} 是 mipmap 条带但裁剪失败（需安装 Pillow）")
-    return slug, "new"
 
-
-def extract_icon_from_proto(proto: dict, data_dir: Path, dest_dir: Path) -> str | None:
+def extract_icon_from_proto(proto: dict, data_dir: Path | None, dest_dir: Path) -> str | None:
     icon_path = proto.get("icon")
     if icon_path:
         slug, _ = extract_icon(str(icon_path), data_dir, dest_dir)
@@ -155,8 +185,10 @@ def resolve_data_dir_from_exe(exe_path: Path | None) -> Path | None:
     return data_dir if data_dir.is_dir() else None
 
 
-def ensure_icons_extracted_from_db(icons_dir: Path, *, force: bool = False) -> dict[str, int]:
+def ensure_icons_extracted_from_db(icons_dir: Path) -> dict[str, int]:
     """扫描数据库中所有 icon 路径，补充/修复图标文件。
+
+    即使 Factorio 可执行文件不可用，也会尝试修复本地已有的 mipmap 条带。
 
     Returns:
         {"new": n, "ok": n, "cropped": n, "needs_pil": n, "missing": n}
@@ -166,9 +198,6 @@ def ensure_icons_extracted_from_db(icons_dir: Path, *, force: bool = False) -> d
 
     data_dir = resolve_data_dir_from_exe(load_paths().executable)
     stats: dict[str, int] = {"new": 0, "ok": 0, "cropped": 0, "needs_pil": 0, "missing": 0}
-
-    if not data_dir:
-        return stats
 
     conn = get_connection()
     try:
@@ -185,7 +214,7 @@ def ensure_icons_extracted_from_db(icons_dir: Path, *, force: bool = False) -> d
 
     for row in rows:
         icon_path = str(row["icon"])
-        slug, status = extract_icon(icon_path, data_dir, icons_dir, force=force, warn_fn=_warn)
+        slug, status = extract_icon(icon_path, data_dir, icons_dir, warn_fn=_warn)
         if slug:
             stats[status] = stats.get(status, 0) + 1
 
@@ -194,4 +223,20 @@ def ensure_icons_extracted_from_db(icons_dir: Path, *, force: bool = False) -> d
     if len(warnings) > 3:
         print(f"  [icon] ... 还有 {len(warnings) - 3} 个同类警告")
 
+    return stats
+
+
+def fix_existing_icons(icons_dir: Path) -> dict[str, int]:
+    """不访问数据库，直接扫描本地 icons 目录并修复所有 mipmap 条带。"""
+    stats = {"cropped": 0, "needs_pil": 0, "ok": 0}
+    if not icons_dir.is_dir():
+        return stats
+    for f in icons_dir.glob("*.png"):
+        if _png_is_mipmap_strip(f):
+            if _crop_png_to_first_mipmap(f):
+                stats["cropped"] += 1
+            else:
+                stats["needs_pil"] += 1
+        else:
+            stats["ok"] += 1
     return stats
