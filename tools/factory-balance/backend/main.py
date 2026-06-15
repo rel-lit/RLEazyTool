@@ -28,9 +28,18 @@ async def lifespan(_app: FastAPI):
 
     from core.icon_assets import ensure_icons_extracted_from_db
 
-    extracted = ensure_icons_extracted_from_db(ICONS_DIR)
-    if extracted:
-        print(f"  已补充提取 {extracted} 个物品图标。")
+    stats = ensure_icons_extracted_from_db(ICONS_DIR)
+    total = sum(stats.values())
+    if total:
+        parts = []
+        if stats.get("cropped"):
+            parts.append(f"已裁剪 {stats['cropped']} 个 mipmap 条带")
+        if stats.get("new"):
+            parts.append(f"新增 {stats['new']} 个")
+        if stats.get("needs_pil"):
+            parts.append(f"{stats['needs_pil']} 个需 Pillow 裁剪")
+        if parts:
+            print(f"  图标: {', '.join(parts)}（共 {total} 个）")
 
     yield
 
