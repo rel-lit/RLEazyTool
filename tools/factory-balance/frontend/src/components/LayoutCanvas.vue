@@ -2,7 +2,7 @@
 import { computed, inject, onMounted, onUnmounted, provide, ref, toRef } from "vue";
 import { VueFlow } from "@vue-flow/core";
 import type { LayoutEdge, LayoutNode } from "../api/client";
-import { canvasLayoutHooksKey } from "../app/useApp";
+import { canvasLayoutHooksKey, layoutInspectionKey } from "../app/useApp";
 import { Background } from "@vue-flow/background";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
@@ -24,22 +24,17 @@ import {
   type LayoutDirection,
 } from "../layout/layoutTypes";
 import { layoutMaxLayer } from "../layout/nodeVisual";
-import type { CanvasRegionTarget } from "../ui/interaction/canvas/types";
 
 const props = defineProps<{
   nodes: LayoutNode[];
   edges: LayoutEdge[];
   productEdges: LayoutEdge[];
   hiddenEdges: LayoutEdge[];
-  selectedEdgeId: string | null;
   layoutDirection?: LayoutDirection;
 }>();
 
-const emit = defineEmits<{
-  primary: [target: CanvasRegionTarget];
-}>();
-
 const canvasHooks = inject(canvasLayoutHooksKey)!;
+const inspection = inject(layoutInspectionKey)!;
 
 const direction = computed(
   () => props.layoutDirection ?? DEFAULT_LAYOUT_DIRECTION
@@ -56,7 +51,8 @@ const region = useLayoutCanvasRegion({
     productEdges: toRef(props, "productEdges"),
     hiddenEdges: toRef(props, "hiddenEdges"),
   },
-  onPrimary: (target) => emit("primary", target),
+  pin: inspection.pin,
+  onPrimary: (target) => inspection.handlePrimary(target),
 });
 
 provide(
@@ -72,7 +68,7 @@ const canvasLayout = useCanvasLayout({
   nodes: toRef(props, "nodes"),
   edges: toRef(props, "edges"),
   hiddenEdges: toRef(props, "hiddenEdges"),
-  selectedEdgeId: toRef(props, "selectedEdgeId"),
+  selectedEdgeId: inspection.selectedEdgeId,
   highlight: region.highlight,
   overlayKey: region.overlayKey,
 });

@@ -4,27 +4,41 @@ import type { AppContext } from "../context";
 export function wireLayout(ctx: AppContext, actions: AppActions): () => void {
   const off1 = ctx.bus.on("ProgressChanged", () => {
     ctx.layout.reset();
+    ctx.layoutInspection.clear();
+    ctx.layoutInspection.setLayout(null);
     ctx.listLayoutMark.clearLayoutSnapshot();
   });
   const off2 = ctx.bus.on("ProgressCleared", () => {
     ctx.layout.reset();
+    ctx.layoutInspection.clear();
+    ctx.layoutInspection.setLayout(null);
     ctx.listLayoutMark.clearLayoutSnapshot();
   });
   const off3 = ctx.bus.on("SelectionChanged", () => {
     ctx.layout.invalidate("selection-changed");
   });
   const off4 = ctx.bus.on("LayoutComputed", (e) => {
-    if (e.layout.analysis?.impossible) return;
+    if (e.layout.analysis?.impossible) {
+      ctx.layoutInspection.clear();
+      ctx.layoutInspection.setLayout(null);
+      return;
+    }
     const request = ctx.layout.boundRequest.value;
     if (request) actions.refreshItemLists(e.layout, request);
   });
   const off5 = ctx.bus.on("LayoutRestoredFromHistory", (e) => {
     ctx.layout.applyLayout(e.layout, e.request);
+    ctx.layoutInspection.clear();
     ctx.canvasLayoutHooks.prepareForNewLayout();
     actions.refreshItemLists(e.layout, e.request);
   });
   const off6 = ctx.bus.on("LayoutComputeStarted", (e) => {
+    ctx.layoutInspection.clear();
     if (e.resetPositions) ctx.canvasLayoutHooks.prepareForNewLayout();
+  });
+  const off7 = ctx.bus.on("LayoutComputeFailed", () => {
+    ctx.layoutInspection.clear();
+    ctx.layoutInspection.setLayout(null);
   });
   return () => {
     off1();
@@ -33,5 +47,6 @@ export function wireLayout(ctx: AppContext, actions: AppActions): () => void {
     off4();
     off5();
     off6();
+    off7();
   };
 }

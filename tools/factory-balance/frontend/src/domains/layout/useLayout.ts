@@ -2,10 +2,8 @@ import { computed, ref, type Ref } from "vue";
 import axios from "axios";
 import {
   computeLayout,
-  type LayoutEdge,
   type LayoutRequest,
   type LayoutResponse,
-  type TapOrderEntry,
 } from "../../api/client";
 import type { AppEventBus } from "../../app/events";
 import type { LayoutPersistence } from "./layoutPersistence";
@@ -22,27 +20,16 @@ export function useLayout(
   boundRequestRef: Ref<LayoutRequest | null>
 ) {
   const layout = ref<LayoutResponse | null>(null);
-  const selectedEdgeId = ref<string | null>(null);
   const loading = ref(false);
   const error = ref("");
   const stale = ref(false);
 
   const boundRequest = boundRequestRef;
 
-  const selectedEdge = computed<LayoutEdge | null>(
-    () => layout.value?.edges.find((e) => e.id === selectedEdgeId.value) ?? null
-  );
-
-  const selectedTap = computed<TapOrderEntry | null>(() => {
-    if (!selectedEdge.value) return null;
-    return layout.value?.tap_orders.find((t) => t.item === selectedEdge.value?.item) ?? null;
-  });
-
   const analysisWarnings = computed(() => layout.value?.warnings ?? []);
 
   function reset(): void {
     layout.value = null;
-    selectedEdgeId.value = null;
     error.value = "";
     stale.value = false;
     boundRequestRef.value = null;
@@ -50,13 +37,8 @@ export function useLayout(
 
   function invalidate(reason: string): void {
     if (layout.value) stale.value = true;
-    selectedEdgeId.value = null;
     error.value = "";
     bus.emit({ type: "LayoutInvalidated", reason });
-  }
-
-  function selectEdge(id: string | null): void {
-    selectedEdgeId.value = id;
   }
 
   async function compute(): Promise<void> {
@@ -66,7 +48,6 @@ export function useLayout(
     }
     loading.value = true;
     error.value = "";
-    selectedEdgeId.value = null;
     stale.value = false;
 
     await persistence.saveBeforeRecompute();
@@ -100,7 +81,6 @@ export function useLayout(
 
   function applyLayout(data: LayoutResponse, request?: LayoutRequest): void {
     layout.value = data;
-    selectedEdgeId.value = null;
     error.value = "";
     stale.value = false;
     if (request) {
@@ -114,16 +94,12 @@ export function useLayout(
   return {
     layout,
     boundRequest,
-    selectedEdgeId,
     loading,
     error,
     stale,
-    selectedEdge,
-    selectedTap,
     analysisWarnings,
     reset,
     invalidate,
-    selectEdge,
     compute,
     applyLayout,
   };

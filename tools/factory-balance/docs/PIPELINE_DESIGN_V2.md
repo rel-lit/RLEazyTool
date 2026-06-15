@@ -437,6 +437,7 @@ interface LayoutComputeResponse {
     analysis_items: string[];
     terminals: string[];
     recipe_assignments: Record<string, string>;
+    recipe_details: Record<string, { line: string; kind: string }>; // V1 检视：DB 展开，见 recipe_display.py
     pseudo_external: string[];   // direct 模式伪外源
     impossible: boolean;
   };
@@ -469,6 +470,8 @@ interface LayoutComputeResponse {
 
 
 SBTO 流动方向：沿链几何 **与 tap_index 递增一致**（已在 `sbtoFlow.ts` 思路，v2 接新 tap 序）。
+
+**钉选检视（V1）：** hover 与 primary 选中分离；信息栏三种模板与列表圈选见 `docs/LAYOUT_INSPECTION_V1.md`。
 
 ### 10.3 Layer P — 布局快照持久化
 

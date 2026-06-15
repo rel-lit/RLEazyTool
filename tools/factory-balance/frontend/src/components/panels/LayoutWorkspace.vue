@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
-import type { LayoutEdge, LayoutResponse, TapOrderEntry } from "../../api/client";
+import { computed, inject, ref, watch } from "vue";
+import type { LayoutResponse } from "../../api/client";
 import LayoutCanvas from "../LayoutCanvas.vue";
+import { layoutInspectionKey } from "../../app/useApp";
 import { UiButton } from "../../ui";
 import { useInfoPanelSplit } from "../../ui/interaction/useInfoPanelSplit";
-import type { CanvasRegionTarget } from "../../ui/interaction/canvas/types";
 
 const props = defineProps<{
   layout: LayoutResponse | null;
@@ -12,15 +12,13 @@ const props = defineProps<{
   loading: boolean;
   error: string;
   analysisWarnings: string[];
-  selectedEdgeId: string | null;
-  selectedEdge: LayoutEdge | null;
-  selectedTap: TapOrderEntry | null;
 }>();
 
-const emit = defineEmits<{
-  selectEdge: [id: string | null];
+defineEmits<{
   compute: [];
 }>();
+
+const inspection = inject(layoutInspectionKey)!;
 
 const canvasRef = ref<InstanceType<typeof LayoutCanvas> | null>(null);
 const stageBodyRef = ref<HTMLElement | null>(null);
@@ -41,32 +39,21 @@ const handleShowClose = computed(
   () => closeVisible.value && !dragging.value && infoHeight.value > 0
 );
 
+const panelModel = computed(() => inspection.panelModel.value);
+
 watch(
   () => props.layout,
   (layout) => {
     if (!layout) closeInfo();
   }
 );
-
-function edgeTypeLabel(type: string): string {
-  if (type === "tap_chain") return "SBTO 链";
-  return "传送带";
-}
-
-function onCanvasPrimary(target: CanvasRegionTarget): void {
-  if (target.kind === "edge") {
-    emit("selectEdge", target.id);
-    return;
-  }
-  emit("selectEdge", null);
-}
 </script>
 
 <template>
   <div class="workspace">
     <div class="workspace-header">
       <h2 class="workspace-title">布局结果</h2>
-      <UiButton variant="primary" :disabled="loading" @primary="emit('compute')">
+      <UiButton variant="primary" :disabled="loading" @primary="$emit('compute')">
         {{ loading ? "计算中…" : "计算自平衡布局" }}
       </UiButton>
     </div>
@@ -93,8 +80,6 @@ function onCanvasPrimary(target: CanvasRegionTarget): void {
             :product-edges="layout.product_edges ?? []"
             :hidden-edges="layout.hidden_edges ?? []"
             :layout-direction="layout.layout_direction ?? 'left-to-right'"
-            :selected-edge-id="selectedEdgeId"
-            @primary="onCanvasPrimary"
           />
           <div v-else class="placeholder">选择产出目标后点击「计算自平衡布局」</div>
         </div>
@@ -144,42 +129,31 @@ function onCanvasPrimary(target: CanvasRegionTarget): void {
           :style="{ height: `${infoHeight}px` }"
         >
           <div class="info-panel__scroll">
-            <div class="info-grid">
-              <div class="tap-panel">
-                <h3>SBTO 取用顺序</h3>
-                <div v-for="t in layout.tap_orders" :key="t.item" class="tap-row">
-                  <strong>{{ t.label }}</strong>
-                  <span>{{ t.order_labels.join(" → ") }}</span>
-                  <p>{{ t.explanation }}</p>
-                </div>
-                <p v-if="!layout.tap_orders.length" class="hint">当前链无共享带竞争。</p>
-              </div>
+            <div class="detail-panel">
+              <h3>检视详情</h3>
+              <template v-if="panelModel">
+                <p class="detail-head">
+                  <strong>{{ panelModel.title }}</strong>
+                  <span class="detail-sub">{{ panelModel.badge }}</span>
+                </p>
+                <section
+                  v-for="(sec, si) in panelModel.sections"
+                  :key="si"
+                  class="detail-section"
+                >
+                  <h4>{{ sec.heading }}</h4>
+                  <p v-for="(line, li) in sec.lines" :key="'l' + li">{{ line }}</p>
+                  <ul v-if="sec.bullets?.length">
+                    <li v-for="(b, bi) in sec.bullets" :key="'b' + bi">{{ b }}</li>
+                  </ul>
+                </section>
+              </template>
+              <p v-else class="hint">点击图中的节点或边查看详情；拖动上方拉手展开本区</p>
 
-              <div class="detail-panel">
-                <h3>边详情</h3>
-                <template v-if="selectedEdge">
-                  <p>
-                    <strong>{{ selectedEdge.label }}</strong>
-                    · {{ edgeTypeLabel(selectedEdge.type) }}
-                  </p>
-                  <p v-if="selectedEdge.tap_index">Tap 序号: {{ selectedEdge.tap_index }}</p>
-                  <p v-if="selectedEdge.note">{{ selectedEdge.note }}</p>
-                  <p v-if="selectedTap">{{ selectedTap.explanation }}</p>
-                </template>
-                <p v-else class="hint">点击图中的边查看 SBTO 说明</p>
-
-                <h3 v-if="layout.warnings.length">警告</h3>
-                <ul v-if="layout.warnings.length">
-                  <li v-for="(w, i) in layout.warnings" :key="i">{{ w }}</li>
-                </ul>
-
-                <h3>扩展占位</h3>
-                <ul class="ext">
-                  <li v-for="(v, k) in layout.extensions" :key="k">
-                    {{ k }}: {{ (v as { placeholder?: string }).placeholder }}
-                  </li>
-                </ul>
-              </div>
+              <h3 v-if="layout.warnings.length">警告</h3>
+              <ul v-if="layout.warnings.length">
+                <li v-for="(w, i) in layout.warnings" :key="i">{{ w }}</li>
+              </ul>
             </div>
           </div>
         </div>
@@ -267,7 +241,7 @@ function onCanvasPrimary(target: CanvasRegionTarget): void {
 
 .canvas-area {
   flex: 1;
-  min-height: var(--shell-info-min-canvas);
+  min-height: 0;
   position: relative;
   border: 1px solid #30363d;
   border-radius: 8px;
@@ -402,42 +376,51 @@ function onCanvasPrimary(target: CanvasRegionTarget): void {
   padding: 12px;
 }
 
-.info-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.tap-panel,
 .detail-panel {
   font-size: 13px;
 }
 
-.tap-panel h3,
 .detail-panel h3 {
   margin: 0 0 8px;
   font-size: 0.95rem;
 }
 
-.tap-row {
-  margin-bottom: 10px;
+.detail-head {
+  margin: 0 0 10px;
+}
+
+.detail-sub {
+  display: block;
+  font-size: 12px;
+  color: #8b949e;
+  font-weight: normal;
+  margin-top: 2px;
+}
+
+.detail-section {
+  margin-bottom: 12px;
   padding-bottom: 8px;
   border-bottom: 1px solid #21262d;
 }
 
-.tap-row p {
-  margin: 4px 0 0;
+.detail-section h4 {
+  margin: 0 0 6px;
+  font-size: 12px;
   color: #8b949e;
+  font-weight: 600;
+}
+
+.detail-section p {
+  margin: 0 0 4px;
+}
+
+.detail-section ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
 }
 
 .hint {
   font-size: 12px;
-  color: #8b949e;
-}
-
-.ext {
-  margin: 0;
-  padding-left: 18px;
   color: #8b949e;
 }
 </style>

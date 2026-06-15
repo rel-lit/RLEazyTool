@@ -425,6 +425,46 @@ import "./ui/interactive.css";
 
 ---
 
+## 13. 布局检视（layout-inspection · V1）
+
+> 正式规范见 **[LAYOUT_INSPECTION_V1.md](./LAYOUT_INSPECTION_V1.md)**。  
+> 画布 hover/pin 高亮与「选中检视对象」分离；列表 layout-mark 与画布钉选圈选分离。
+
+### 13.1 模块边界
+
+| 层 | 路径 | 职责 |
+|----|------|------|
+| 检视会话 | `domains/layout-inspection/createLayoutInspection.ts` | pin、`inspectionTarget`、`panelModel`、`focusView`、`requestRef` |
+| 焦点投影 | `domains/layout-inspection/focusProjection.ts` | 钉选 highlight → 只读 `LayoutFocusView` |
+| 信息栏模型 | `domains/layout-inspection/resolveInspectionPanel.ts` | 徽章「节点/边/SBTO边」；三种 section 模板 |
+| 边介质 | `domains/layout-inspection/flowEdgeKind.ts` | 传送带 / 管道 |
+| 节点角色 | `domains/list-layout-mark/nodeRingRole.ts` | 与镂空环 rim 一致的中文类型 |
+| 配方展开 | `backend/core/recipe_display.py` | `analysis.recipe_details` |
+| 列表圈选 | `domains/item-list/listFocusRing.ts` + `ListChipShell.vue` | 按物品名匹配；SVG 虚线流动 |
+| 画布 | `layout/useLayoutCanvasRegion.ts` | 注入 inspection.pin |
+| 编排 | `app/wire/wireLayout.ts` | 重算/失败 clear；**SelectionChanged 仅 invalidate** |
+
+### 13.2 交互语义
+
+1. **hover**：仅画布 dim，不改信息栏。
+2. **click 节点/边**：pin + 检视模型；**不**自动展开信息栏（用户拖拉手）。
+3. **click 空白**：清除 pin 与检视。
+4. **列表 chip**：镂空环在 `UiChip`；圈选在 `ListChipShell`，两模块零交叉；产出/供给 chip 统一 `sm`。
+5. **列表勾选 / 排序**：不清除 canvas 检视；虚线框按 `item.name` 跟随。
+6. **检视详情**：见 LAYOUT_INSPECTION_V1.md §4（节点「相关配方」；边「基本信息 + 相关配方」；SBTO「链详情」内含配方）。
+
+### 13.3 反模式（旧设计，已废弃）
+
+- `useLayout` 持有 `selectedEdgeId` / `selectEdge` 并经 props 下发
+- 边专用详情 props（`:selected-edge`、`:selected-tap`）
+- 信息栏 click 自动展开或伪造 `PointerEvent`
+- 左侧固定「SBTO 取用顺序」栏
+- `SelectionChanged` → `layoutInspection.clear()`
+- 副标题显示内部 item id（如 `passive-provider-chest`）
+- 圈选 CSS 写在 `UiChip` 内覆盖 layout-mark
+
+---
+
 ## 12. 交互语义层（v2 · UiControl + VueUse）
 
 > Vue 3 无内置 Press/Hover 抽象。**唯一交互入口**为 `ui/primitives/UiControl.vue`；`UiButton` / `UiChip` / `UiIconButton` 仅为样式变体。  

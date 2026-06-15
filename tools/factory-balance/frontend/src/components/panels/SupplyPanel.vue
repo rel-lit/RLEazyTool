@@ -5,6 +5,7 @@ import type { ListLayoutMark } from "../../domains/list-layout-mark";
 import { LIST_LAYOUT_MARK_NONE } from "../../domains/list-layout-mark";
 import { applyListMask } from "../../domains/item-list";
 import { UiChip } from "../../ui";
+import ListChipShell from "../item-list/ListChipShell.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -13,9 +14,11 @@ const props = withDefaults(
     suppliedItems: string[];
     forbiddenItems: string[];
     resolveLayoutMark?: (itemName: string) => ListLayoutMark;
+    canvasFocusRing?: (itemName: string) => boolean;
   }>(),
   {
     resolveLayoutMark: () => () => LIST_LAYOUT_MARK_NONE,
+    canvasFocusRing: () => () => false,
   }
 );
 
@@ -39,18 +42,22 @@ function layoutMarkFor(name: string): ListLayoutMark {
   <section>
     <p class="hint">左键：已知供给 · 右键：禁止供给</p>
     <div class="chip-list">
-      <UiChip
+      <ListChipShell
         v-for="item in visibleItems"
         :key="'s-' + item.name"
-        size="sm"
-        :selected="suppliedItems.includes(item.name)"
-        :forbidden="forbiddenItems.includes(item.name)"
-        :layout-mark="layoutMarkFor(item.name)"
-        @primary="$emit('toggleSupplied', item.name)"
-        @secondary="$emit('toggleForbidden', item.name)"
+        :canvas-focus="canvasFocusRing(item.name)"
       >
-        {{ item.label }}
-      </UiChip>
+        <UiChip
+          size="sm"
+          :selected="suppliedItems.includes(item.name)"
+          :forbidden="forbiddenItems.includes(item.name)"
+          :layout-mark="layoutMarkFor(item.name)"
+          @primary="$emit('toggleSupplied', item.name)"
+          @secondary="$emit('toggleForbidden', item.name)"
+        >
+          {{ item.label }}
+        </UiChip>
+      </ListChipShell>
     </div>
   </section>
 </template>
@@ -60,6 +67,8 @@ function layoutMarkFor(name: string): ListLayoutMark {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  padding: 4px;
+  overflow: visible;
 }
 
 .hint {

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, inject, ref } from "vue";
-import { appActionsKey, itemListKey, listLayoutMarkKey } from "../../app/useApp";
+import { appActionsKey, itemListKey, layoutInspectionKey, listLayoutMarkKey } from "../../app/useApp";
 import type { ItemListTab } from "../../domains/item-list/itemListBundle";
+import { hasListFocusRing } from "../../domains/item-list";
 import { useRegionOutside } from "../../ui";
 import UiScrollRegion from "../../ui/primitives/UiScrollRegion.vue";
 import CatalogPanel from "./CatalogPanel.vue";
@@ -24,6 +25,7 @@ const emit = defineEmits<{
 const actions = inject(appActionsKey)!;
 const itemList = inject(itemListKey)!;
 const listLayoutMark = inject(listLayoutMarkKey)!;
+const layoutInspection = inject(layoutInspectionKey)!;
 
 const activeTab = ref<ItemListTab>("target");
 const tabBarRef = ref<HTMLElement | null>(null);
@@ -38,6 +40,11 @@ function resolveTargetLayoutMark(name: string) {
 function resolveSupplyLayoutMark(name: string) {
   void listLayoutMark.revision.value;
   return listLayoutMark.getListLayoutMark(name, "supply");
+}
+
+function resolveCanvasFocusRing(name: string): boolean {
+  void layoutInspection.revision.value;
+  return hasListFocusRing(name, layoutInspection.focusView.value);
 }
 
 function activeRegionRoot(): HTMLElement | null {
@@ -170,6 +177,7 @@ function onClearSelection(): void {
         :search-query="targetSearchQuery"
         :selected-targets="selectedTargets"
         :resolve-layout-mark="resolveTargetLayoutMark"
+        :canvas-focus-ring="resolveCanvasFocusRing"
         @toggle-target="actions.tapTargetChip($event)"
       />
     </UiScrollRegion>
@@ -185,6 +193,7 @@ function onClearSelection(): void {
         :supplied-items="suppliedItems"
         :forbidden-items="forbiddenItems"
         :resolve-layout-mark="resolveSupplyLayoutMark"
+        :canvas-focus-ring="resolveCanvasFocusRing"
         @toggle-supplied="actions.tapSuppliedChip($event)"
         @toggle-forbidden="actions.tapForbiddenChip($event)"
       />

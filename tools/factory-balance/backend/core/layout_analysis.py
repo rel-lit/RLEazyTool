@@ -14,6 +14,7 @@ def build_layout_analysis_meta(
     pseudo_external: set[str] | list[str],
     impossible: bool,
     max_layer: int | None = None,
+    recipe_details: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """产出 effective_terminals / demoted_outputs 等规范字段。"""
     effective_terminals = list(terminals)
@@ -36,4 +37,6 @@ def build_layout_analysis_meta(
     }
     if max_layer is not None:
         meta["max_layer"] = max_layer
+    if recipe_details is not None:
+        meta["recipe_details"] = recipe_details
     return meta

@@ -5,6 +5,7 @@ import type { ListLayoutMark } from "../../domains/list-layout-mark";
 import { LIST_LAYOUT_MARK_NONE } from "../../domains/list-layout-mark";
 import { applyListMask } from "../../domains/item-list";
 import { UiChip } from "../../ui";
+import ListChipShell from "../item-list/ListChipShell.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -13,9 +14,12 @@ const props = withDefaults(
     selectedTargets: string[];
     /** 由编排层注入；缺省不显示关联标记 */
     resolveLayoutMark?: (itemName: string) => ListLayoutMark;
+    /** 画布钉选子树：列表额外圈选（layout-inspection，与 layout-mark 无关） */
+    canvasFocusRing?: (itemName: string) => boolean;
   }>(),
   {
     resolveLayoutMark: () => () => LIST_LAYOUT_MARK_NONE,
+    canvasFocusRing: () => () => false,
   }
 );
 
@@ -37,16 +41,21 @@ function layoutMarkFor(name: string): ListLayoutMark {
 <template>
   <section>
     <div class="chip-list">
-      <UiChip
+      <ListChipShell
         v-for="item in visibleItems"
         :key="item.name"
-        :selected="selectedTargets.includes(item.name)"
-        :layout-mark="layoutMarkFor(item.name)"
-        @primary="$emit('toggleTarget', item.name)"
+        :canvas-focus="canvasFocusRing(item.name)"
       >
-        {{ item.label }}
-        <span v-if="item.expansion === 'space-age'" class="tag">SA</span>
-      </UiChip>
+        <UiChip
+          size="sm"
+          :selected="selectedTargets.includes(item.name)"
+          :layout-mark="layoutMarkFor(item.name)"
+          @primary="$emit('toggleTarget', item.name)"
+        >
+          {{ item.label }}
+          <span v-if="item.expansion === 'space-age'" class="tag">SA</span>
+        </UiChip>
+      </ListChipShell>
     </div>
   </section>
 </template>
@@ -56,6 +65,8 @@ function layoutMarkFor(name: string): ListLayoutMark {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  padding: 4px;
+  overflow: visible;
 }
 
 .tag {

@@ -64,6 +64,13 @@ export interface TapOrderEntry {
   explanation: string;
 }
 
+export interface RecipeDetailSummary {
+  recipe_name: string;
+  label?: string;
+  line: string;
+  kind: "craft" | "extract" | "unknown";
+}
+
 export interface AnalysisSummary {
   effective_terminals: string[];
   /** @deprecated 与 effective_terminals 相同；旧快照兼容 */
@@ -76,6 +83,7 @@ export interface AnalysisSummary {
   true_pure_sources: string[];
   analysis_items: string[];
   recipe_assignments: Record<string, string>;
+  recipe_details?: Record<string, RecipeDetailSummary>;
   impossible: boolean;
   max_layer?: number;
 }

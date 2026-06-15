@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from core.original_tree import TreeBuildContext, build_original_forest
 from core.rank_assigner import assign_ranks
+from core.recipe_display import build_recipe_details
 from core.recipe_loader import RecipeDatabase, merge_analysis_context
 from core.recipe_pick import pick_recipe_assignments
 from core.layout_analysis import build_layout_analysis_meta
@@ -86,6 +87,7 @@ def run_layout_pipeline(
         recipe_assignments=recipe_assignments,
         pseudo_external=tree_result.pseudo_external,
         impossible=tree_result.impossible,
+        recipe_details=build_recipe_details(recipe_assignments, db),
     )
 
     if tree_result.impossible:

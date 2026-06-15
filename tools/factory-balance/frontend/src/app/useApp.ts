@@ -8,6 +8,7 @@ import { useImportController } from "../domains/import/useImportController";
 import { useLayout } from "../domains/layout/useLayout";
 import { createLayoutPersistence } from "../domains/layout/layoutPersistence";
 import { useLayoutHistory } from "../domains/layout/useLayoutHistory";
+import { createLayoutInspection, type LayoutInspectionModule } from "../domains/layout-inspection";
 import { usePurgeController } from "../domains/purge/usePurgeController";
 import { useSavePicker } from "../domains/save-picker/useSavePicker";
 import { useSelection } from "../domains/selection/useSelection";
@@ -22,6 +23,8 @@ import type { LayoutRequest } from "../api/client";
 export const appActionsKey: InjectionKey<AppActions> = Symbol("appActions");
 export const itemListKey: InjectionKey<ItemListBundle> = Symbol("itemList");
 export const listLayoutMarkKey: InjectionKey<ListLayoutMarkModule> = Symbol("listLayoutMark");
+export const layoutInspectionKey: InjectionKey<LayoutInspectionModule> =
+  Symbol("layoutInspection");
 export const canvasLayoutHooksKey: InjectionKey<CanvasLayoutHooks> = Symbol("canvasLayoutHooks");
 
 export function useApp() {
@@ -34,6 +37,7 @@ export function useApp() {
   const savePicker = useSavePicker(session);
   const itemList = createItemListBundle();
   const listLayoutMark = createListLayoutMark();
+  const layoutInspection = createLayoutInspection();
 
   let layoutModule: ReturnType<typeof useLayout> | undefined;
   const boundRequestRef = ref<LayoutRequest | null>(null);
@@ -62,6 +66,7 @@ export function useApp() {
     catalog,
     selection,
     layout,
+    layoutInspection,
     layoutHistory,
     persistence,
     status,
@@ -94,6 +99,7 @@ export function useApp() {
   provide(appActionsKey, actions);
   provide(itemListKey, reactive(itemList));
   provide(listLayoutMarkKey, listLayoutMark);
+  provide(layoutInspectionKey, layoutInspection);
   provide(canvasLayoutHooksKey, canvasHooks);
 
   return reactive({
@@ -103,6 +109,7 @@ export function useApp() {
     catalog,
     selection,
     layout,
+    layoutInspection,
     layoutHistory,
     status,
     importCtrl,

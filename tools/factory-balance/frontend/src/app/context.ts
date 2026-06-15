@@ -1,6 +1,7 @@
 import type { AppEventBus } from "./events";
 import type { CatalogModule } from "../domains/catalog/useCatalog";
 import type { ItemListBundle } from "../domains/item-list/itemListBundle";
+import type { LayoutInspectionModule } from "../domains/layout-inspection";
 import type { LayoutModule } from "../domains/layout/useLayout";
 import type { LayoutHistoryModule } from "../domains/layout/useLayoutHistory";
 import type { LayoutPersistence } from "../domains/layout/layoutPersistence";
@@ -20,6 +21,7 @@ export interface AppContext {
   catalog: CatalogModule;
   selection: SelectionModule;
   layout: LayoutModule;
+  layoutInspection: LayoutInspectionModule;
   layoutHistory: LayoutHistoryModule;
   persistence: LayoutPersistence;
   status: StatusModule;

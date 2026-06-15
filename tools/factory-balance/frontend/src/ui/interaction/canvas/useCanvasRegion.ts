@@ -1,9 +1,14 @@
 import { computed, type Ref } from "vue";
-import { usePinHighlight } from "../usePinHighlight";
+import {
+  usePinHighlight,
+  type PinHighlightController,
+} from "../usePinHighlight";
 import type { CanvasHighlightResolver, CanvasRegionTarget } from "./types";
 
 export interface UseCanvasRegionOptions<THighlight> {
   resolver: CanvasHighlightResolver<THighlight>;
+  /** 注入外部 pin 控制器（layout-inspection 会话） */
+  pin?: PinHighlightController<THighlight>;
   /** 区内 primary（click）——仅 UI 语义；业务在编排层订阅 */
   onPrimary?: (target: CanvasRegionTarget) => void;
   leaveDelayMs?: number;
@@ -14,7 +19,7 @@ export interface UseCanvasRegionOptions<THighlight> {
  * 高亮 payload 由 layout 层 resolver 提供，本模块不含 SBTO/子树等领域逻辑。
  */
 export function useCanvasRegion<THighlight>(options: UseCanvasRegionOptions<THighlight>) {
-  const pin = usePinHighlight<THighlight>({ leaveDelayMs: options.leaveDelayMs });
+  const pin = options.pin ?? usePinHighlight<THighlight>({ leaveDelayMs: options.leaveDelayMs });
 
   function resolveEdgeHighlight(edgeId: string): THighlight | null {
     return options.resolver.resolveEdge(edgeId);
@@ -66,6 +71,7 @@ export function useCanvasRegion<THighlight>(options: UseCanvasRegionOptions<THig
     highlight: pin.highlight,
     isPinned: pin.isPinned,
     dragging: pin.dragging,
+    pin,
     clear: pin.clear,
     handlers: {
       onNodeEnter,

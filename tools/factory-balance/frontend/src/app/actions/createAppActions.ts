@@ -12,12 +12,22 @@ import type { ItemSortKeyResolver } from "../../domains/item-list/order";
  * 不含 EventBus 订阅；订阅在 app/wire。
  */
 export function createAppActions(ctx: AppContext) {
+  /** 布局快照里的 request 与当前勾选/模式对齐，供排序与标记读取 */
+  function requestForListContext(base: LayoutRequest): LayoutRequest {
+    return {
+      ...base,
+      supply_mode: ctx.selection.supplyMode.value,
+      supplied_items: [...ctx.selection.suppliedItems.value],
+      forbidden_items: [...ctx.selection.forbiddenItems.value],
+    };
+  }
+
   function sortKeyResolverForTab(
     tab: ItemListTab,
     layout: LayoutResponse,
     request: LayoutRequest
   ): ItemSortKeyResolver {
-    const snapshot = { layout, request };
+    const snapshot = { layout, request: requestForListContext(request) };
     return tab === "target"
       ? createTargetSortKeyResolver(snapshot)
       : createSupplySortKeyResolver(snapshot);
@@ -29,12 +39,35 @@ export function createAppActions(ctx: AppContext) {
     return sortKeyResolverForTab(tab, snap.layout, snap.request);
   }
 
+  /** 无布局：字典序；有布局：参与集 tier/layer/rank */
+  function resortItemListsDefault(): void {
+    ctx.itemList.resortTargetTab(new Set(), undefined);
+    ctx.itemList.resortSupplyTab(new Set(), undefined);
+  }
+
+  /** 若已有布局快照，对两侧列表按参与集 + tier/layer/rank 整体重排 */
+  function resortItemListsFromSnapshot(): void {
+    const snap = ctx.listLayoutMark.getLayoutSnapshot();
+    if (!snap) return;
+    ctx.itemList.resortTargetTab(
+      ctx.listLayoutMark.getTargetParticipation(),
+      sortKeyResolverForTab("target", snap.layout, snap.request)
+    );
+    ctx.itemList.resortSupplyTab(
+      ctx.listLayoutMark.getSupplyParticipation(),
+      sortKeyResolverForTab("supply", snap.layout, snap.request)
+    );
+  }
+
   /** 刷新列表：绑定布局关联标记 + 按分析集参与重排（计算/载入布局后调用） */
   function refreshItemLists(layout: LayoutResponse, request: LayoutRequest): void {
     if (layout.analysis?.impossible) {
       ctx.listLayoutMark.clearLayoutSnapshot();
+      ctx.layoutInspection.clear();
+      ctx.layoutInspection.setLayout(null);
       return;
     }
+    ctx.layoutInspection.setLayout(layout, request);
     const manufactureNames = new Set(
       ctx.catalog.manufactureItems.value.map((i) => i.name)
     );
@@ -67,6 +100,11 @@ export function createAppActions(ctx: AppContext) {
       ctx.selection.suppliedItems.value,
       ctx.selection.forbiddenItems.value
     );
+    if (ctx.listLayoutMark.getLayoutSnapshot()) {
+      resortItemListsFromSnapshot();
+    } else {
+      resortItemListsDefault();
+    }
   }
 
   function tapTargetChip(name: string): void {
@@ -123,6 +161,10 @@ export function createAppActions(ctx: AppContext) {
   function setSupplyMode(mode: "raw" | "direct"): void {
     ctx.selection.supplyMode.value = mode;
     ctx.bus.emit({ type: "SelectionChanged", reason: "user-toggle" });
+    ctx.itemList.resortSupplyTab(
+      ctx.listLayoutMark.getSupplyParticipation(),
+      sortKeyResolverFromMark("supply")
+    );
   }
 
   return {

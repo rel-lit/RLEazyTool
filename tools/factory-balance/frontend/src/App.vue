@@ -105,10 +105,6 @@ function onSidebarTabChange(tab: SidebarTab): void {
           :loading="app.layout.loading"
           :error="app.layout.error"
           :analysis-warnings="app.layout.analysisWarnings"
-          :selected-edge-id="app.layout.selectedEdgeId"
-          :selected-edge="app.layout.selectedEdge"
-          :selected-tap="app.layout.selectedTap"
-          @select-edge="app.layout.selectEdge($event)"
           @compute="app.layout.compute()"
         />
       </section>

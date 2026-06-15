@@ -1,13 +1,11 @@
 import type { ItemInfo } from "../../api/client";
 import type { ItemSortKeyResolver } from "./order";
 import {
-  flattenSupplyBuckets,
-  flattenTargetBuckets,
-  sortSupplyBucketWithAnalysisParticipation,
-  sortTargetBucketWithAnalysisParticipation,
+  sortSupplyDisplayOrder,
+  sortTargetDisplayOrder,
 } from "./order";
 import { createItemListSession, type ItemListSession } from "./session";
-import type { ItemListKind, SupplyBuckets, TargetBuckets } from "./types";
+import type { ItemListKind } from "./types";
 
 export type ItemListTab = "target" | "supply";
 
@@ -16,49 +14,6 @@ export function createItemListBundle() {
   const targetSession = createItemListSession("target");
   const supplySession = createItemListSession("supply");
 
-  function sortTargetBuckets(
-    b: TargetBuckets,
-    participation: ReadonlySet<string>,
-    sortKeyResolver?: ItemSortKeyResolver
-  ): TargetBuckets {
-    return {
-      selected: sortTargetBucketWithAnalysisParticipation(
-        b.selected,
-        participation,
-        sortKeyResolver
-      ),
-      normal: sortTargetBucketWithAnalysisParticipation(
-        b.normal,
-        participation,
-        sortKeyResolver
-      ),
-    };
-  }
-
-  function sortSupplyBuckets(
-    b: SupplyBuckets,
-    participation: ReadonlySet<string>,
-    sortKeyResolver?: ItemSortKeyResolver
-  ): SupplyBuckets {
-    return {
-      supplied: sortSupplyBucketWithAnalysisParticipation(
-        b.supplied,
-        participation,
-        sortKeyResolver
-      ),
-      forbidden: sortSupplyBucketWithAnalysisParticipation(
-        b.forbidden,
-        participation,
-        sortKeyResolver
-      ),
-      normal: sortSupplyBucketWithAnalysisParticipation(
-        b.normal,
-        participation,
-        sortKeyResolver
-      ),
-    };
-  }
-
   function applySortToSession(
     session: ItemListSession,
     kind: ItemListKind,
@@ -66,30 +21,27 @@ export function createItemListBundle() {
     participation: ReadonlySet<string>,
     sortKeyResolver?: ItemSortKeyResolver
   ): void {
+    if (!force && !session.dirty.value) return;
+
     if (kind === "target") {
-      if (!force && !session.dirty.value) return;
-      const sorted = sortTargetBuckets(
+      const sorted = sortTargetDisplayOrder(
         session.targetBuckets.value,
         participation,
         sortKeyResolver
       );
-      session.targetBuckets.value = sorted;
-      session.displayOrder.value = flattenTargetBuckets(sorted.selected, sorted.normal);
+      session.targetBuckets.value = sorted.buckets;
+      session.displayOrder.value = sorted.displayOrder;
       session.dirty.value = false;
       return;
     }
-    if (!force && !session.dirty.value) return;
-    const sorted = sortSupplyBuckets(
+
+    const sorted = sortSupplyDisplayOrder(
       session.supplyBuckets.value,
       participation,
       sortKeyResolver
     );
-    session.supplyBuckets.value = sorted;
-    session.displayOrder.value = flattenSupplyBuckets(
-      sorted.supplied,
-      sorted.forbidden,
-      sorted.normal
-    );
+    session.supplyBuckets.value = sorted.buckets;
+    session.displayOrder.value = sorted.displayOrder;
     session.dirty.value = false;
   }
 

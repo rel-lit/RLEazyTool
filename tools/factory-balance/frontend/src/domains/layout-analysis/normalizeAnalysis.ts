@@ -26,6 +26,8 @@ export function normalizeAnalysisSummary(
     demoted_outputs: demoted,
     analysis_items: raw.analysis_items ?? [],
     pseudo_pure_sources: pseudo,
+    recipe_assignments: { ...(raw.recipe_assignments ?? {}) },
+    recipe_details: { ...(raw.recipe_details ?? {}) },
     impossible: Boolean(raw.impossible),
     max_layer: raw.max_layer,
   };
