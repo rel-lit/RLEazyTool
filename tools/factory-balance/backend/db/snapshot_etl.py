@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any
 
 from core.factorio_paths import load_paths
-from core.icon_assets import extract_icon_from_proto, resolve_data_dir_from_exe
 from core.locale_loader import ensure_locale_cache, load_locale_from_install, merge_locale_tables
 from core.prototype_loader import (
     EXTRA_ITEM_TABLES,
@@ -24,7 +23,6 @@ from core.prototype_loader import (
 from db.connection import get_connection
 
 SNAPSHOTS_DIR = Path(__file__).resolve().parent.parent / "data" / "snapshots"
-ICONS_DIR = Path(__file__).resolve().parent.parent / "data" / "icons"
 
 
 def _locale_tables(mod_names: list[str], locale: str) -> dict[str, Any]:
@@ -51,24 +49,6 @@ def _proto_icon_value(proto: dict[str, Any]) -> str | None:
         if isinstance(first, dict) and first.get("icon"):
             return str(first["icon"])
     return None
-
-
-def _extract_all_icons(raw: dict[str, Any], proto_map: dict[str, Any], data_dir: Path) -> int:
-    """批量提取所有资源的图标到本地图标目录。
-
-    Returns:
-        成功提取的图标数量。
-    """
-    extracted: set[str] = set()
-    for name, proto in proto_map.items():
-        if not isinstance(proto, dict) or name.startswith("parameter-"):
-            continue
-        icon_path = _proto_icon_value(proto)
-        if icon_path:
-            slug = extract_icon_from_proto(proto, data_dir, ICONS_DIR)
-            if slug:
-                extracted.add(slug)
-    return len(extracted)
 
 
 def ingest_dump_file(
@@ -313,29 +293,9 @@ def ingest_dump_file(
         )
         conn.commit()
 
-        _extract_snapshot_icons(raw, items, fluids)
-
         return snapshot_id, content_sha
     finally:
         conn.close()
-
-
-def _extract_snapshot_icons(raw: dict[str, Any], items: dict[str, Any], fluids: dict[str, Any]) -> None:
-    """在 ETL 完成后提取图标到本地 data/icons/ 目录。"""
-    paths = load_paths()
-    data_dir = resolve_data_dir_from_exe(paths.executable)
-    if not data_dir:
-        return
-
-    for name, proto in items.items():
-        if not isinstance(proto, dict):
-            continue
-        extract_icon_from_proto(proto, data_dir, ICONS_DIR)
-
-    for name, proto in fluids.items():
-        if not isinstance(proto, dict):
-            continue
-        extract_icon_from_proto(proto, data_dir, ICONS_DIR)
 
 
 def _ensure_recipe_referenced_resources(

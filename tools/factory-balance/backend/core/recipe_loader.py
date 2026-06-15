@@ -43,6 +43,19 @@ class ItemDef:
     kind: str = "item"
     icon_slug: str | None = None
 
+    def to_item_info(self) -> "ItemInfo":
+        """转换为 API 层的 ItemInfo。所有字段映射集中在此处。"""
+        from models.schemas import ItemInfo
+
+        return ItemInfo(
+            name=self.name,
+            label=self.label,
+            group=self.group,
+            is_raw=self.is_raw,
+            expansion=self.expansion,
+            icon_slug=self.icon_slug,
+        )
+
 
 @dataclass
 class RecipeDatabase:

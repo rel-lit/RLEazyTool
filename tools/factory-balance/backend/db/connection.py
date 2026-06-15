@@ -1,59 +1,16 @@
-"""SQLite 连接与 schema_final 初始化。"""
+"""SQLite 连接与基于文件的 schema 迁移。"""
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
 DB_PATH = Path(__file__).resolve().parent.parent / "data" / "factory-balance.db"
 SCHEMA_FILE = Path(__file__).resolve().parent / "schema_final.sql"
+MIGRATIONS_DIR = Path(__file__).resolve().parent / "migrations"
 SCHEMA_VERSION = 5
-
-_MIGRATION_V4 = """
-CREATE TABLE IF NOT EXISTS layout_compute_history (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    save_key        TEXT,
-    env_key         TEXT,
-    catalog_mode    TEXT NOT NULL DEFAULT 'progress',
-    supply_mode     TEXT NOT NULL DEFAULT 'raw',
-    target_summary  TEXT NOT NULL,
-    target_count    INTEGER NOT NULL DEFAULT 0,
-    node_count      INTEGER NOT NULL DEFAULT 0,
-    edge_count      INTEGER NOT NULL DEFAULT 0,
-    tap_count       INTEGER NOT NULL DEFAULT 0,
-    request_json    TEXT NOT NULL,
-    response_json   TEXT NOT NULL,
-    created_at      TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_layout_history_created ON layout_compute_history(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_layout_history_save ON layout_compute_history(save_key);
-"""
-
-_MIGRATION_V5 = """
-DROP TABLE IF EXISTS layout_compute_history;
-DROP TABLE IF EXISTS layout_snapshot;
-CREATE TABLE layout_snapshot (
-    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-    layout_key          TEXT NOT NULL UNIQUE,
-    save_key            TEXT,
-    env_key             TEXT,
-    catalog_mode        TEXT NOT NULL DEFAULT 'progress',
-    supply_mode         TEXT NOT NULL DEFAULT 'raw',
-    target_summary      TEXT NOT NULL,
-    target_count        INTEGER NOT NULL DEFAULT 0,
-    node_count          INTEGER NOT NULL DEFAULT 0,
-    edge_count          INTEGER NOT NULL DEFAULT 0,
-    tap_count           INTEGER NOT NULL DEFAULT 0,
-    request_json        TEXT NOT NULL,
-    response_json       TEXT NOT NULL,
-    user_positions_json TEXT NOT NULL DEFAULT '{}',
-    created_at          TEXT NOT NULL,
-    updated_at          TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_layout_snapshot_updated ON layout_snapshot(updated_at DESC);
-CREATE INDEX IF NOT EXISTS idx_layout_snapshot_save ON layout_snapshot(save_key);
-"""
 
 
 def get_connection() -> sqlite3.Connection:
@@ -73,20 +30,32 @@ def _current_schema_version(conn: sqlite3.Connection) -> int:
         return 0
 
 
+def _discover_migrations() -> list[tuple[int, Path]]:
+    """发现 migrations/ 目录下 NNN_description.sql 形式的脚本，按版本号排序。"""
+    if not MIGRATIONS_DIR.is_dir():
+        return []
+    pattern = re.compile(r"^(\d{3})_.*\.sql$")
+    migrations: list[tuple[int, Path]] = []
+    for path in MIGRATIONS_DIR.iterdir():
+        if not path.is_file():
+            continue
+        match = pattern.match(path.name)
+        if match:
+            migrations.append((int(match.group(1)), path))
+    migrations.sort(key=lambda x: x[0])
+    return migrations
+
+
 def _apply_migrations(conn: sqlite3.Connection, from_version: int) -> None:
     now = datetime.now(timezone.utc).isoformat()
-    if from_version < 4:
-        conn.executescript(_MIGRATION_V4)
+    for version, path in _discover_migrations():
+        if version <= from_version:
+            continue
+        sql = path.read_text(encoding="utf-8")
+        conn.executescript(sql)
         conn.execute(
             "INSERT INTO meta_schema (version, applied_at, note) VALUES (?, ?, ?)",
-            (4, now, "layout_compute_history table"),
-        )
-        from_version = 4
-    if from_version < 5:
-        conn.executescript(_MIGRATION_V5)
-        conn.execute(
-            "INSERT INTO meta_schema (version, applied_at, note) VALUES (?, ?, ?)",
-            (5, now, "layout_snapshot upsert (Layer P)"),
+            (version, now, path.name),
         )
 
 

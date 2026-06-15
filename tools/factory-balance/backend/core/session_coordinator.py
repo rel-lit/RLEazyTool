@@ -6,21 +6,15 @@ from dataclasses import dataclass
 
 from core.game_session import SESSION
 from core.progress_export import export_progress_from_save
+from core.recipe_loader import ItemDef
 from db.app_state import purge_stale
 from db.environment_store import has_any_environment, list_environments
 from db.save_store import get_enabled_recipe_names, get_save_binding, active_progress_stale, is_save_progress_stale, get_game_save_path
 from models.schemas import ItemCatalogResponse, ItemInfo, ProgressResponse, PurgeCacheResponse
 
 
-def _item_info(i) -> ItemInfo:
-    return ItemInfo(
-        name=i.name,
-        label=i.label,
-        group=i.group,
-        is_raw=i.is_raw,
-        expansion=i.expansion,
-        icon_slug=getattr(i, "icon_slug", None),
-    )
+def _item_info(i: ItemDef) -> ItemInfo:
+    return i.to_item_info()
 
 
 def build_catalog_response(scope: str = "save") -> ItemCatalogResponse:

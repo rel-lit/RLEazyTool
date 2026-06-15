@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from core.icon_assets import icon_slug_from_path
+from core.icon_store import icon_slug_from_path
 from core.item_catalog import ItemCatalog
 from core.recipe_loader import ItemDef
 from db.connection import get_connection

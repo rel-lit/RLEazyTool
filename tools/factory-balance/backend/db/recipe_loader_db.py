@@ -6,7 +6,7 @@ from __future__ import annotations
 
 
 
-from core.icon_assets import icon_slug_from_path
+from core.icon_store import icon_slug_from_path
 from core.recipe_loader import ItemDef, ItemStack, Recipe, RecipeDatabase, _finalize_database
 from db.extraction_etl import EXTRACT_RECIPE_PREFIX
 from db.connection import get_connection

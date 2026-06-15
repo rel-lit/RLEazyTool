@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from console_encoding import configure_console_utf8
 
@@ -17,6 +16,8 @@ from fastapi.staticfiles import StaticFiles
 from api.layout import router as layout_router
 from api.progress import router as progress_router
 from api.recipes import router as recipes_router
+from core.icon_store import ICONS_DIR, count_icons, count_mipmap_strips, ensure_icons_dir
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -26,26 +27,13 @@ async def lifespan(_app: FastAPI):
     init_db(reset=False)
     SESSION.restore()
 
-    from core.icon_assets import ensure_icons_extracted_from_db, fix_existing_icons
-
-    db_stats = ensure_icons_extracted_from_db(ICONS_DIR)
-    local_stats = fix_existing_icons(ICONS_DIR)
-    total = sum(db_stats.values()) + sum(local_stats.values())
-    if total:
-        parts = []
-        total_cropped = db_stats.get("cropped", 0) + local_stats.get("cropped", 0)
-        total_new = db_stats.get("new", 0)
-        total_needs_pil = db_stats.get("needs_pil", 0) + local_stats.get("needs_pil", 0)
-        if total_cropped:
-            parts.append(f"已裁剪 {total_cropped} 个 mipmap 条带")
-        if total_new:
-            parts.append(f"新增 {total_new} 个")
-        if total_needs_pil:
-            parts.append(f"{total_needs_pil} 个需 Pillow 裁剪")
-        if parts:
-            print(f"  图标: {', '.join(parts)}（共 {total} 个）")
-        else:
-            print(f"  图标: {total} 个文件已就绪")
+    ensure_icons_dir()
+    icon_count = count_icons()
+    strip_count = count_mipmap_strips()
+    if strip_count:
+        print(f"  图标: {icon_count} 个文件，其中 {strip_count} 个仍是 mipmap 条带。请运行 scripts/prepare_icons.py 修复。")
+    elif icon_count:
+        print(f"  图标: {icon_count} 个文件已就绪")
 
     yield
 
@@ -70,8 +58,10 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-ICONS_DIR = Path(__file__).resolve().parent / "data" / "icons"
-ICONS_DIR.mkdir(parents=True, exist_ok=True)
+# 注意：mount 顺序决定匹配优先级。
+# /api/v1/static/icons 必须在前端 catch-all "/" 之前注册，
+# 否则前端 SPA 会把图标请求当作路由并返回 index.html/404。
+ensure_icons_dir()
 app.mount("/api/v1/static/icons", StaticFiles(directory=str(ICONS_DIR)), name="icons")
 
 FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
