@@ -19,6 +19,7 @@ def _item_info(i) -> ItemInfo:
         group=i.group,
         is_raw=i.is_raw,
         expansion=i.expansion,
+        icon_slug=getattr(i, "icon_slug", None),
     )
 
 

@@ -4,9 +4,19 @@ from __future__ import annotations
 
 import json
 
+from core.icon_assets import icon_slug_from_path
 from core.item_catalog import ItemCatalog
 from core.recipe_loader import ItemDef
 from db.connection import get_connection
+
+
+def _derive_icon_slug(icon_path: str | None) -> str | None:
+    if not icon_path:
+        return None
+    try:
+        return icon_slug_from_path(icon_path)
+    except (ValueError, IndexError):
+        return None
 
 
 def _rows_for_panel(
@@ -35,7 +45,7 @@ def _rows_for_panel(
 
     rows = conn.execute(
         """
-        SELECT sr.name, sr.is_raw, sr.expansion, sr.item_subgroup,
+        SELECT sr.name, sr.is_raw, sr.expansion, sr.item_subgroup, sr.icon,
                srt.label,
                GROUP_CONCAT(ct.tag_code) AS tags
         FROM catalog_tag ct
@@ -53,6 +63,8 @@ def _rows_for_panel(
         tag_set = set((r["tags"] or "").split(",")) if r["tags"] else {require_tag}
         if tag_set & exclude:
             continue
+        icon_path = r["icon"]
+        icon_slug = _derive_icon_slug(icon_path) if icon_path else None
         out.append(
             ItemDef(
                 name=r["name"],
@@ -60,6 +72,7 @@ def _rows_for_panel(
                 is_raw=bool(r["is_raw"]),
                 expansion=r["expansion"] or "base",
                 group=r["item_subgroup"],
+                icon_slug=icon_slug,
             )
         )
     return out

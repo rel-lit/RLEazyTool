@@ -13,6 +13,7 @@ const props = withDefaults(
     disabled?: boolean;
     type?: "button" | "submit";
     layoutMark?: ListLayoutMark;
+    iconUrl?: string | null;
   }>(),
   {
     selected: false,
@@ -21,6 +22,7 @@ const props = withDefaults(
     disabled: false,
     type: "button",
     layoutMark: () => ({ kind: "none", ring: "intermediate" }),
+    iconUrl: null,
   }
 );
 
@@ -58,7 +60,12 @@ const layoutMarkStyle = computed(() => {
     :type="type"
     suppress-context-menu
   >
-    <span class="ui-chip__label"><slot /></span>
+    <span class="ui-chip__label">
+      <span v-if="iconUrl" class="ui-chip__icon" aria-hidden="true">
+        <img :src="iconUrl" alt="" loading="lazy" />
+      </span>
+      <slot />
+    </span>
     <span
       v-if="showLayoutMark"
       :class="layoutMarkClasses"

@@ -140,6 +140,7 @@ export interface ItemInfo {
   label: string;
   is_raw: boolean;
   expansion?: string | null;
+  icon_slug?: string | null;
 }
 
 export interface SaveInfo {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { ItemInfo } from "../../api/client";
+import { resolveItemIconUrl } from "../../api/iconUrl";
 import type { ListLayoutMark } from "../../domains/list-layout-mark";
 import { LIST_LAYOUT_MARK_NONE } from "../../domains/list-layout-mark";
 import { applyListMask } from "../../domains/item-list";
@@ -52,6 +53,7 @@ function layoutMarkFor(name: string): ListLayoutMark {
           :selected="suppliedItems.includes(item.name)"
           :forbidden="forbiddenItems.includes(item.name)"
           :layout-mark="layoutMarkFor(item.name)"
+          :icon-url="resolveItemIconUrl(item.icon_slug)"
           @primary="$emit('toggleSupplied', item.name)"
           @secondary="$emit('toggleForbidden', item.name)"
         >

@@ -148,6 +148,7 @@ class ItemInfo(BaseModel):
     group: str | None = None
     is_raw: bool = False
     expansion: str | None = None  # base | space-age
+    icon_slug: str | None = None
 
 
 class RecipeInfo(BaseModel):

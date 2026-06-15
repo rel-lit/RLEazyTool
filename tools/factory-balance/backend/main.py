@@ -51,3 +51,7 @@ def health() -> dict[str, str]:
 FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 if FRONTEND_DIST.is_dir():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIST), html=True), name="frontend")
+
+ICONS_DIR = Path(__file__).resolve().parent / "data" / "icons"
+ICONS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/api/v1/static/icons", StaticFiles(directory=str(ICONS_DIR)), name="icons")

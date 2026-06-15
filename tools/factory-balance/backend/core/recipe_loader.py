@@ -41,6 +41,7 @@ class ItemDef:
     expansion: str = "base"
     group: str | None = None
     kind: str = "item"
+    icon_slug: str | None = None
 
 
 @dataclass

@@ -404,6 +404,41 @@
   padding-right: var(--ui-chip-mark-gap, 7px);
 }
 
+/* ── 图标：左半胶囊，与外层芯片左弧同心 ── */
+.ui-chip__icon {
+  display: flex;
+  align-items: center;
+  width: 1.25em;
+  height: 1.25em;
+  border-radius: 50% 0 0 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  margin-right: 4px;
+  position: relative;
+  z-index: 1;
+  background: var(--ui-bg-control);
+}
+
+.ui-chip__icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: auto;
+}
+
+.ui-chip--on .ui-chip__icon {
+  background: var(--ui-chip-on-bg);
+}
+
+.ui-chip--forbidden .ui-chip__icon {
+  background: var(--ui-chip-forbidden-bg);
+}
+
+.ui-chip--has-layout-mark .ui-chip__icon {
+  background: var(--ui-bg-panel);
+}
+
 /* ── 列表项—布局关联标记：单环（background 内盘 + border 外 rim） ── */
 .ui-chip__layout-mark {
   position: absolute;

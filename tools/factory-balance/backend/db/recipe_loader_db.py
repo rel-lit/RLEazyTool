@@ -6,6 +6,7 @@ from __future__ import annotations
 
 
 
+from core.icon_assets import icon_slug_from_path
 from core.recipe_loader import ItemDef, ItemStack, Recipe, RecipeDatabase, _finalize_database
 from db.extraction_etl import EXTRACT_RECIPE_PREFIX
 from db.connection import get_connection
@@ -72,7 +73,7 @@ def load_recipe_database(
 
             """
 
-            SELECT sr.name, sr.kind, sr.item_subgroup, sr.is_raw, sr.expansion, srt.label
+            SELECT sr.name, sr.kind, sr.item_subgroup, sr.is_raw, sr.expansion, sr.icon, srt.label
 
             FROM snap_resource sr
 
@@ -85,6 +86,14 @@ def load_recipe_database(
             (snapshot_id,),
 
         ).fetchall()
+
+        def _slug(icon_path: str | None) -> str | None:
+            if not icon_path:
+                return None
+            try:
+                return icon_slug_from_path(icon_path)
+            except (ValueError, IndexError):
+                return None
 
         items = {
 
@@ -101,6 +110,8 @@ def load_recipe_database(
                 group=r["item_subgroup"],
 
                 kind=r["kind"] or "item",
+
+                icon_slug=_slug(r["icon"]),
 
             )
 
