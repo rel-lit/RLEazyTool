@@ -76,18 +76,21 @@ export function useLayout(
 
   async function resolveAndCompute(
     body: LayoutRequest,
-    confirmedAssignments: Record<string, string>
+    confirmedAssignments: Record<string, string>,
+    skipPreview = false
   ): Promise<void> {
     try {
-      const preview = await previewLayoutRecipes(body);
-      if (preview.ambiguous_items.length > 0) {
-        pendingRecipePreview.value = {
-          request: body,
-          items: preview.ambiguous_items,
-          confirmedAssignments,
-        };
-        loading.value = false;
-        return;
+      if (!skipPreview) {
+        const preview = await previewLayoutRecipes(body);
+        if (preview.ambiguous_items.length > 0) {
+          pendingRecipePreview.value = {
+            request: body,
+            items: preview.ambiguous_items,
+            confirmedAssignments,
+          };
+          loading.value = false;
+          return;
+        }
       }
 
       layout.value = await computeLayout(body);
@@ -120,7 +123,8 @@ export function useLayout(
     body.recipe_assignments = merged;
     pendingRecipePreview.value = null;
     loading.value = true;
-    void resolveAndCompute(body, merged);
+    // 用户确认后不再级联弹窗，避免复杂产链出现“死循环”式询问
+    void resolveAndCompute(body, merged, true);
   }
 
   function cancelRecipePreview(): void {
