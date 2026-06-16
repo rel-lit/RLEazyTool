@@ -59,6 +59,11 @@ def _choose_recipe(product: str, ctx: TreeBuildContext) -> str | None:
     if product in ctx.recipe_assignments:
         return ctx.recipe_assignments[product]
 
+    # P1 特化：forbidden 物品必须作为工厂产物展开，不能用采集配方变成世界来源叶子
+    if product in ctx.forbidden:
+        names = ctx.db.primary_manufacturing_recipe_names_for(product)
+        return names[0] if names else None
+
     # P5：RAW 模式优先用 extraction recipe
     if ctx.supply_mode == SupplyMode.RAW:
         ext = ctx.db.default_extraction_recipe_for(product)
@@ -106,13 +111,14 @@ def _resolve_leaf(
     item: str,
     ctx: TreeBuildContext,
 ) -> tuple[str, str | None]:
-    # P1：forbidden 物品必须展开
+    # P1：forbidden 物品不能作为外部叶子，必须用工厂配方展开。
+    # 若仅有采集配方（会变成世界来源叶子）或完全无配方，则失败。
     if item in ctx.forbidden:
-        if _can_expand(item, ctx):
+        if ctx.db.is_factory_obtainable(item):
             return "expand", None
         return (
             "fail",
-            f"无法构建树：「{ctx.labels.get(item, item)}」已禁止作为外源且无法通过配方展开",
+            f"无法构建树：「{ctx.labels.get(item, item)}」已禁止供给且仅有采集来源/无配方，无法通过工厂配方展开",
         )
 
     # P0：用户供给 = 外部叶子
