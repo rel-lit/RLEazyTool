@@ -144,6 +144,7 @@ def preview_recipe_choices(
     labels: dict[str, str],
     *,
     user_supplied: set[str] | None = None,
+    forbidden: set[str] | None = None,
     user_assignments: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """返回需要用户确认的配方选择预览列表。
@@ -151,10 +152,13 @@ def preview_recipe_choices(
     每个条目包含：item, label, default_recipe, options[{recipe_name, label, line, kind}]
 
     user_supplied: 用户已声明为外部供给的物品，不再询问其配方。
+    forbidden: 用户禁止作为外部来源的物品；只能用工厂配方展开。
     user_assignments: 用户已确认的 item -> recipe 映射；用于计算级联歧义。
     """
     user_supplied = user_supplied or set()
+    forbidden = forbidden or set()
     user_assignments = user_assignments or {}
+    root_set = set(roots)
     ambiguous: list[dict[str, Any]] = []
     queue = [r for r in roots if r in data_source]
     seen: set[str] = set()
@@ -164,6 +168,23 @@ def preview_recipe_choices(
             continue
         seen.add(p)
         if p not in expandable:
+            continue
+
+        # DIRECT 模式：只有终端产物(root) 和 forbidden 才展开；其余未供给物品作为叶子
+        if supply_mode == SupplyMode.DIRECT and p not in root_set and p not in forbidden:
+            continue
+
+        # forbidden 物品：只能用工厂配方展开；若有多个工厂配方则询问
+        if p in forbidden:
+            names = db.primary_manufacturing_recipe_names_for(p)
+            if len(names) > 1:
+                ambiguous.append(_build_ambiguity_entry(p, names, db, labels, supply_mode))
+            elif len(names) == 1:
+                recipe = db.recipes.get(names[0])
+                if recipe is not None:
+                    for ing in _ingredient_names(recipe):
+                        if ing in data_source:
+                            queue.append(ing)
             continue
 
         # 用户已确认：直接展开

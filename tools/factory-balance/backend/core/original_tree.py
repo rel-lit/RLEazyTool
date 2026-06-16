@@ -125,21 +125,21 @@ def _resolve_leaf(
     if item in ctx.user_supplied:
         return "stop_true", None
 
-    # P2：用户显式指定了 recipe，按 recipe 展开（覆盖模式默认）
-    if item in ctx.recipe_assignments and _can_expand(item, ctx):
-        return "expand", None
-
-    # P5/P6：模式默认
-    if _can_expand(item, ctx):
-        if ctx.supply_mode == SupplyMode.RAW and _is_world_leaf(item, ctx):
-            return "stop_true", None
-        return "expand", None
-
-    # DIRECT 模式下无法展开的未供给中间产物 = 伪外部供给
+    # P3：DIRECT 模式下，非供给、非禁止的物品一律作为伪外部供给叶子，不展开
     if ctx.supply_mode == SupplyMode.DIRECT:
         return "stop_pseudo", None
 
-    # RAW 模式下无配方也无世界来源 = 世界供给叶子（或 impossible 后续处理）
+    # P2：RAW 模式下用户显式指定了 recipe，按 recipe 展开（覆盖模式默认）
+    if item in ctx.recipe_assignments and _can_expand(item, ctx):
+        return "expand", None
+
+    # P5/P6：RAW 模式默认
+    if _can_expand(item, ctx):
+        if _is_world_leaf(item, ctx):
+            return "stop_true", None
+        return "expand", None
+
+    # RAW 模式下无配方也无世界来源 = 世界供给叶子
     return "stop_true", None
 
 

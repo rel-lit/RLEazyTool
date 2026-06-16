@@ -174,6 +174,7 @@ def preview_layout_recipes(
         return RecipeAssignmentPreviewResponse(ambiguous_items=[], warnings=[])
 
     u_sup = set(request.supplied_items) - set(request.forbidden_items)
+    u_forbid = set(request.forbidden_items)
 
     ambiguous = preview_recipe_choices(
         declared,
@@ -183,6 +184,7 @@ def preview_layout_recipes(
         request.supply_mode,
         labels,
         user_supplied=u_sup,
+        forbidden=u_forbid,
         user_assignments=request.recipe_assignments or None,
     )
     return RecipeAssignmentPreviewResponse(
