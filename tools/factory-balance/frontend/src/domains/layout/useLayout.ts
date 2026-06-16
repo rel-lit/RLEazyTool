@@ -165,8 +165,8 @@ export function useLayout(
 
     pendingRecipePreview.value = null;
     loading.value = true;
-    // 用户确认后直接计算，不再级联 preview，避免死循环
-    void resolveAndCompute(body, merged, true);
+    // 继续 preview：后端只返回新的 frontier 歧义，已确认项会被跳过，因此不会循环
+    void resolveAndCompute(body, merged, false);
   }
 
   function cancelRecipePreview(): void {

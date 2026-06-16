@@ -155,7 +155,7 @@ def preview_recipe_choices(
     """
     user_supplied = user_supplied or set()
     user_assignments = user_assignments or {}
-    products: set[str] = set()
+    ambiguous: list[dict[str, Any]] = []
     queue = [r for r in roots if r in data_source]
     seen: set[str] = set()
     while queue:
@@ -165,44 +165,65 @@ def preview_recipe_choices(
         seen.add(p)
         if p not in expandable:
             continue
-        rname = user_assignments.get(p)
-        if rname is None:
-            try:
-                rname = _default_primary(p, db, supply_mode)
-            except KeyError:
-                continue
-        products.add(p)
-        for ing in _ingredient_names(db.recipes[rname]):
-            if ing in data_source:
-                queue.append(ing)
 
-    ambiguous: list[dict[str, Any]] = []
-    for p in sorted(products):
-        names = db.primary_recipe_names_for(p)
-        if len(names) <= 1:
-            continue
-        default_rname = _default_primary(p, db, supply_mode)
-        options: list[dict[str, Any]] = []
-        for rname in names:
+        # 用户已确认：直接展开
+        if p in user_assignments:
+            rname = user_assignments[p]
             recipe = db.recipes.get(rname)
             if recipe is None:
                 continue
-            kind = recipe.recipe_type.value
-            option_label = recipe.label or rname
-            options.append({
-                "recipe_name": rname,
-                "label": option_label,
-                "line": _format_recipe_line(recipe, labels),
-                "kind": kind,
-            })
-        if len(options) > 1:
-            ambiguous.append({
-                "item": p,
-                "label": labels.get(p, p),
-                "default_recipe": default_rname,
-                "options": options,
-            })
+            for ing in _ingredient_names(recipe):
+                if ing in data_source:
+                    queue.append(ing)
+            continue
+
+        names = db.primary_recipe_names_for(p)
+        if not names:
+            continue
+
+        # 多个 recipe 且未确认：作为当前 frontier 歧义返回，不再继续展开
+        # （等用户确认后再决定走哪条分支）
+        if len(names) > 1:
+            ambiguous.append(_build_ambiguity_entry(p, names, db, labels, supply_mode))
+            continue
+
+        # 只有一个 recipe：直接展开
+        rname = names[0]
+        recipe = db.recipes.get(rname)
+        if recipe is None:
+            continue
+        for ing in _ingredient_names(recipe):
+            if ing in data_source:
+                queue.append(ing)
+
     return ambiguous
+
+
+def _build_ambiguity_entry(
+    p: str,
+    names: list[str],
+    db: RecipeDatabase,
+    labels: dict[str, str],
+    supply_mode: SupplyMode,
+) -> dict[str, Any]:
+    default_rname = _default_primary(p, db, supply_mode)
+    options: list[dict[str, Any]] = []
+    for rname in names:
+        recipe = db.recipes.get(rname)
+        if recipe is None:
+            continue
+        options.append({
+            "recipe_name": rname,
+            "label": recipe.label or rname,
+            "line": _format_recipe_line(recipe, labels),
+            "kind": recipe.recipe_type.value,
+        })
+    return {
+        "item": p,
+        "label": labels.get(p, p),
+        "default_recipe": default_rname,
+        "options": options,
+    }
 
 
 def _format_recipe_line(recipe, labels: dict[str, str]) -> str:
