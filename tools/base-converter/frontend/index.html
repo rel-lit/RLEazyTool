@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>计组计算题可视化工具</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>计组计算题可视化工具</h1>
+        <p>进制转换 · 机器码 · 定点补码运算 · 浮点加减</p>
+    </header>
+
+    <nav class="tabs">
+        <button class="tab-button active" data-tab="base">进制转换</button>
+        <button class="tab-button" data-tab="machine">机器码</button>
+        <button class="tab-button" data-tab="fixed">定点补码运算</button>
+        <button class="tab-button" data-tab="float">浮点加减</button>
+        <button class="tab-button" data-tab="ieee754">浮点转换</button>
+    </nav>
+
+    <main>
+        <!-- 进制转换 -->
+        <section id="tab-base" class="tab-content active">
+            <div class="panel">
+                <h2>进制转换</h2>
+                <form id="form-base">
+                    <div class="form-row">
+                        <label>
+                            数值
+                            <input type="text" name="value" placeholder="例如：13.625 或 1101.101" required>
+                        </label>
+                        <label>
+                            源进制
+                            <select name="from_base">
+                                <option value="10" selected>10</option>
+                                <option value="2">2</option>
+                                <option value="16">16</option>
+                            </select>
+                        </label>
+                        <label>
+                            目标进制
+                            <select name="to_base">
+                                <option value="2" selected>2</option>
+                                <option value="10">10</option>
+                                <option value="16">16</option>
+                            </select>
+                        </label>
+                        <label>
+                            小数精度
+                            <input type="number" name="precision" value="8" min="1" max="32">
+                        </label>
+                    </div>
+                    <button type="submit">开始转换</button>
+                </form>
+                <div class="usage-info">
+                    <h4>使用说明</h4>
+                    <ul>
+                        <li><strong>数值</strong>：输入待转换的数，支持整数、小数、负数。二进制只能含 0/1，十六进制含 0-9/a-f/A-F。</li>
+                        <li><strong>源进制 / 目标进制</strong>：选择 2、10 或 16。二 ↔ 十六会展示 4 位分组补零过程。</li>
+                        <li><strong>小数精度</strong>：仅在 10 → 2/16 且输入含小数时生效，表示保留的小数位数。</li>
+                        <li>示例：13.625（10→2）= 1101.101；1101.101（2→10）= 13.625；6B.A（16→2）= 01101011.1010。</li>
+                    </ul>
+                </div>
+                <div class="result" id="result-base"></div>
+            </div>
+        </section>
+
+        <!-- 机器码 -->
+        <section id="tab-machine" class="tab-content">
+            <div class="panel">
+                <h2>机器码表示</h2>
+                <form id="form-machine">
+                    <div class="form-row">
+                        <label>
+                            真值
+                            <input type="text" name="value" placeholder="例如：-13 或 -0.625" required>
+                        </label>
+                        <label>
+                            位宽
+                            <input type="number" name="width" value="8" min="2" max="32">
+                        </label>
+                        <label class="checkbox-double-sign">
+                            <input type="checkbox" name="double_sign"> 双符号位（变形补码）
+                        </label>
+                    </div>
+                    <button type="submit">生成机器码</button>
+                </form>
+                <div class="usage-info">
+                    <h4>使用说明</h4>
+                    <ul>
+                        <li><strong>真值</strong>：输入十进制真值，如 -13、0.625、-0.625。含小数点会自动按纯小数处理。</li>
+                        <li><strong>位宽</strong>：总位数（含符号位）。8 位单符号位整数范围 [-128, 127]；纯小数范围 (-1, 1)。</li>
+                        <li><strong>双符号位</strong>：使用变形补码（2 位符号 + n-2 位数值），便于判断溢出。</li>
+                        <li>输出包含原码、反码、补码、移码四步可视化。</li>
+                    </ul>
+                </div>
+                <div class="result" id="result-machine"></div>
+            </div>
+        </section>
+
+        <!-- 定点补码运算 -->
+        <section id="tab-fixed" class="tab-content">
+            <div class="panel">
+                <h2>定点补码加减法</h2>
+                <form id="form-fixed">
+                    <div class="form-row">
+                        <label>
+                            x
+                            <input type="text" name="x" placeholder="例如：0.1101 或 13" required>
+                        </label>
+                        <label>
+                            y
+                            <input type="text" name="y" placeholder="例如：-0.1011 或 -5" required>
+                        </label>
+                        <label>
+                            位宽
+                            <input type="number" name="width" value="8" min="2" max="32">
+                        </label>
+                        <label>
+                            运算
+                            <select name="operation">
+                                <option value="add">加法</option>
+                                <option value="sub">减法</option>
+                            </select>
+                        </label>
+                        <label class="checkbox-double-sign">
+                            <input type="checkbox" name="double_sign"> 双符号位
+                        </label>
+                    </div>
+                    <button type="submit">计算</button>
+                </form>
+                <div class="usage-info">
+                    <h4>使用说明</h4>
+                    <ul>
+                        <li><strong>x、y</strong>：输入十进制操作数，支持整数和纯小数。减法会自动转换为 x + (-y)。</li>
+                        <li><strong>位宽</strong>：总位数。若结果超出表示范围，会提示溢出。</li>
+                        <li><strong>双符号位</strong>：使用变形补码判断溢出，溢出时结果符号位为 01（正溢）或 10（负溢）。</li>
+                        <li>结果会展示 [x]补、[y]补、[-y]补、运算结果、溢出判断及真值。</li>
+                    </ul>
+                </div>
+                <div class="result" id="result-fixed"></div>
+            </div>
+        </section>
+
+        <!-- 浮点加减 -->
+        <section id="tab-float" class="tab-content">
+            <div class="panel">
+                <h2>浮点数加减法</h2>
+                <form id="form-float">
+                    <div class="form-row">
+                        <label>
+                            x 尾数
+                            <input type="text" name="x_mantissa" placeholder="+0.110101" required>
+                        </label>
+                        <label>
+                            x 阶码
+                            <input type="text" name="x_exponent" placeholder="+0011" required>
+                        </label>
+                        <label>
+                            y 尾数
+                            <input type="text" name="y_mantissa" placeholder="-0.111010" required>
+                        </label>
+                        <label>
+                            y 阶码
+                            <input type="text" name="y_exponent" placeholder="+0010" required>
+                        </label>
+                        <label>
+                            运算
+                            <select name="operation">
+                                <option value="add">加法</option>
+                                <option value="sub">减法</option>
+                            </select>
+                        </label>
+                        <label>
+                            阶码位宽
+                            <input type="number" name="exponent_width" value="6" min="3" max="16">
+                        </label>
+                        <label>
+                            尾数位数
+                            <input type="number" name="mantissa_width" value="7" min="3" max="32">
+                        </label>
+                    </div>
+                    <button type="submit">计算</button>
+                </form>
+                <div class="usage-info">
+                    <h4>使用说明</h4>
+                    <ul>
+                        <li><strong>尾数</strong>：带符号的二进制规格化小数，格式为 <code>+0.xxxxx</code> 或 <code>-0.xxxxx</code>。</li>
+                        <li><strong>阶码</strong>：带符号的整数或二进制串，如 <code>+3</code>、<code>-2</code>、<code>+0011</code>。</li>
+                        <li><strong>阶码位宽</strong>：阶码总位数，采用<strong>双符号位补码（变形补码）</strong>。</li>
+                        <li><strong>尾数位数</strong>：尾数总位数（含 1 位符号位），采用<strong>单符号位补码</strong>。</li>
+                        <li>计算流程：对阶 → 尾数加减 → 规格化 → 舍入 → 判溢出。</li>
+                        <li>默认示例即 PDF 例 2.28：x=+0.110101×2³，y=-0.111010×2²，相加结果为 +0.110000×2²。</li>
+                    </ul>
+                </div>
+                <div class="result" id="result-float"></div>
+            </div>
+        </section>
+
+        <!-- 浮点转换 (IEEE 754) -->
+        <section id="tab-ieee754" class="tab-content">
+            <div class="panel">
+                <h2>IEEE 754 浮点转换</h2>
+                <form id="form-ieee754">
+                    <div class="form-row">
+                        <label>
+                            输入
+                            <input type="text" name="value" placeholder="十进制数 或 二进制串" required>
+                        </label>
+                        <label>
+                            精度
+                            <select name="precision">
+                                <option value="float32" selected>单精度 float32 (32 位)</option>
+                                <option value="float64">双精度 float64 (64 位)</option>
+                            </select>
+                        </label>
+                        <label>
+                            方向
+                            <select name="direction">
+                                <option value="to_ieee" selected>十进制 → IEEE 754</option>
+                                <option value="to_decimal">IEEE 754 二进制 → 十进制</option>
+                            </select>
+                        </label>
+                    </div>
+                    <button type="submit">转换</button>
+                </form>
+                <div class="usage-info">
+                    <h4>使用说明</h4>
+                    <ul>
+                        <li><strong>十进制 → IEEE 754</strong>：输入十进制数（支持整数、小数、负数），输出符号位、阶码、尾数及十六进制表示。</li>
+                        <li><strong>IEEE 754 二进制 → 十进制</strong>：输入完整二进制串（32 位或 64 位），输出真值。</li>
+                        <li><strong>单精度 float32</strong>：1 位符号 + 8 位阶码 + 23 位尾数，偏置值 127。</li>
+                        <li><strong>双精度 float64</strong>：1 位符号 + 11 位阶码 + 52 位尾数，偏置值 1023。</li>
+                        <li>示例：13.625（float32）= 0x41540000 = 0 10000010 10110000000000000000000。</li>
+                    </ul>
+                </div>
+                <div class="result" id="result-ieee754"></div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>辅助计组计算题学习 · 结果仅供参考，请结合教材核对</p>
+    </footer>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>

@@ -4,6 +4,7 @@
 
 ## 📢 最新更新
 
+- 🆕 **base-converter**: 计组计算题可视化学习工具（进制转换 · 机器码 · 定点/浮点运算 · Web 界面）
 - 🔧 **Merge**: `this` / `exc` / `c` / `ana`（tree-sitter 详细语法分析，默认关）、`.gitignore`
 - 🆕 **factory-balance**: 异星工厂自平衡布局计算器（**v2 六阶段流水线** · SBTO · Vue 图形界面，含 Space Age）
 - 🔧 **架构**: 分层模块（`session`、`scope_rules`、`exc_handlers` 等），详见 [tools/merge/README.md](tools/merge/README.md)
@@ -42,6 +43,11 @@ source .venv/bin/activate
 RLEazyTool/
 ├── .venv/                      # Python 虚拟环境（已忽略）
 ├── tools/
+│   ├── base-converter/         # 计组计算题可视化工具 → README.md
+│   │   ├── base-converter.bat
+│   │   ├── backend/
+│   │   ├── frontend/
+│   │   └── tests/
 │   ├── merge/                  # 代码合并工具 → 完整说明见 README.md
 │   │   ├── README.md           # merge 使用与架构说明
 │   │   ├── main.py             # 入口
@@ -141,6 +147,20 @@ RLEazyTool/
 
 - 双击 `tools/factory-balance/balance.bat` 启动（首次自动创建 `tools/factory-balance/.venv`）
 - 完整说明见 📖 **[tools/factory-balance/README.md](tools/factory-balance/README.md)** · 设计规范 **[PIPELINE_DESIGN_V2.md](tools/factory-balance/docs/PIPELINE_DESIGN_V2.md)**
+
+### 3. base-converter —— 计组计算题可视化工具
+
+面向《计算机组成与结构》复习的计算题可视化工具，覆盖复习大纲第二章核心考点：
+
+- 十进制 ↔ 二进制 ↔ 十六进制（整数 / 小数）
+- 原码、反码、补码、移码、双符号位变形补码
+- 定点补码加减法与溢出判断
+- 浮点数加减法（对阶、尾数运算、规格化、舍入、判溢出）
+
+采用 **FastAPI 后端 + 单页 Web 前端** 架构，后端按 `domain / application / api` 分层，便于扩展更多计组考点。
+
+- 双击 `tools/base-converter/base-converter.bat` 启动（首次自动创建 `tools/base-converter/.venv` 并安装依赖）
+- 完整说明见 📖 **[tools/base-converter/README.md](tools/base-converter/README.md)**
 
 ## 贡献与反馈
 
